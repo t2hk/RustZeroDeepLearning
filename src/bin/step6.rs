@@ -18,7 +18,7 @@ struct Variable {
 impl Variable {
     /// Variable のコンストラクタ。
     ///
-    /// # Argumemnts
+    /// # Arguments
     /// * data - 変数
     /// * grad - data を微分した値
     fn new(data: Array<f64, IxDyn>) -> Variable {
