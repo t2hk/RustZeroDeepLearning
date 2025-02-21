@@ -50,4 +50,31 @@ fn main() {
             println!("unknow paret.");
         }
     };
+
+    // 親を繰り返し辿る。
+    let mut current_person = person_4th.clone();
+    loop {
+        let parent = {
+            if let Some(weak_parent) = &current_person.borrow().parent {
+                if let Some(strong_parent) = weak_parent.upgrade() {
+                    println!(
+                        "{:?}'s parent name: {:?}",
+                        &current_person.borrow().name,
+                        strong_parent.borrow().name
+                    );
+                    Some(strong_parent)
+                } else {
+                    println!("unknown parent.");
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        match parent {
+            Some(strong_parent) => current_person = strong_parent,
+            None => break,
+        }
+    }
 }
