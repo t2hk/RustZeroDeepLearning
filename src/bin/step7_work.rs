@@ -50,7 +50,7 @@ trait Function {
     ///
     /// Returns
     /// * Option<Parameters>: 入力値、出力値
-    fn get_parameters(&self) -> Option<&Parameters>;
+    fn get_parameters(&self) -> Option<&FunctionParameters>;
 
     /// 順伝播
     /// 通常の計算を行う順伝播。継承して実装すること。
@@ -79,19 +79,19 @@ trait Function {
 /// * input (Option<Weak<RefCell<Variable>>>): 入力値
 /// * output (Option<Weak<RefCell<Variable>>>): 出力値
 #[derive(Debug, Clone)]
-struct Parameters {
+struct FunctionParameters {
     input: Option<Weak<RefCell<Variable>>>,
     output: Option<Weak<RefCell<Variable>>>,
 }
-impl Parameters {
+impl FunctionParameters {
     /// コンストラクタ
     /// 入力値、出力値を設定する。
     ///
     /// Arguments
     /// * input (Rc<RefCell<Variable>>): 入力値
     /// * output (Rc<RefCell<Variable>>): 出力値
-    fn new(input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) -> Parameters {
-        Parameters {
+    fn new(input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) -> FunctionParameters {
+        FunctionParameters {
             input: Some(Rc::downgrade(&input)),
             output: Some(Rc::downgrade(&output)),
         }
@@ -150,14 +150,14 @@ impl Parameters {
 /// 二乗する。
 #[derive(Debug, Clone)]
 struct Square {
-    parameters: Option<Parameters>,
+    parameters: Option<FunctionParameters>,
 }
 
 impl Function for Square {
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) {
-        self.parameters = Some(Parameters::new(input.clone(), output.clone()));
+        self.parameters = Some(FunctionParameters::new(input.clone(), output.clone()));
     }
-    fn get_parameters(&self) -> Option<&Parameters> {
+    fn get_parameters(&self) -> Option<&FunctionParameters> {
         match &self.parameters {
             Some(parameters) => Some(&parameters),
             None => None,
