@@ -275,3 +275,81 @@ fn main() {
     println!("y: {:?}, x.grad: {:?}", y.borrow().data, x.borrow().grad);
     c_square.print();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn test_square_forward() {
+        let square = Square { parameters: None };
+        let x = array![2.0].into_dyn();
+        let y = square.forward(&x);
+        assert_eq!(y, array![4.0].into_dyn());
+    }
+
+    #[test]
+    fn test_square_backward() {
+        let mut square = Square { parameters: None };
+        let x = Rc::new(RefCell::new(Variable::new(array![2.0].into_dyn())));
+        let y = Rc::new(RefCell::new(Variable::new(array![4.0].into_dyn())));
+        square.set_parameters(x.clone(), y.clone());
+
+        let gy = array![1.0].into_dyn();
+        let gx = square.backward(&gy);
+        assert_eq!(gx, array![4.0].into_dyn());
+    }
+
+    #[test]
+    fn test_exp_forward() {
+        let exp = Exp { parameters: None };
+        let x = array![1.0].into_dyn();
+        let y = exp.forward(&x);
+        assert_eq!(y, array![std::f64::consts::E].into_dyn());
+    }
+
+    #[test]
+    fn test_exp_backward() {
+        let mut exp = Exp { parameters: None };
+        let x = Rc::new(RefCell::new(Variable::new(array![1.0].into_dyn())));
+        let y = Rc::new(RefCell::new(Variable::new(
+            array![std::f64::consts::E].into_dyn(),
+        )));
+        exp.set_parameters(x.clone(), y.clone());
+
+        let gy = array![1.0].into_dyn();
+        let gx = exp.backward(&gy);
+        assert_eq!(gx, array![std::f64::consts::E].into_dyn());
+    }
+
+    #[test]
+    fn test_chain() {
+        let mut a_square = Square { parameters: None };
+        let mut b_exp = Exp { parameters: None };
+        let mut c_square = Square { parameters: None };
+
+        let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
+            IxDyn(&[]),
+            0.5,
+        ))));
+
+        let a = a_square.call(&x.borrow(), Rc::new(RefCell::new(a_square.clone())));
+        let b = b_exp.call(&a.borrow(), Rc::new(RefCell::new(b_exp.clone())));
+        let y = c_square.call(&b.borrow(), Rc::new(RefCell::new(c_square.clone())));
+
+        y.borrow_mut().grad = Some(Array::from_elem(IxDyn(&[]), 1.0));
+        b.borrow_mut().grad = Some(c_square.backward(y.borrow().grad.as_ref().unwrap()));
+        a.borrow_mut().grad = Some(b_exp.backward(b.borrow().grad.as_ref().unwrap()));
+        x.borrow_mut().grad = Some(a_square.backward(a.borrow().grad.as_ref().unwrap()));
+
+        assert_eq!(
+            y.borrow().data,
+            Array::from_elem(IxDyn(&[]), 1.648721270700128)
+        );
+        assert_eq!(
+            x.borrow().grad,
+            Some(Array::from_elem(IxDyn(&[]), 3.297442541400256))
+        );
+    }
+}
