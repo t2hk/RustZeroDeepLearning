@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 ndarray = "0.16.1"
+
+[profile.dev]
+opt-level = 0
