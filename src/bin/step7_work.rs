@@ -1,4 +1,5 @@
 use ndarray::{Array, IxDyn};
+use std::any::Any;
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -10,7 +11,7 @@ use std::rc::{Rc, Weak};
 struct Variable {
     data: Array<f64, IxDyn>,
     grad: Option<Array<f64, IxDyn>>,
-    creator: Option<Weak<RefCell<dyn Function>>>,
+    creator: Option<Rc<RefCell<dyn Function>>>,
 }
 
 impl Variable {
@@ -31,13 +32,16 @@ impl Variable {
     /// # Arguments
     /// * creator - 生成元の関数
     fn set_creator(&mut self, creator: Rc<RefCell<dyn Function>>) {
-        self.creator = Some(Rc::downgrade(&creator));
+        // self.creator = Some(Rc::downgrade(&creator));
+        self.creator = Some(Rc::clone(&creator));
     }
 }
 
 /// Function トレイト
 /// Variable を入力し、処理を実行して結果を Variable で返却する。
-trait Function {
+trait Function: Any + std::fmt::Debug {
+    fn as_any(&self) -> &dyn Any;
+
     /// 入力値、出力値を設定する。
     ///
     /// Arguments
@@ -173,6 +177,9 @@ struct Square {
 }
 
 impl Function for Square {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     // 関数の入出力値のセッター
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) {
         self.parameters = Some(FunctionParameters::new(input.clone(), output.clone()));
@@ -215,6 +222,9 @@ struct Exp {
     parameters: Option<FunctionParameters>,
 }
 impl Function for Exp {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
     // 関数の入出力値のセッター
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) {
         self.parameters = Some(FunctionParameters::new(input.clone(), output.clone()));
@@ -269,11 +279,11 @@ fn main() {
     a.borrow_mut().grad = Some(b_exp.backward(b.borrow().grad.as_ref().unwrap()));
     x.borrow_mut().grad = Some(a_square.backward(a.borrow().grad.as_ref().unwrap()));
 
-    dbg!(&y);
-    dbg!(&x.borrow().grad);
-
     println!("y: {:?}, x.grad: {:?}", y.borrow().data, x.borrow().grad);
-    c_square.print();
+
+    dbg!(y.borrow().creator.as_ref().unwrap());
+    dbg!(b.borrow().creator.as_ref().unwrap());
+    dbg!(a.borrow().creator.as_ref().unwrap());
 }
 
 #[cfg(test)]
@@ -351,5 +361,37 @@ mod tests {
             x.borrow().grad,
             Some(Array::from_elem(IxDyn(&[]), 3.297442541400256))
         );
+
+        // a, b, y の creator が正しいか確認する
+        {
+            let creator = y.borrow().creator.as_ref().unwrap().clone();
+            let creator_borrowed = creator.borrow();
+            if let Some(_) = creator_borrowed.as_any().downcast_ref::<Square>() {
+                // OK
+                assert!(true);
+            } else {
+                panic!("y's creator is not Square");
+            }
+        }
+
+        {
+            let creator = b.borrow().creator.as_ref().unwrap().clone();
+            let creator_borrowed = creator.borrow();
+            if let Some(_) = creator_borrowed.as_any().downcast_ref::<Exp>() {
+                assert!(true);
+            } else {
+                panic!("b's creator is not Exp");
+            }
+        }
+
+        {
+            let creator = a.borrow().creator.as_ref().unwrap().clone();
+            let creator_borrowed = creator.borrow();
+            if let Some(_) = creator_borrowed.as_any().downcast_ref::<Square>() {
+                assert!(true);
+            } else {
+                panic!("a's creator is not Square");
+            }
+        }
     }
 }
