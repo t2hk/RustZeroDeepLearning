@@ -261,23 +261,39 @@ impl Function for Exp {
 }
 
 fn main() {
-    let mut a_square = Square { parameters: None };
-    let mut b_exp = Exp { parameters: None };
-    let mut c_square = Square { parameters: None };
+    let a_square: Rc<RefCell<dyn Function>> = Rc::new(RefCell::new(Square { parameters: None }));
+    let b_exp: Rc<RefCell<dyn Function>> = Rc::new(RefCell::new(Exp { parameters: None }));
+    let c_square: Rc<RefCell<dyn Function>> = Rc::new(RefCell::new(Square { parameters: None }));
+
+    // let mut a_square = Square { parameters: None };
+    // let mut b_exp = Exp { parameters: None };
+    // let mut c_square = Square { parameters: None };
 
     let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
         IxDyn(&[]),
         0.5,
     ))));
 
-    let a = a_square.call(&x.borrow(), Rc::new(RefCell::new(a_square.clone())));
-    let b = b_exp.call(&a.borrow(), Rc::new(RefCell::new(b_exp.clone())));
-    let y = c_square.call(&b.borrow(), Rc::new(RefCell::new(c_square.clone())));
+    let a = a_square.borrow_mut().call(&x.borrow(), a_square.clone());
+    let b = b_exp.borrow_mut().call(&a.borrow(), b_exp.clone());
+    let y = c_square.borrow_mut().call(&b.borrow(), c_square.clone());
 
     y.borrow_mut().grad = Some(Array::from_elem(IxDyn(&[]), 1.0));
-    b.borrow_mut().grad = Some(c_square.backward(y.borrow().grad.as_ref().unwrap()));
-    a.borrow_mut().grad = Some(b_exp.backward(b.borrow().grad.as_ref().unwrap()));
-    x.borrow_mut().grad = Some(a_square.backward(a.borrow().grad.as_ref().unwrap()));
+    b.borrow_mut().grad = Some(
+        c_square
+            .borrow_mut()
+            .backward(y.borrow().grad.as_ref().unwrap()),
+    );
+    a.borrow_mut().grad = Some(
+        b_exp
+            .borrow_mut()
+            .backward(b.borrow().grad.as_ref().unwrap()),
+    );
+    x.borrow_mut().grad = Some(
+        a_square
+            .borrow_mut()
+            .backward(a.borrow().grad.as_ref().unwrap()),
+    );
 
     println!("y: {:?}, x.grad: {:?}", y.borrow().data, x.borrow().grad);
 
