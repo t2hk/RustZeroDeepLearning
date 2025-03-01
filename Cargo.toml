@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-ndarray = "0.16.1"
+ndarray = { version = "0.16.*", features = ["approx"] }
+approx = {version = "0.5.*"}
+num-complex = { version = "0.4.*" }
+rand = {version = "0.9.*"}
 
 [profile.dev]
 opt-level = 0
