@@ -302,6 +302,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
     /// 二乗の順伝播テスト
