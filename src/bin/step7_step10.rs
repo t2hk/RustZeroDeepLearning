@@ -36,6 +36,8 @@ impl Variable {
 }
 
 /// 関数の入出力値を持つ構造体
+/// * input (Option<Rc<RefCell<Variable>>>): 入力値
+/// * output (Option<Rc<RefCell<Variable>>>): 出力値
 #[derive(Debug, Clone)]
 struct FunctionParameters {
     input: Option<Rc<RefCell<Variable>>>,
@@ -50,8 +52,10 @@ impl FunctionParameters {
     /// * output (Rc<RefCell<Variable>>): 出力値
     fn new(input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) -> FunctionParameters {
         FunctionParameters {
-            input: Some(input.clone()),
-            output: Some(output.clone()),
+            // input: Some(input.clone()),
+            // output: Some(output.clone()),
+            input: Some(input),
+            output: Some(output),
         }
     }
 
@@ -62,11 +66,35 @@ impl FunctionParameters {
     fn set_input_grad(&mut self, grad: Array<f64, IxDyn>) {
         self.input.as_mut().unwrap().borrow_mut().grad = Some(grad);
     }
+
+    /// 関数の入力値を取得する。
+    ///
+    /// Return
+    /// * Option<Rc<RefCell<Variable>>>: 入力値
+    fn get_input(&self) -> Option<Rc<RefCell<Variable>>> {
+        if let Some(input) = &self.input {
+            Some(Rc::clone(input))
+        } else {
+            None
+        }
+    }
+
+    /// 関数の出力値を取得する。
+    ///
+    /// Return
+    /// * Option<Rc<RefCell<Variable>>>: 出力値
+    fn get_output(&self) -> Option<Rc<RefCell<Variable>>> {
+        if let Some(output) = &self.output {
+            Some(Rc::clone(output))
+        } else {
+            None
+        }
+    }
 }
 
 trait Function: std::fmt::Debug {
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>);
-    fn get_parameters(&mut self) -> Option<&mut FunctionParameters>;
+    fn get_parameters(&self) -> Option<Rc<RefCell<FunctionParameters>>>;
 
     /// 順伝播
     /// 通常の計算を行う順伝播。継承して実装すること。
@@ -76,7 +104,8 @@ trait Function: std::fmt::Debug {
     ///
     /// Returns
     /// * Array<f64, IxDyn>: 出力値
-    fn forward(&self, x: &Array<f64, IxDyn>) -> Array<f64, IxDyn>;
+    // fn forward(&self, x: &Array<f64, IxDyn>) -> Array<f64, IxDyn>;
+    fn forward(&self, x: Array<f64, IxDyn>) -> Array<f64, IxDyn>;
 
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
@@ -91,7 +120,7 @@ trait Function: std::fmt::Debug {
     fn call(&mut self, input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
         // 関数を実行する。
         let y = Rc::new(RefCell::new(Variable::new(
-            self.forward(&input.borrow().data),
+            self.forward(Rc::clone(&input).borrow().data.clone()),
         )));
 
         // 関数の入力、出力を設定する。
@@ -103,19 +132,26 @@ trait Function: std::fmt::Debug {
 
 #[derive(Debug, Clone)]
 struct Square {
-    parameters: Option<FunctionParameters>,
+    parameters: Option<Rc<RefCell<FunctionParameters>>>,
 }
 
 impl Function for Square {
+    // 関数の入出力値のセッター
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) {
-        self.parameters = Some(FunctionParameters::new(input, output));
+        self.parameters = Some(Rc::new(RefCell::new(FunctionParameters::new(
+            input, output,
+        ))));
     }
-    fn get_parameters(&mut self) -> Option<&mut FunctionParameters> {
-        self.parameters.as_mut()
+    fn get_parameters(&self) -> Option<Rc<RefCell<FunctionParameters>>> {
+        if let Some(params) = &self.parameters {
+            Some(Rc::clone(params))
+        } else {
+            None
+        }
     }
 
     /// 順伝播
-    fn forward(&self, x: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
+    fn forward(&self, x: Array<f64, IxDyn>) -> Array<f64, IxDyn> {
         let result = x.mapv(|x| x.powi(2));
         dbg!(&result);
         result
@@ -124,36 +160,38 @@ impl Function for Square {
     /// 逆伝播
     /// y=x^2 の微分であるため、dy/dx=2x である。
     fn backward(&self, gy: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
-        let x = &self
-            .parameters
-            .clone()
-            .unwrap()
-            .input
-            .unwrap()
-            .borrow()
-            .data
-            .clone();
-        let gx = 2.0 * x * gy;
-        gx
+        if let Some(input) = &self.parameters.as_ref().unwrap().borrow().get_input() {
+            let x = input.borrow().data.clone();
+            let gx = 2.0 * x * gy;
+            gx
+        } else {
+            panic!("Error: Forward propagation must be performed in advance.");
+        }
     }
 }
 
 /// Exp 関数
 #[derive(Debug, Clone)]
 struct Exp {
-    parameters: Option<FunctionParameters>,
+    parameters: Option<Rc<RefCell<FunctionParameters>>>,
 }
 impl Function for Exp {
     // 関数の入出力値のセッター
     fn set_parameters(&mut self, input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) {
-        self.parameters = Some(FunctionParameters::new(input, output));
+        self.parameters = Some(Rc::new(RefCell::new(FunctionParameters::new(
+            input, output,
+        ))));
     }
-    fn get_parameters(&mut self) -> Option<&mut FunctionParameters> {
-        self.parameters.as_mut()
+    fn get_parameters(&self) -> Option<Rc<RefCell<FunctionParameters>>> {
+        if let Some(params) = &self.parameters {
+            Some(Rc::clone(params))
+        } else {
+            None
+        }
     }
 
     // Exp (y=e^x) の順伝播
-    fn forward(&self, x: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
+    fn forward(&self, x: Array<f64, IxDyn>) -> Array<f64, IxDyn> {
         let e = std::f64::consts::E;
         x.mapv(|x| e.powf(x))
     }
@@ -161,18 +199,14 @@ impl Function for Exp {
     /// 逆伝播
     /// dy/dx=e^x である。
     fn backward(&self, gy: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
-        let x = &self
-            .parameters
-            .clone()
-            .unwrap()
-            .input
-            .unwrap()
-            .borrow()
-            .data
-            .clone();
-        let e = std::f64::consts::E;
-        let gx = x.mapv(|x| e.powf(x)) * gy;
-        gx
+        if let Some(input) = &self.parameters.as_ref().unwrap().borrow().get_input() {
+            let x = input.borrow().data.clone();
+            let e = std::f64::consts::E;
+            let gx = x.mapv(|x| e.powf(x)) * gy;
+            gx
+        } else {
+            panic!("Error: Forward propagation must be performed in advance.");
+        }
     }
 }
 
@@ -199,7 +233,7 @@ impl Functions {
     /// Arguments
     /// * input (Rc<RefCell<Variable>>): 入力値
     fn foward(&mut self, input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
-        let mut output = input.clone();
+        let mut output = Rc::clone(&input); //input.clone();
         for function in self.functions.iter_mut() {
             output = function.call(output);
         }
@@ -208,17 +242,19 @@ impl Functions {
         output
     }
 
+    /// 合成関数の逆伝播
+    /// 事前に順伝播を実行している必要がある。
     fn backward(&mut self) {
-        if let Some(output) = self.result.clone() {
+        if let Some(output) = self.result.as_mut() {
             let mut grad = Array::from_elem(IxDyn(&[]), 1.0);
             output.borrow_mut().grad = Some(grad.clone());
             for function in self.functions.iter_mut().rev() {
-                // function.backward(output.borrow().grad.as_ref().unwrap());
                 grad = function.backward(&grad);
-                // output.borrow_mut().grad = Some(grad.clone());
+
                 function
                     .get_parameters()
                     .unwrap()
+                    .borrow_mut()
                     .set_input_grad(grad.clone());
             }
         } else {
@@ -270,13 +306,14 @@ fn main() {
     functions.push(c_square);
 
     // 順伝播
-    let output = functions.foward(x.clone());
+    let output = functions.foward(Rc::clone(&x));
 
     // 逆伝播
     functions.backward();
 
     dbg!(functions);
     dbg!(output.clone());
+    dbg!(x.clone());
 
     /*
     let a = a_square.call(x.clone());
@@ -363,6 +400,7 @@ mod tests {
         let expected_grad = functions.functions[0]
             .get_parameters()
             .unwrap()
+            .borrow()
             .input
             .as_ref()
             .unwrap()
