@@ -52,8 +52,6 @@ impl FunctionParameters {
     /// * output (Rc<RefCell<Variable>>): 出力値
     fn new(input: Rc<RefCell<Variable>>, output: Rc<RefCell<Variable>>) -> FunctionParameters {
         FunctionParameters {
-            // input: Some(input.clone()),
-            // output: Some(output.clone()),
             input: Some(input),
             output: Some(output),
         }
@@ -153,7 +151,7 @@ impl Function for Square {
     /// 順伝播
     fn forward(&self, x: Array<f64, IxDyn>) -> Array<f64, IxDyn> {
         let result = x.mapv(|x| x.powi(2));
-        dbg!(&result);
+        // dbg!(&result);
         result
     }
 
@@ -287,7 +285,48 @@ fn numerical_diff<F: Function>(mut f: F, x: Variable, eps: f64) -> Array<f64, Ix
     result
 }
 
+fn perform() {
+    let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
+        IxDyn(&[]),
+        0.5,
+    ))));
+
+    let a_square = Box::new(Square { parameters: None });
+    let b_exp = Box::new(Exp { parameters: None });
+    let c_square = Box::new(Square { parameters: None });
+
+    let mut functions: Functions = Functions {
+        functions: vec![],
+        result: None,
+    };
+    functions.push(a_square);
+    functions.push(b_exp);
+    functions.push(c_square);
+
+    // 順伝播
+    functions.foward(Rc::clone(&x));
+
+    // 逆伝播
+    functions.backward();
+}
+
+fn loop_perform() {
+    use std::time::Instant;
+
+    let start = Instant::now();
+
+    for _ in 0..10000 {
+        perform();
+    }
+
+    let duration = start.elapsed();
+    let execution_time = duration.as_millis();
+    println!("thread_control execution time: {}ms", execution_time);
+}
+
 fn main() {
+    loop_perform();
+
     let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
         IxDyn(&[]),
         0.5,
