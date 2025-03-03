@@ -1,4 +1,4 @@
-//! ステップ12 可変長の引数(改善編)
+//! ステップ13 可変長の引数(逆伝播編)
 //!
 //! 順伝播について、可変長の引数に対応し、加算関数を追加した。
 //! 逆伝播については一時的にコメントアウトしている (ステップ13 で対応予定)。
@@ -671,31 +671,6 @@ mod tests {
         let outputs = funcs.foward(vec![x1, x2]);
         dbg!(funcs);
         assert_eq!(expected, outputs[0].borrow().data);
-    }
-
-    /// 二乗と Exp の合成関数のテスト。
-    #[test]
-    fn add_and_square_simple() {
-        let mut rng = rand::rng();
-
-        let rand_x1 = rng.random::<f64>();
-        let rand_x2 = rng.random::<f64>();
-
-        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
-        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
-
-        // x1^2 + x2^2
-        let expected1 = Array::from_elem(IxDyn(&[]), (rand_x1 + rand_x2) * (rand_x1 + rand_x2));
-
-        let result1 = square(add(x1.clone(), x2.clone()));
-        assert_eq!(expected1, result1.borrow().data);
-        println!("expected_1: {:?}, result_1: {:?}", expected1, result1);
-
-        // x1^2 + x2^2
-        let expected2 = Array::from_elem(IxDyn(&[]), (rand_x1 * rand_x1) + (rand_x2 * rand_x2));
-        let result2 = add(square(x1.clone()), square(x2.clone()));
-        assert_eq!(expected2, result2.borrow().data);
-        println!("expected_2: {:?}, result_2: {:?}", expected2, result2);
     }
 
     //
