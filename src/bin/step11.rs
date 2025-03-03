@@ -24,13 +24,39 @@ struct Variable {
     grad: Option<Array<f64, IxDyn>>,
 }
 
+/// Variable 構造体を生成するためのトレイト
+/// * create_variable: Variable 構造体を生成する
+trait CreateVariable {
+    fn create_variable(&self) -> Variable;
+}
+
+/// CreateVariable トレイトの Array<f64, IxDyn> 用の実装
+impl CreateVariable for Array<f64, IxDyn> {
+    fn create_variable(&self) -> Variable {
+        Variable {
+            data: self.clone(),
+            grad: None,
+        }
+    }
+}
+
+/// CreateVariable トレイトの f64 用の実装
+impl CreateVariable for f64 {
+    fn create_variable(&self) -> Variable {
+        Variable {
+            data: Array::from_elem(IxDyn(&[]), *self),
+            grad: None,
+        }
+    }
+}
+
 impl Variable {
     /// Variable のコンストラクタ。
     ///
     /// # Arguments
-    /// * data - 変数
-    fn new(data: Array<f64, IxDyn>) -> Variable {
-        Variable { data, grad: None }
+    /// * data - 変数    
+    fn new<T: CreateVariable>(data: T) -> Variable {
+        CreateVariable::create_variable(&data)
     }
 }
 
@@ -386,10 +412,7 @@ fn numerical_diff<F: Function>(mut f: F, x: Variable, eps: f64) -> Array<f64, Ix
 }
 
 fn main() {
-    let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-        IxDyn(&[]),
-        0.5,
-    ))));
+    let x = Rc::new(RefCell::new(Variable::new(0.5)));
 
     let a_square = Box::new(Square { parameters: None });
     let b_exp = Box::new(Exp { parameters: None });
@@ -414,14 +437,8 @@ fn main() {
     dbg!(x.clone());
 
     // 加算の実行
-    let x1 = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-        IxDyn(&[]),
-        1.0,
-    ))));
-    let x2 = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-        IxDyn(&[]),
-        2.0,
-    ))));
+    let x1 = Rc::new(RefCell::new(Variable::new(1.0)));
+    let x2 = Rc::new(RefCell::new(Variable::new(2.0)));
 
     let add = Box::new(Add { parameters: None });
     let mut functions: Functions = Functions {
@@ -460,13 +477,30 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    #[test]
+    fn test_function_params() {
+        let inputs = vec![Rc::new(RefCell::new(Variable::new(2.0)))];
+        let outputs = vec![Rc::new(RefCell::new(Variable::new(3.0)))];
+
+        // dbg!(inputs.clone());
+        // dbg!(inputs.clone());
+
+        let funcparams = FunctionParameters::new(inputs.clone(), outputs);
+        let inputs_from_funcparams = funcparams.get_inputs();
+
+        let update_value = Array::from_elem(IxDyn(&[]), 99.0);
+        inputs[0].borrow_mut().data = update_value.clone(); //Array::from_elem(IxDyn(&[]), 99.0);
+
+        assert_eq!(
+            update_value,
+            inputs_from_funcparams.unwrap()[0].borrow().data
+        );
+    }
+
     /// 二乗の順伝播テスト
     #[test]
     fn test_square() {
-        let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-            IxDyn(&[]),
-            2.0,
-        ))));
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
         let mut square: Box<Square> = Box::new(Square { parameters: None });
         let y = square.call(vec![x]);
         let expected = Array::from_elem(IxDyn(&[]), 4.0);
@@ -476,10 +510,7 @@ mod tests {
     /// Exp 関数のテスト。
     #[test]
     fn test_exp() {
-        let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-            IxDyn(&[]),
-            2.0,
-        ))));
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
         let mut exp: Box<Exp> = Box::new(Exp { parameters: None });
 
         let ys = exp.call(vec![x]);
@@ -497,14 +528,8 @@ mod tests {
         let rand_x1 = rng.random::<f64>();
         let rand_x2 = rng.random::<f64>();
 
-        let x1 = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-            IxDyn(&[]),
-            rand_x1,
-        ))));
-        let x2 = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-            IxDyn(&[]),
-            rand_x2,
-        ))));
+        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
 
         let expected = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
 
