@@ -11,6 +11,7 @@
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
+use rand::random_iter;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -58,6 +59,11 @@ impl Variable {
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
     }
+
+    /// 微分を設定する。
+    fn set_grad(&mut self, grad: Array<f64, IxDyn>) {
+        self.grad = Some(grad);
+    }
 }
 
 /// 関数の入出力値を持つ構造体
@@ -101,16 +107,15 @@ impl FunctionParameters {
         }
     }
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
     /// 逆伝播で算出した微分値を設定する。
     ///
     /// Arguments
     /// * grad (Array<f64, IxDyn>): 微分値
-    // fn set_input_grad(&mut self, grad: Array<f64, IxDyn>) {
-    //   self.input.as_mut().unwrap().borrow_mut().grad = Some(grad);
-    // }
+    fn set_input_grad(&mut self, grad: Array<f64, IxDyn>) {
+        self.inputs.as_mut().unwrap().iter().for_each(|input| {
+            input.borrow_mut().set_grad(grad.clone());
+        });
+    }
 
     /// 関数の入力値を取得する。
     ///
@@ -155,18 +160,15 @@ trait Function: std::fmt::Debug {
     /// * Vec<Array<f64, IxDyn>>: 出力値
     fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>>;
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
     ///
     /// Arguments
-    /// * gy (Array<f64, IxDyn>): 出力値に対する微分値
+    /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
     ///
     /// Returns
-    /// * Array<f64, IxDyn>: 入力値に対する微分値
-    /// fn backward(&self, gy: &Array<f64, IxDyn>) -> Array<f64, IxDyn>;
+    /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
+    fn backward(&self, gys: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>>;
 
     fn call(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<Variable>>> {
         // 入力値からデータを取り出す。
@@ -223,20 +225,17 @@ impl Function for Square {
         result
     }
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
-    // 逆伝播
-    // y=x^2 の微分であるため、dy/dx=2x である。
-    // fn backward(&self, gy: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
-    //     if let Some(input) = &self.parameters.as_ref().unwrap().borrow().get_input() {
-    //         let x = input.borrow().data.clone();
-    //         let gx = 2.0 * x * gy;
-    //         gx
-    //     } else {
-    //         panic!("Error: Forward propagation must be performed in advance.");
-    //     }
-    // }
+    /// 逆伝播
+    /// y=x^2 の微分であるため、dy/dx=2x である。
+    fn backward(&self, gys: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+        if let Some(inputs) = &self.parameters.as_ref().unwrap().borrow().get_inputs() {
+            let x = inputs[0].borrow().data.clone();
+            let gxs = vec![2.0 * x * gys[0].clone()];
+            gxs
+        } else {
+            panic!("Error: Forward propagation must be performed in advance.");
+        }
+    }
 }
 
 /// 二乗関数
@@ -284,21 +283,18 @@ impl Function for Exp {
         result
     }
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
-    // 逆伝播
-    // dy/dx=e^x である。
-    //   fn backward(&self, gy: &Array<f64, IxDyn>) -> Array<f64, IxDyn> {
-    //     if let Some(input) = &self.parameters.as_ref().unwrap().borrow().get_input() {
-    //         let x = input.borrow().data.clone();
-    //         let e = std::f64::consts::E;
-    //         let gx = x.mapv(|x| e.powf(x)) * gy;
-    //         gx
-    //     } else {
-    //         panic!("Error: Forward propagation must be performed in advance.");
-    //     }
-    // }
+    /// 逆伝播
+    /// dy/dx=e^x である。
+    fn backward(&self, gys: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+        if let Some(inputs) = &self.parameters.as_ref().unwrap().borrow().get_inputs() {
+            let x = inputs[0].borrow().data.clone();
+            let e = std::f64::consts::E;
+            let gxs = vec![x.mapv(|x| e.powf(x)) * gys[0].clone()];
+            gxs
+        } else {
+            panic!("Error: Forward propagation must be performed in advance.");
+        }
+    }
 }
 
 /// Exp 関数
@@ -342,6 +338,12 @@ impl Function for Add {
         let result = vec![&xs[0] + &xs[1]];
         //dpg!(result);
         result
+    }
+
+    /// 逆伝播
+    /// y=x0+x1 の微分であるため、dy/dx0=1, dy/dx1=1 である。
+    fn backward(&self, gys: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+        vec![gys[0].clone(), gys[0].clone()]
     }
 }
 
@@ -388,41 +390,62 @@ impl Functions {
         for function in self.functions.iter_mut() {
             outputs = function.call(outputs);
         }
-
         self.result = Some(outputs.clone());
         outputs
-
-        // let mut output = Rc::clone(&input);
-        // for function in self.functions.iter_mut() {
-        //     output = function.call(output);
-        // }
-
-        // self.result = Some(output.clone());
-        // output
     }
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
-    // 合成関数の逆伝播
-    // 事前に順伝播を実行している必要がある。
-    // fn backward(&mut self) {
-    //   if let Some(output) = self.result.as_mut() {
-    //       let mut grad = Array::from_elem(IxDyn(&[]), 1.0);
-    //       output.borrow_mut().grad = Some(grad.clone());
-    //       for function in self.functions.iter_mut().rev() {
-    //           grad = function.backward(&grad);
+    /// 合成関数の逆伝播
+    /// 事前に順伝播を実行している必要がある。
+    fn backward(&mut self) {
+        if let Some(_) = self.result.as_mut() {
+            // 逆伝播の最初の関数の微分値として 1.0 を設定する。
+            let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
+            self.functions
+                .last()
+                .unwrap()
+                .get_parameters()
+                .unwrap()
+                .borrow_mut()
+                .get_outputs()
+                .unwrap()
+                .iter()
+                .for_each(|output| {
+                    output.borrow_mut().set_grad(grad_one.clone());
+                });
 
-    //           function
-    //               .get_parameters()
-    //               .unwrap()
-    //               .borrow_mut()
-    //               .set_input_grad(grad.clone());
-    //       }
-    //   } else {
-    //       println!("Error Forward propagation has not beenForward propagation has not been executed. Please execute forward propagation first.");
-    //   }
-    // }
+            dbg!(self.functions.last());
+
+            // 逆伝播
+            for function in self.functions.iter_mut().rev() {
+                dbg!(function.as_mut());
+                let outputs = function
+                    .get_parameters()
+                    .unwrap()
+                    .borrow()
+                    .get_outputs()
+                    .unwrap();
+                let gys = outputs
+                    .iter()
+                    .map(|output| output.borrow().grad.clone().unwrap())
+                    .collect();
+                let gxs = function.backward(gys);
+
+                // 逆伝播の微分値を設定する。
+                let f_inputs = function
+                    .get_parameters()
+                    .unwrap()
+                    .borrow_mut()
+                    .inputs
+                    .clone();
+
+                for (i, input) in f_inputs.unwrap().iter().enumerate() {
+                    input.borrow_mut().set_grad(gxs[i].clone());
+                }
+            }
+        } else {
+            println!("Error Forward propagation has not beenForward propagation has not been executed. Please execute forward propagation first.");
+        }
+    }
 }
 
 /// 中心差分近似による数値微分
@@ -673,34 +696,84 @@ mod tests {
         assert_eq!(expected, outputs[0].borrow().data);
     }
 
-    //
-    // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
-    //
-    // 二乗の逆伝播テスト
-    // #[test]
-    // fn test_backward() {
-    //     let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
-    //         IxDyn(&[]),
-    //         3.0,
-    //     ))));
-    //     let expected = Array::from_elem(IxDyn(&[]), 6.0);
+    /// 二乗の逆伝播テスト
+    #[test]
+    fn test_square_backward() {
+        let x = Rc::new(RefCell::new(Variable::new(3.0)));
+        let expected = Array::from_elem(IxDyn(&[]), 6.0);
 
-    //     let square = Box::new(Square { parameters: None });
-    //     let mut functions: Functions = Functions {
-    //         functions: vec![],
-    //         result: None,
-    //     };
-    //     functions.push(square);
+        let square = Box::new(Square { parameters: None });
+        let mut functions: Functions = Functions {
+            functions: vec![],
+            result: None,
+        };
+        functions.push(square);
 
-    //     functions.foward(x.clone());
-    //     functions.backward();
+        functions.foward(vec![x.clone()]);
+        functions.backward();
 
-    //     dbg!(expected.clone());
-    //     dbg!(x.clone());
+        dbg!(expected.clone());
+        dbg!(functions);
 
-    //     assert_eq!(expected, x.borrow().grad.clone().unwrap());
-    // }
+        assert_eq!(expected, x.borrow().grad.clone().unwrap());
+    }
 
+    /// 加算の逆伝播テスト
+    #[test]
+    fn test_add_backward() {
+        let mut rng = rand::rng();
+
+        let rand_x1 = rng.random::<f64>();
+        let rand_x2 = rng.random::<f64>();
+        let expected = Array::from_elem(IxDyn(&[]), 1.0);
+
+        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+
+        let add = Box::new(Add { parameters: None });
+        let mut functions: Functions = Functions {
+            functions: vec![],
+            result: None,
+        };
+        functions.push(add);
+
+        functions.foward(vec![x1.clone(), x2.clone()]);
+        functions.backward();
+
+        dbg!(expected.clone());
+        dbg!(functions);
+
+        assert_eq!(expected, x1.borrow().grad.clone().unwrap());
+        assert_eq!(expected, x2.borrow().grad.clone().unwrap());
+    }
+
+    #[test]
+    fn test_add_square() {
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+        let y = Rc::new(RefCell::new(Variable::new(3.0)));
+
+        let expected_z_data = Array::from_elem(IxDyn(&[]), 13.0);
+        let expected_x_grad = Array::from_elem(IxDyn(&[]), 4.0);
+        let expected_y_grad = Array::from_elem(IxDyn(&[]), 6.0);
+
+        let add = Box::new(Add { parameters: None });
+        let mut functions: Functions = Functions {
+            functions: vec![],
+            result: None,
+        };
+        functions.push(add);
+
+        functions.foward(vec![square(x.clone()), square(y.clone())]);
+        functions.backward();
+
+        dbg!(x.clone());
+        dbg!(y.clone());
+        dbg!(functions);
+
+        todo!("x^2 + y^2 の微分のテストを実装する");
+
+        //assert_eq!(expected_z_data, z.borrow().data);
+    }
     //
     // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
     //
