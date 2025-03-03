@@ -477,6 +477,7 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    /// FunctionParameters のテスト
     #[test]
     fn test_function_params() {
         let inputs = vec![Rc::new(RefCell::new(Variable::new(2.0)))];
@@ -495,6 +496,44 @@ mod tests {
             update_value,
             inputs_from_funcparams.unwrap()[0].borrow().data
         );
+    }
+
+    /// Function と FunctionParameters のテスト
+    #[test]
+    fn test_function_and_function_params() {
+        let inputs = vec![Rc::new(RefCell::new(Variable::new(2.0)))];
+        let outputs = vec![Rc::new(RefCell::new(Variable::new(3.0)))];
+
+        let expected = Array::from_elem(IxDyn(&[]), 99.0);
+
+        let mut square = Box::new(Square { parameters: None });
+        square.set_parameters(inputs.clone(), outputs.clone());
+
+        inputs[0].borrow_mut().data = expected.clone();
+        inputs[0].borrow_mut().grad = Some(expected.clone());
+
+        let data_from_func = square
+            .get_parameters()
+            .unwrap()
+            .borrow()
+            .get_inputs()
+            .unwrap()[0]
+            .borrow()
+            .clone()
+            .data;
+        let grad_from_func = square
+            .get_parameters()
+            .unwrap()
+            .borrow()
+            .get_inputs()
+            .unwrap()[0]
+            .borrow()
+            .clone()
+            .grad
+            .unwrap();
+
+        assert_eq!(expected, data_from_func);
+        assert_eq!(expected, grad_from_func);
     }
 
     /// 二乗の順伝播テスト
