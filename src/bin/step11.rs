@@ -584,6 +584,34 @@ mod tests {
         assert_eq!(expected, outputs[0].borrow().data);
     }
 
+    /// 二乗と Exp の合成関数のテスト。
+    #[test]
+    fn add_and_square() {
+        let mut rng = rand::rng();
+
+        let rand_x1 = rng.random::<f64>();
+        let rand_x2 = rng.random::<f64>();
+
+        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+
+        let expected = Array::from_elem(IxDyn(&[]), (rand_x1 + rand_x2) * (rand_x1 + rand_x2));
+
+        let add = Box::new(Add { parameters: None });
+        let square = Box::new(Square { parameters: None });
+
+        let mut funcs: Functions = Functions {
+            functions: vec![],
+            result: None,
+        };
+        funcs.push(add);
+        funcs.push(square);
+
+        let outputs = funcs.foward(vec![x1, x2]);
+        dbg!(funcs);
+        assert_eq!(expected, outputs[0].borrow().data);
+    }
+
     //
     // ステップ10 可変長の引数(順伝播編) の対応のため、一時的にコメントアウト
     //
