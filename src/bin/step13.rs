@@ -361,6 +361,15 @@ fn add(x0: Rc<RefCell<Variable>>, x1: Rc<RefCell<Variable>>) -> Rc<RefCell<Varia
     add.call(vec![x0, x1])[0].clone()
 }
 
+// fn add_c(x0: Rc<RefCell<Variable>>, x1: Rc<RefCell<Variable>>) -> impl FnMut(x0: Rc<RefCell<Variable>>, x1: Rc<RefCell<Variable>>) {
+//     let add2 = |x0: Rc<RefCell<Variable>>, x1: Rc<RefCell<Variable>>| -> Rc<RefCell<Variable>> {
+//         let mut add = Box::new(Add { parameters: None });
+//         // 加算の順伝播
+//         add.call(vec![x0, x1])[0].clone()
+//     };
+//     add2
+// }
+
 /// 合成する関数を保持する構造体
 /// 順伝播と逆伝播をループで実装する。
 /// ステップ7 や ステップ8 は、順伝播の結果の Variable の creator を使って逆伝播を実現しているが
@@ -809,4 +818,29 @@ mod tests {
 
     //     assert_abs_diff_eq!(expected_grad.unwrap(), num_grad.clone(), epsilon = 1e-4);
     // }
+
+    #[test]
+    fn test_closure() {
+        let x0 = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x1 = Rc::new(RefCell::new(Variable::new(3.0)));
+
+        let add2 =
+            |x0: Rc<RefCell<Variable>>, x1: Rc<RefCell<Variable>>| -> Rc<RefCell<Variable>> {
+                let mut add = Box::new(Add { parameters: None });
+                // 加算の順伝播
+                add.call(vec![x0, x1])[0].clone()
+            };
+
+        let square2 = |x: Rc<RefCell<Variable>>| -> Rc<RefCell<Variable>> {
+            let mut square = Box::new(Square { parameters: None });
+            square.call(vec![x])[0].clone()
+        };
+
+        //let result = square2(add2(x0.clone(), x1.clone()));
+        let result = add2(square2(x0.clone()), square2(x1.clone()));
+
+        dbg!(result);
+        dbg!(x0);
+        dbg!(x1);
+    }
 }
