@@ -23,6 +23,7 @@ use std::rc::Rc;
 struct Variable {
     data: Array<f64, IxDyn>,
     grad: Option<Array<f64, IxDyn>>,
+    creator: Option<Rc<RefCell<dyn Function>>>,
 }
 
 /// Variable 構造体を生成するためのトレイト
@@ -37,6 +38,7 @@ impl CreateVariable for Array<f64, IxDyn> {
         Variable {
             data: self.clone(),
             grad: None,
+            creator: None,
         }
     }
 }
@@ -47,6 +49,7 @@ impl CreateVariable for f64 {
         Variable {
             data: Array::from_elem(IxDyn(&[]), *self),
             grad: None,
+            creator: None,
         }
     }
 }
@@ -63,6 +66,32 @@ impl Variable {
     /// 微分を設定する。
     fn set_grad(&mut self, grad: Array<f64, IxDyn>) {
         self.grad = Some(grad);
+    }
+
+    fn set_creator(&mut self, creator: Rc<RefCell<dyn Function>>) {
+        self.creator = Some(creator);
+    }
+
+    fn backward(&mut self) -> Vec<Array<f64, IxDyn>> {
+        if self.grad.is_none() {
+            let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
+            self.grad = Some(grad_one);
+        }
+        let mut output_params = self
+            .creator
+            .clone()
+            .unwrap()
+            .borrow_mut()
+            .get_parameters()
+            .unwrap();
+        let mut output_grads: Vec<_> = output_params
+            .borrow()
+            .get_outputs()
+            .unwrap()
+            .iter()
+            .map(|output| output.borrow_mut().grad.clone())
+            .collect();
+        output_grads
     }
 }
 
