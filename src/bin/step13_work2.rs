@@ -11,6 +11,8 @@ use std::rc::Rc;
 struct Variable {
     data: Array<f64, IxDyn>,
     grad: Option<Array<f64, IxDyn>>,
+    //creator: Option<Rc<RefCell<dyn Function>>>,
+    creator: Option<Rc<RefCell<FunctionExecutor>>>,
 }
 
 impl Variable {
@@ -35,6 +37,7 @@ impl CreateVariable for Array<f64, IxDyn> {
         Variable {
             data: self.clone(),
             grad: None,
+            creator: None,
         }
     }
 }
@@ -45,6 +48,7 @@ impl CreateVariable for f64 {
         Variable {
             data: Array::from_elem(IxDyn(&[]), *self),
             grad: None,
+            creator: None,
         }
     }
 }
@@ -90,7 +94,7 @@ impl FunctionExecutor {
             creator: creator,
         }
     }
-    fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) {
+    fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<Variable>>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<f64, IxDyn>> = inputs
             .iter()
@@ -103,12 +107,20 @@ impl FunctionExecutor {
         // 関数の結果を出力値とする。
         let mut outputs: Vec<Rc<RefCell<Variable>>> = Vec::new();
         for y_data in ys_data.iter() {
-            let y = Rc::new(RefCell::new(Variable::new(y_data.clone())));
+            let mut val = Variable::new(y_data.clone());
+            // val.creator = Some(self.creator.clone());
+            val.creator = Some(Rc::new(RefCell::new(self.clone())));
+            let y = Rc::new(RefCell::new(val));
+
             outputs.push(Rc::clone(&y));
         }
 
         self.inputs = Some(inputs);
-        self.outputs = Some(outputs);
+        self.outputs = Some(outputs.clone());
+        for output in outputs.clone().iter_mut() {
+            output.borrow_mut().creator = Some(Rc::new(RefCell::new(self.clone())));
+        }
+        self.outputs.clone().unwrap()
     }
 
     fn backward(&mut self) {
@@ -181,13 +193,6 @@ impl Function for Add {
     ) -> Vec<Array<f64, IxDyn>> {
         vec![gys[0].clone(), gys[0].clone()]
     }
-}
-
-fn apply<F>(f: F, inputs: Vec<Rc<RefCell<Variable>>>) -> i32
-where
-    F: Fn(Vec<Rc<RefCell<Variable>>>) -> i32,
-{
-    f(x)
 }
 
 fn main() {
@@ -291,11 +296,15 @@ mod tests {
         let input2_grad = input2_result.borrow().grad.clone().unwrap();
         let output_data = output_result.borrow().data.clone();
         let output_grad = output_result.borrow().grad.clone().unwrap();
+        let output_creator = output_result.borrow().creator.clone().unwrap();
 
-        dbg!(add_exe.clone());
+        dbg!(output_creator.borrow().clone().creator);
+        //dbg!(output_creator);
+
+        //dbg!(add_exe.clone());
         dbg!(input1_result.clone());
         dbg!(input2_result.clone());
-        dbg!(output_result.clone());
+        //dbg!(output_result.clone());
 
         assert_eq!(Array::from_elem(IxDyn(&[]), rand_x1.clone()), input1_data);
         assert_eq!(Array::from_elem(IxDyn(&[]), rand_x2.clone()), input2_data);
@@ -305,29 +314,38 @@ mod tests {
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
     }
-
     #[test]
     fn test_add_square() {
-        // 計算する値をランダムに生成する。
-        let mut rng = rand::rng();
-        let rand_x1 = rng.random::<f64>();
-        let rand_x2 = rng.random::<f64>();
-        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
-        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
-
-        // 加算した結果の期待値を計算する。
-        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
-
-        let mut sq1_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-        let mut sq2_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let mut sq_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
         let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
 
-        add_exe.forward(vec![
-            sq1_exe.forward(vec![x1.clone()]),
-            sq2_exe.forward(vec![x2.clone()]),
-        ]);
-
-        add_exe.forward(vec![x1.clone(), x2.clone()]);
-        add_exe.backward();
+        let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
+        dbg!(results.clone());
     }
+    // #[test]
+    // fn test_add_square() {
+    //     // 計算する値をランダムに生成する。
+    //     let mut rng = rand::rng();
+    //     let rand_x1 = rng.random::<f64>();
+    //     let rand_x2 = rng.random::<f64>();
+    //     let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+    //     let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+
+    //     // 加算した結果の期待値を計算する。
+    //     let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
+
+    //     let mut sq1_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+    //     let mut sq2_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+    //     let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+
+    //     add_exe.forward(vec![
+    //         sq1_exe.forward(vec![x1.clone()]),
+    //         sq2_exe.forward(vec![x2.clone()]),
+    //     ]);
+
+    //     add_exe.forward(vec![x1.clone(), x2.clone()]);
+    //     add_exe.backward();
+    // }
 }
