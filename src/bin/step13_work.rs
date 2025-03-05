@@ -7,7 +7,6 @@ use std::rc::Rc;
 /// Variable 構造体
 /// * data (Array<f64, IxDyn>): 変数
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
-/// * creator (Option<Weak<RefCell<dyn Function>>>): 生成元の関数
 #[derive(Debug, Clone)]
 struct Variable {
     data: Array<f64, IxDyn>,
@@ -21,6 +20,10 @@ impl Variable {
     /// * data - 変数    
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
+    }
+
+    fn set_grad(&mut self, grad: Array<f64, IxDyn>) {
+        self.grad = Some(grad);
     }
 }
 
@@ -115,15 +118,17 @@ impl FunctionExecutor {
         // 逆伝播の最初の関数の微分値として 1.0 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
 
-        let mut gys = vec![];
-        self.outputs.as_mut().unwrap().iter().for_each(|output| {
-            if let Some(gy) = output.borrow_mut().grad.clone() {
-                gys.push(gy.clone());
-            } else {
-                output.borrow_mut().grad = Some(grad_one.clone());
-                gys.push(grad_one.clone());
-            }
-        });
+        let mut gys: Vec<Array<f64, IxDyn>> = vec![];
+        self.outputs
+            .as_mut()
+            .unwrap()
+            .iter_mut()
+            .for_each(|output| {
+                if output.borrow().grad.is_none() {
+                    output.borrow_mut().set_grad(grad_one.clone());
+                }
+                gys.push(output.borrow().grad.clone().unwrap());
+            });
         let gxs = self
             .creator
             .borrow_mut()
@@ -160,7 +165,7 @@ impl Function for Square {
 }
 
 fn main() {
-    let x: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(0.5)));
+    let x: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(2.0)));
 
     let square = Square;
     let mut square_exe = FunctionExecutor::new(Rc::new(RefCell::new(square)));
