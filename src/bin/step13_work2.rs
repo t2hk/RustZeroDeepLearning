@@ -147,6 +147,37 @@ impl FunctionExecutor {
             input.borrow_mut().grad = Some(gxs[i].clone());
         }
     }
+
+    fn extract_creators(inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<FunctionExecutor> {
+        let mut creators = vec![];
+        let mut local_inputs = inputs.clone();
+        loop {
+            let mut local_creators = vec![];
+            local_inputs.iter().for_each(|input| {
+                println!("local inputs iter");
+                let mut creator = input.borrow().clone().creator.unwrap().borrow().clone();
+                creators.push(creator.clone());
+                local_creators.push(creator.clone());
+            });
+
+            local_inputs.clear();
+            println!("clear local inputs");
+
+            local_creators.iter_mut().for_each(|creator| {
+                println!("local creators iter");
+                creator.inputs.clone().unwrap().iter().for_each(|input| {
+                    println!("creator inputs iter in local creators iter");
+                    local_inputs.push(input.clone());
+                });
+            });
+
+            println!("check break");
+            if local_inputs.is_empty() {
+                break;
+            }
+        }
+        creators
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -322,7 +353,34 @@ mod tests {
         let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
 
         let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
-        dbg!(results.clone());
+
+        let creators = FunctionExecutor::extract_creators(results);
+        dbg!(creators);
+
+        /*                // dbg!(results.clone());
+        results.iter().for_each(|result| {
+            let mut creator_1 = result.borrow().clone().creator.unwrap().borrow().clone();
+            creator_1.backward();
+            dbg!(creator_1.creator.borrow());
+            creator_1.outputs.unwrap().iter().for_each(|output| {
+                // dbg!(output.clone());
+                dbg!(output.clone().borrow().clone().grad);
+            });
+
+            creator_1.inputs.unwrap().iter().for_each(|input| {
+                dbg!(input.clone().borrow().clone().grad);
+                let mut creator_2 = input.borrow().clone().creator.unwrap().borrow().clone();
+                dbg!(creator_2.creator.borrow());
+                creator_2.backward();
+                creator_2.inputs.unwrap().iter().for_each(|input| {
+                    // dbg!(output.clone());
+                    dbg!(input.clone().borrow().clone().grad);
+                });
+            });
+
+            //dbg!(creator.clone());
+        });
+        */
     }
     // #[test]
     // fn test_add_square() {
