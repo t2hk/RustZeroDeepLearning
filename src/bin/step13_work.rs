@@ -21,10 +21,6 @@ impl Variable {
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
     }
-
-    fn set_grad(&mut self, grad: Array<f64, IxDyn>) {
-        self.grad = Some(grad);
-    }
 }
 
 /// Variable 構造体を生成するためのトレイト
@@ -125,7 +121,7 @@ impl FunctionExecutor {
             .iter_mut()
             .for_each(|output| {
                 if output.borrow().grad.is_none() {
-                    output.borrow_mut().set_grad(grad_one.clone());
+                    output.borrow_mut().grad = Some(grad_one.clone());
                 }
                 gys.push(output.borrow().grad.clone().unwrap());
             });
@@ -164,14 +160,94 @@ impl Function for Square {
     }
 }
 
+/// Add 関数
+#[derive(Debug, Clone)]
+struct Add;
+impl Function for Add {
+    // Add (加算) の順伝播
+    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+        let result = vec![&xs[0] + &xs[1]];
+        //dpg!(result);
+        result
+    }
+
+    /// 逆伝播
+    /// y=x0+x1 の微分であるため、dy/dx0=1, dy/dx1=1 である。
+    fn backward(
+        &self,
+        inputs: Vec<Rc<RefCell<Variable>>>,
+        gys: Vec<Array<f64, IxDyn>>,
+    ) -> Vec<Array<f64, IxDyn>> {
+        vec![gys[0].clone(), gys[0].clone()]
+    }
+}
+
 fn main() {
-    let x: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(2.0)));
+    let x1: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(2.0)));
+    let x2: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(3.0)));
 
     let square = Square;
     let mut square_exe = FunctionExecutor::new(Rc::new(RefCell::new(square)));
 
-    square_exe.forward(vec![x]);
+    square_exe.forward(vec![x1.clone()]);
     square_exe.backward();
 
     dbg!(square_exe);
+    dbg!(x1.borrow());
+    dbg!(x2.borrow());
+
+    let add = Add;
+    let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
+    add_exe.forward(vec![x1.clone(), x2.clone()]);
+    add_exe.backward();
+    dbg!(add_exe);
+    dbg!(x1.borrow());
+    dbg!(x2.borrow());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    // use approx::assert_abs_diff_eq;
+    use rand::prelude::*;
+
+    /// 二乗のテスト
+    #[test]
+    fn test_square() {
+        // 2乗する値をランダムに生成する。
+        let mut rng = rand::rng();
+        let rand_x = rng.random::<f64>();
+        let x = Rc::new(RefCell::new(Variable::new(rand_x)));
+
+        // 2乗した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
+
+        // 2乗の順伝播、逆伝播を実行する。
+        let square = Square;
+        let mut square_exe = FunctionExecutor::new(Rc::new(RefCell::new(square)));
+
+        square_exe.forward(vec![x.clone()]);
+        square_exe.backward();
+
+        // 順伝播と逆伝播の処理結果を取得する。
+        let input_result = square_exe.clone().inputs.unwrap().get(0).unwrap().clone();
+        let output_result = square_exe.clone().outputs.unwrap().get(0).unwrap().clone();
+
+        let input_data = input_result.borrow().data.clone();
+        let input_grad = input_result.borrow().grad.clone().unwrap();
+        let output_data = output_result.borrow().data.clone();
+        let output_grad = output_result.borrow().grad.clone().unwrap();
+
+        dbg!(square_exe.clone());
+        dbg!(input_result.clone());
+        dbg!(output_result.clone());
+
+        assert_eq!(Array::from_elem(IxDyn(&[]), rand_x.clone()), input_data);
+        assert_eq!(expected_output_data.clone(), output_data.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 2.0 * 1.0 * rand_x.clone()),
+            input_grad.clone()
+        );
+    }
 }

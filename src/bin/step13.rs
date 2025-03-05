@@ -68,11 +68,15 @@ impl Variable {
         self.grad = Some(grad);
     }
 
+    /// この変数を生成した関数を設定する。
+    ///
+    /// # Arguments
+    /// * creator - 生成元の関数
     fn set_creator(&mut self, creator: Rc<RefCell<dyn Function>>) {
         self.creator = Some(creator);
     }
 
-    fn backward(&mut self) -> Vec<Array<f64, IxDyn>> {
+    fn backward(&mut self) {
         if self.grad.is_none() {
             let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
             self.grad = Some(grad_one);
@@ -91,7 +95,7 @@ impl Variable {
             .iter()
             .map(|output| output.borrow_mut().grad.clone())
             .collect();
-        output_grads
+        dbg!(output_grads);
     }
 }
 
@@ -213,6 +217,9 @@ trait Function: std::fmt::Debug {
         let mut outputs: Vec<Rc<RefCell<Variable>>> = Vec::new();
         for y_data in ys_data.iter() {
             let y = Rc::new(RefCell::new(Variable::new(y_data.clone())));
+            let self_obj = Box::new(self.as_mut()) as Box<dyn Function>;
+            y.borrow_mut()
+                .set_creator(Rc::new(RefCell::new(self.clone())));
             outputs.push(Rc::clone(&y));
         }
 
@@ -508,6 +515,10 @@ fn numerical_diff<F: Function>(mut f: F, x: Variable, eps: f64) -> Array<f64, Ix
     let result = (y1[0].borrow().clone().data - y0[0].borrow().clone().data) / (eps * 2.0);
 
     result
+}
+
+trait func_exec(&mut self, func: Box<dyn Function>){
+    fn call (){}
 }
 
 fn main() {
@@ -867,6 +878,9 @@ mod tests {
 
         //let result = square2(add2(x0.clone(), x1.clone()));
         let result = add2(square2(x0.clone()), square2(x1.clone()));
+
+        x0.clone().borrow_mut().backward();
+        //x1.borrow_mut().backward();
 
         dbg!(result);
         dbg!(x0);
