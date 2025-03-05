@@ -250,4 +250,51 @@ mod tests {
             input_grad.clone()
         );
     }
+
+    /// 加算のテスト
+    #[test]
+    fn test_add() {
+        // 加算値をランダムに生成する。
+        let mut rng = rand::rng();
+        let rand_x1 = rng.random::<f64>();
+        let rand_x2 = rng.random::<f64>();
+        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+
+        // 加算した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
+
+        // 順伝播、逆伝播を実行する。
+        let add = Add;
+        let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
+
+        add_exe.forward(vec![x1.clone(), x2.clone()]);
+        add_exe.backward();
+
+        // 順伝播と逆伝播の処理結果を取得する。
+        let input1_result = add_exe.clone().inputs.unwrap().get(0).unwrap().clone();
+
+        let input2_result = add_exe.clone().inputs.unwrap().get(1).unwrap().clone();
+        let output_result = add_exe.clone().outputs.unwrap().get(0).unwrap().clone();
+
+        let input1_data = input1_result.borrow().data.clone();
+        let input2_data = input2_result.borrow().data.clone();
+        let input1_grad = input1_result.borrow().grad.clone().unwrap();
+        let input2_grad = input2_result.borrow().grad.clone().unwrap();
+        let output_data = output_result.borrow().data.clone();
+        let output_grad = output_result.borrow().grad.clone().unwrap();
+
+        dbg!(add_exe.clone());
+        dbg!(input1_result.clone());
+        dbg!(input2_result.clone());
+        dbg!(output_result.clone());
+
+        assert_eq!(Array::from_elem(IxDyn(&[]), rand_x1.clone()), input1_data);
+        assert_eq!(Array::from_elem(IxDyn(&[]), rand_x2.clone()), input2_data);
+
+        assert_eq!(expected_output_data.clone(), output_data.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
+    }
 }
