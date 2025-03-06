@@ -368,6 +368,54 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    /// ステップ14に向けた事前確認用のテスト。
+    #[test]
+    fn test_add_same_input() {
+        // 加算値をランダムに生成する。
+        let x = Rc::new(RefCell::new(Variable::new(1.0)));
+
+        // 加算した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
+
+        // 順伝播、逆伝播を実行する。
+        let add = Add;
+        let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
+
+        add_exe.forward(vec![x.clone(), x.clone()]);
+        add_exe.backward();
+
+        // 順伝播と逆伝播の処理結果を取得する。
+        let input1_result = add_exe.clone().inputs.unwrap().get(0).unwrap().clone();
+        let input2_result = add_exe.clone().inputs.unwrap().get(1).unwrap().clone();
+        let output_result = add_exe.clone().outputs.unwrap().get(0).unwrap().clone();
+
+        let input1_data = input1_result.borrow().data.clone();
+        let input2_data = input2_result.borrow().data.clone();
+        let input1_grad = input1_result.borrow().grad.clone().unwrap();
+        let input2_grad = input2_result.borrow().grad.clone().unwrap();
+        let output_data = output_result.borrow().data.clone();
+        let output_grad = output_result.borrow().grad.clone().unwrap();
+        let output_creator = output_result.borrow().creator.clone().unwrap();
+
+        dbg!(output_creator.borrow().clone().creator);
+        //dbg!(output_creator);
+
+        //dbg!(add_exe.clone());
+        dbg!(input1_result.clone());
+        dbg!(input2_result.clone());
+        //dbg!(output_result.clone());
+
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_data);
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_data);
+
+        assert_eq!(expected_output_data.clone(), output_data.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
+        // 入力値の微分結果が 1 になってしまうが、2が正しい。
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
+        dbg!(x.clone());
+    }
+
     /// 二乗のテスト
     #[test]
     fn test_square() {
