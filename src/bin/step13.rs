@@ -248,6 +248,19 @@ impl Function for Square {
     }
 }
 
+/// 二乗関数
+///
+/// Arguments
+/// * input (Rc<RefCell<Variable>>): 加算する変数
+///
+/// Return
+/// * Rc<RefCell<Variable>>: 二乗の結果
+fn square(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+    let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+    // 二乗の順伝播
+    square.forward(vec![input]).get(0).unwrap().clone()
+}
+
 /// 加算関数
 #[derive(Debug, Clone)]
 struct Add;
@@ -268,6 +281,23 @@ impl Function for Add {
     ) -> Vec<Array<f64, IxDyn>> {
         vec![gys[0].clone(), gys[0].clone()]
     }
+}
+
+/// 加算関数
+///
+/// Arguments
+/// * x1 (Rc<RefCell<Variable>>): 加算する変数
+/// * x2 (Rc<RefCell<Variable>>): 加算する変数
+///
+/// Return
+/// * Rc<RefCell<Variable>>: 加算結果
+fn add(x1: Rc<RefCell<Variable>>, x2: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+    let mut add = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+    // 加算の順伝播
+    add.forward(vec![x1.clone(), x2.clone()])
+        .get(0)
+        .unwrap()
+        .clone()
 }
 
 /// Exp 関数
@@ -294,6 +324,19 @@ impl Function for Exp {
         let gxs = vec![x.mapv(|x| e.powf(x)) * gys[0].clone()];
         gxs
     }
+}
+
+/// Exp 関数
+///
+/// Arguments
+/// * input (Rc<RefCell<Variable>>): 入力値
+///
+/// Return
+/// * Rc<RefCell<Variable>>: 結果
+fn exp(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+    let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
+    // EXP の順伝播
+    exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
 
 fn main() {
@@ -462,11 +505,12 @@ mod tests {
         let expected = Array::from_elem(IxDyn(&[]), 25.0);
 
         // 関数を用意する。
-        let mut sq_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-        let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+        // let mut sq_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        // let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
 
         // 順伝播を実行する。
-        let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
+        // let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
+        let result = square(add(x1.clone(), x2.clone()));
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
@@ -479,11 +523,12 @@ mod tests {
         assert_eq!(
             expected.clone(),
             //results.clone().get(0).unwrap().borrow().clone().data
-            results.get(0).unwrap().borrow().data.clone()
+            // results.get(0).unwrap().borrow().data.clone()
+            result.borrow().data.clone()
         );
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(results.clone());
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
             creator.backward();
@@ -499,10 +544,7 @@ mod tests {
         assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
         assert_eq!(expected_grad, x1.borrow().grad.clone().unwrap());
         assert_eq!(expected_grad, x2.borrow().grad.clone().unwrap());
-        assert_eq!(
-            expected.clone(),
-            results.clone().get(0).unwrap().borrow().clone().data
-        );
+        assert_eq!(expected.clone(), result.borrow().clone().data);
     }
 
     /// 2乗と加算のテスト
@@ -518,15 +560,16 @@ mod tests {
         let expected = Array::from_elem(IxDyn(&[]), 13.0);
 
         // 関数を用意する。
-        let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-        let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-        let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+        // let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        // let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        // let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
 
         // 順伝播の実行
-        let results = add_exe.forward(vec![
-            sq_exe_1.forward(vec![x1.clone()]).get(0).unwrap().clone(),
-            sq_exe_2.forward(vec![x2.clone()]).get(0).unwrap().clone(),
-        ]);
+        // let results = add_exe.forward(vec![
+        //     sq_exe_1.forward(vec![x1.clone()]).get(0).unwrap().clone(),
+        //     sq_exe_2.forward(vec![x2.clone()]).get(0).unwrap().clone(),
+        // ]);
+        let result = add(square(x1.clone()), square(x2.clone()));
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
@@ -539,11 +582,11 @@ mod tests {
         assert_eq!(
             expected.clone(),
             //results.clone().get(0).unwrap().borrow().clone().data
-            results.get(0).unwrap().borrow().data.clone()
+            result.borrow().data.clone()
         );
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(results.clone());
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
             creator.backward();
@@ -560,10 +603,7 @@ mod tests {
         assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
         assert_eq!(expected_x1_grad, x1.borrow().grad.clone().unwrap());
         assert_eq!(expected_x2_grad, x2.borrow().grad.clone().unwrap());
-        assert_eq!(
-            expected.clone(),
-            results.clone().get(0).unwrap().borrow().clone().data
-        );
+        assert_eq!(expected.clone(), result.borrow().clone().data);
     }
 
     /// 2乗と加算のテスト
@@ -579,25 +619,23 @@ mod tests {
         dbg!(expected.clone());
 
         // 関数を用意する。
-        let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-        let mut exp_exe = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
-        let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        // let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        // let mut exp_exe = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
+        // let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
 
         // 順伝播の実行
-        let results = sq_exe_2.forward(exp_exe.forward(sq_exe_1.forward(vec![x.clone()])));
+        // let results = sq_exe_2.forward(exp_exe.forward(sq_exe_1.forward(vec![x.clone()])));
+        let result = square(exp(square(x.clone())));
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
         dbg!(x.clone());
         assert_eq!(x_arr.clone(), x.borrow().data.clone());
         assert_eq!(None, x.borrow().grad.clone());
-        assert_eq!(
-            expected.clone(),
-            results.get(0).unwrap().borrow().data.clone()
-        );
+        assert_eq!(expected.clone(), result.borrow().data.clone());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(results.clone());
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
             creator.backward();
@@ -612,9 +650,6 @@ mod tests {
 
         assert_eq!(x_arr.clone(), x.borrow().data.clone());
         assert_eq!(expected_x_grad, x.borrow().grad.clone().unwrap());
-        assert_eq!(
-            expected.clone(),
-            results.clone().get(0).unwrap().borrow().clone().data
-        );
+        assert_eq!(expected.clone(), result.borrow().clone().data);
     }
 }
