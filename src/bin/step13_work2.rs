@@ -298,9 +298,9 @@ mod tests {
         let output_data = output_result.borrow().data.clone();
         let output_grad = output_result.borrow().grad.clone().unwrap();
 
-        dbg!(square_exe.clone());
-        dbg!(input_result.clone());
-        dbg!(output_result.clone());
+        //dbg!(square_exe.clone());
+        // dbg!(input_result.clone());
+        // dbg!(output_result.clone());
 
         assert_eq!(Array::from_elem(IxDyn(&[]), rand_x.clone()), input_data);
         assert_eq!(expected_output_data.clone(), output_data.clone());
