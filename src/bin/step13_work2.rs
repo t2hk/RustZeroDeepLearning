@@ -151,24 +151,40 @@ impl FunctionExecutor {
     fn extract_creators(inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<FunctionExecutor> {
         let mut creators = vec![];
         let mut local_inputs = inputs.clone();
+
         loop {
             let mut local_creators = vec![];
+            println!("local inputs len: {:?}", local_inputs.len());
             local_inputs.iter().for_each(|input| {
                 println!("local inputs iter");
-                let mut creator = input.borrow().clone().creator.unwrap().borrow().clone();
-                creators.push(creator.clone());
-                local_creators.push(creator.clone());
+
+                if let Some(creator) = input.borrow().clone().creator {
+                    // let mut creator = input.borrow().clone().creator.unwrap().borrow().clone();
+                    creators.push(creator.borrow().clone());
+                    local_creators.push(creator.clone());
+                }
             });
+
+            if local_creators.is_empty() {
+                println!("local creators is empty.break.");
+                break;
+            }
 
             local_inputs.clear();
             println!("clear local inputs");
 
             local_creators.iter_mut().for_each(|creator| {
                 println!("local creators iter");
-                creator.inputs.clone().unwrap().iter().for_each(|input| {
-                    println!("creator inputs iter in local creators iter");
-                    local_inputs.push(input.clone());
-                });
+                creator
+                    .borrow()
+                    .inputs
+                    .clone()
+                    .unwrap()
+                    .iter()
+                    .for_each(|input| {
+                        println!("creator inputs iter in local creators iter");
+                        local_inputs.push(input.clone());
+                    });
             });
 
             println!("check break");
@@ -345,43 +361,124 @@ mod tests {
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
     }
+
+    /// 2乗と加算のテスト
+    /// (x1 + x2)^2 の順伝播と逆伝播をテストする。
     #[test]
-    fn test_add_square() {
-        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
-        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+    fn test_add_square_1() {
+        // テスト用の入力値
+        let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
+        let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
+        let x1 = Rc::new(RefCell::new(Variable::new(x1_arr.clone())));
+        let x2 = Rc::new(RefCell::new(Variable::new(x2_arr.clone())));
+
+        let expected = Array::from_elem(IxDyn(&[]), 25.0);
+
+        // 関数を用意する。
         let mut sq_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
         let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
 
+        // 順伝播を実行する。
         let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
 
-        let creators = FunctionExecutor::extract_creators(results);
-        dbg!(creators);
+        // 順伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
+        assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
+        assert_eq!(None, x1.borrow().grad.clone());
+        assert_eq!(None, x2.borrow().grad.clone());
+        assert_eq!(
+            expected.clone(),
+            //results.clone().get(0).unwrap().borrow().clone().data
+            results.get(0).unwrap().borrow().data.clone()
+        );
 
-        /*                // dbg!(results.clone());
-        results.iter().for_each(|result| {
-            let mut creator_1 = result.borrow().clone().creator.unwrap().borrow().clone();
-            creator_1.backward();
-            dbg!(creator_1.creator.borrow());
-            creator_1.outputs.unwrap().iter().for_each(|output| {
-                // dbg!(output.clone());
-                dbg!(output.clone().borrow().clone().grad);
-            });
-
-            creator_1.inputs.unwrap().iter().for_each(|input| {
-                dbg!(input.clone().borrow().clone().grad);
-                let mut creator_2 = input.borrow().clone().creator.unwrap().borrow().clone();
-                dbg!(creator_2.creator.borrow());
-                creator_2.backward();
-                creator_2.inputs.unwrap().iter().for_each(|input| {
-                    // dbg!(output.clone());
-                    dbg!(input.clone().borrow().clone().grad);
-                });
-            });
-
-            //dbg!(creator.clone());
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(results.clone());
+        //dbg!(creators);
+        creators.clone().iter_mut().for_each(|creator| {
+            creator.backward();
         });
-        */
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+
+        let expected_grad = Array::from_elem(IxDyn(&[]), 10.0);
+        assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
+        assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
+        assert_eq!(expected_grad, x1.borrow().grad.clone().unwrap());
+        assert_eq!(expected_grad, x2.borrow().grad.clone().unwrap());
+        assert_eq!(
+            expected.clone(),
+            results.clone().get(0).unwrap().borrow().clone().data
+        );
     }
+
+    /// 2乗と加算のテスト
+    /// x1^2 + x2^2 の順伝播と逆伝播をテストする。
+    #[test]
+    fn test_add_square_2() {
+        // テスト用の入力値
+        let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
+        let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
+        let x1 = Rc::new(RefCell::new(Variable::new(x1_arr.clone())));
+        let x2 = Rc::new(RefCell::new(Variable::new(x2_arr.clone())));
+
+        let expected = Array::from_elem(IxDyn(&[]), 13.0);
+
+        // 関数を用意する。
+        let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+        let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+
+        // 順伝播の実行
+        let results = add_exe.forward(vec![
+            sq_exe_1.forward(vec![x1.clone()]).get(0).unwrap().clone(),
+            sq_exe_2.forward(vec![x2.clone()]).get(0).unwrap().clone(),
+        ]);
+
+        // 順伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
+        assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
+        assert_eq!(None, x1.borrow().grad.clone());
+        assert_eq!(None, x2.borrow().grad.clone());
+        assert_eq!(
+            expected.clone(),
+            //results.clone().get(0).unwrap().borrow().clone().data
+            results.get(0).unwrap().borrow().data.clone()
+        );
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(results.clone());
+        //dbg!(creators);
+        creators.clone().iter_mut().for_each(|creator| {
+            creator.backward();
+        });
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+
+        let expected_x1_grad = Array::from_elem(IxDyn(&[]), 4.0);
+        let expected_x2_grad = Array::from_elem(IxDyn(&[]), 6.0);
+        assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
+        assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
+        assert_eq!(expected_x1_grad, x1.borrow().grad.clone().unwrap());
+        assert_eq!(expected_x2_grad, x2.borrow().grad.clone().unwrap());
+        assert_eq!(
+            expected.clone(),
+            results.clone().get(0).unwrap().borrow().clone().data
+        );
+    }
+
     // #[test]
     // fn test_add_square() {
     //     // 計算する値をランダムに生成する。
