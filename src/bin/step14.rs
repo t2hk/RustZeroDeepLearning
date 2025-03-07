@@ -418,6 +418,43 @@ mod tests {
         dbg!(x.clone());
     }
 
+    /// ステップ14に向けた事前確認用のテスト。
+    #[test]
+    fn test_add_same_input_3times() {
+        // 加算値をランダムに生成する。
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+
+        // 加算した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), 6.0);
+
+        let result = add(add(x.clone(), x.clone()), x.clone());
+
+        // 順伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
+        dbg!(x.clone());
+        assert_eq!(
+            expected_output_data.clone(),
+            //results.clone().get(0).unwrap().borrow().clone().data
+            // results.get(0).unwrap().borrow().data.clone()
+            result.borrow().data.clone()
+        );
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        //dbg!(creators);
+        creators.clone().iter_mut().for_each(|creator| {
+            creator.backward();
+        });
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x.clone());
+
+        let expected_grad = Array::from_elem(IxDyn(&[]), 3.0);
+        assert_eq!(expected_grad, x.borrow().grad.clone().unwrap());
+        assert_eq!(expected_output_data.clone(), result.borrow().clone().data);
+    }
+
     /// 二乗のテスト
     #[test]
     fn test_square() {
