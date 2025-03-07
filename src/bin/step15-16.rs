@@ -42,6 +42,22 @@ impl Variable {
     fn clear_grad(&mut self) {
         self.grad = None;
     }
+
+    /// 変数の盛大を取得する。
+    ///
+    /// Return
+    /// i64: 世代
+    fn get_generation(&self) -> i64 {
+        self.generation
+    }
+
+    /// 生成した関数の世代を取得する。
+    ///
+    /// Return
+    /// i64: 生成した関数の世代
+    fn get_creator_generation(&self) -> i64 {
+        self.creator.clone().unwrap().borrow().generation
+    }
 }
 
 /// Variable 構造体を生成するためのトレイト
@@ -207,6 +223,10 @@ impl FunctionExecutor {
                 input.borrow_mut().grad = Some(input_grad + gxs[i].clone());
             }
         }
+    }
+
+    fn get_generation(&self) -> i64 {
+        self.generation
     }
 
     /// 逆伝播のために計算グラフ上の関数を取得する。
@@ -399,30 +419,35 @@ mod tests {
     use rand::prelude::*;
 
     // 世代に関するテスト。
-    // x -> x^2 -> a -> a^2 -> b -> b+c -> y
-    //               -> a^2 -> c /
+    // x1 -> x1^2 -> a -> a^2 -> b -> b+c -> d -> d+x2 -> y
+    //               -> a^2 -> c /          x2
     #[test]
     fn test_generations() {
-        let x = Rc::new(RefCell::new(Variable::new(2.0)));
-
-        let a = square(x.clone());
+        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let a = square(x1.clone());
         let b = square(a.clone());
         let c = square(a.clone());
-        let y = add(b.clone(), c.clone());
+        let d = add(b.clone(), c.clone());
+        let y = add(d.clone(), x2.clone());
 
         // 順伝播の結果
-        assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), y.borrow().data.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().data.clone());
         // 各変数の世代のテスト
-        assert_eq!(0, x.borrow().generation.clone());
-        assert_eq!(1, a.borrow().generation.clone());
-        assert_eq!(2, b.borrow().generation.clone());
-        assert_eq!(2, c.borrow().generation.clone());
-        assert_eq!(3, y.borrow().generation.clone());
+        assert_eq!(0, x1.borrow().get_generation());
+        assert_eq!(0, x2.borrow().get_generation());
+        assert_eq!(1, a.borrow().get_generation());
+        assert_eq!(2, b.borrow().get_generation());
+        assert_eq!(2, c.borrow().get_generation());
+        assert_eq!(3, d.borrow().get_generation());
+        assert_eq!(4, y.borrow().get_generation());
+
         // 各関数の世代のテスト
-        assert_eq!(0, a.borrow().creator.clone().unwrap().borrow().generation);
-        assert_eq!(1, b.borrow().creator.clone().unwrap().borrow().generation);
-        assert_eq!(1, c.borrow().creator.clone().unwrap().borrow().generation);
-        assert_eq!(2, y.borrow().creator.clone().unwrap().borrow().generation);
+        assert_eq!(0, a.borrow().get_creator_generation());
+        assert_eq!(1, b.borrow().get_creator_generation());
+        assert_eq!(1, c.borrow().get_creator_generation());
+        assert_eq!(2, d.borrow().get_creator_generation());
+        assert_eq!(3, y.borrow().get_creator_generation());
     }
 
     /// ステップ14に向けた事前確認用のテスト。
