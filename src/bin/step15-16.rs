@@ -11,11 +11,13 @@ use std::rc::Rc;
 /// * data (Array<f64, IxDyn>): 変数
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
+/// * generation (i64): 計算グラフ上の世代
 #[derive(Debug, Clone)]
 struct Variable {
     data: Array<f64, IxDyn>,
     grad: Option<Array<f64, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor>>>,
+    generation: i64,
 }
 
 impl Variable {
@@ -32,7 +34,8 @@ impl Variable {
     /// Arguments
     /// * creator (Rc<RefCell<FunctionExecutor>>): 関数のラッパー
     fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor>>) {
-        self.creator = Some(creator);
+        self.creator = Some(creator.clone());
+        self.generation = creator.borrow().generation + 1;
     }
 
     /// 微分をリセットする。
@@ -54,6 +57,7 @@ impl CreateVariable for Array<f64, IxDyn> {
             data: self.clone(),
             grad: None,
             creator: None,
+            generation: 0,
         }
     }
 }
@@ -65,6 +69,7 @@ impl CreateVariable for f64 {
             data: Array::from_elem(IxDyn(&[]), *self),
             grad: None,
             creator: None,
+            generation: 0,
         }
     }
 }
@@ -104,6 +109,7 @@ struct FunctionExecutor {
     inputs: Option<Vec<Rc<RefCell<Variable>>>>, // 関数の入力値
     outputs: Option<Vec<Rc<RefCell<Variable>>>>, //関数の出力値
     creator: Rc<RefCell<dyn Function>>,         // 関数のトレイトオブジェクト
+    generation: i64,                            // 関数の世代
 }
 impl FunctionExecutor {
     /// コンストラクタ
@@ -118,6 +124,7 @@ impl FunctionExecutor {
             inputs: None,
             outputs: None,
             creator: creator,
+            generation: 0,
         }
     }
 
@@ -134,6 +141,11 @@ impl FunctionExecutor {
             .iter()
             .map(|input| input.borrow().data.clone())
             .collect();
+        self.generation = inputs
+            .iter()
+            .map(|input| input.borrow().generation.clone())
+            .max()
+            .unwrap();
 
         // 関数を実行する。
         let ys_data = self.creator.borrow().forward(xs_data);
@@ -385,6 +397,33 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    // 世代に関するテスト。
+    // x -> x^2 -> a -> a^2 -> b -> b+c -> y
+    //               -> a^2 -> c /
+    #[test]
+    fn test_generations() {
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+
+        let a = square(x.clone());
+        let b = square(a.clone());
+        let c = square(a.clone());
+        let y = add(b.clone(), c.clone());
+
+        // 順伝播の結果
+        assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), y.borrow().data.clone());
+        // 各変数の世代のテスト
+        assert_eq!(0, x.borrow().generation.clone());
+        assert_eq!(1, a.borrow().generation.clone());
+        assert_eq!(2, b.borrow().generation.clone());
+        assert_eq!(2, c.borrow().generation.clone());
+        assert_eq!(3, y.borrow().generation.clone());
+        // 各関数の世代のテスト
+        assert_eq!(0, a.borrow().creator.clone().unwrap().borrow().generation);
+        assert_eq!(1, b.borrow().creator.clone().unwrap().borrow().generation);
+        assert_eq!(1, c.borrow().creator.clone().unwrap().borrow().generation);
+        assert_eq!(2, y.borrow().creator.clone().unwrap().borrow().generation);
+    }
 
     /// ステップ14に向けた事前確認用のテスト。
     #[test]
@@ -763,6 +802,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
+            dbg!(creator.generation.clone());
             creator.backward();
         });
 
@@ -770,6 +810,7 @@ mod tests {
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
         dbg!(x1.clone());
         dbg!(x2.clone());
+        dbg!(result.clone().borrow().generation);
 
         let expected_x1_grad = Array::from_elem(IxDyn(&[]), 4.0);
         let expected_x2_grad = Array::from_elem(IxDyn(&[]), 6.0);
