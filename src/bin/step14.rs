@@ -25,6 +25,11 @@ impl Variable {
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
     }
+
+    /// 微分をリセットする。
+    fn clear_grad(&mut self) {
+        self.grad = None;
+    }
 }
 
 /// Variable 構造体を生成するためのトレイト
@@ -418,7 +423,7 @@ mod tests {
         dbg!(x.clone());
     }
 
-    /// ステップ14に向けた事前確認用のテスト。
+    /// ステップ14 同一の値を３回加算した場合のテスト。
     #[test]
     fn test_add_same_input_3times() {
         // 加算値をランダムに生成する。
@@ -453,6 +458,75 @@ mod tests {
         let expected_grad = Array::from_elem(IxDyn(&[]), 3.0);
         assert_eq!(expected_grad, x.borrow().grad.clone().unwrap());
         assert_eq!(expected_output_data.clone(), result.borrow().clone().data);
+    }
+
+    /// ステップ14 微分のクリアに関するテスト
+    #[test]
+    fn test_clear_grad() {
+        // 加算値を生成する。
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+
+        // 加算した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), 4.0);
+
+        let result = add(x.clone(), x.clone());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        //dbg!(creators);
+        creators.clone().iter_mut().for_each(|creator| {
+            creator.backward();
+        });
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x.clone());
+
+        let expected_grad = Array::from_elem(IxDyn(&[]), 2.0);
+        assert_eq!(expected_grad, x.borrow().grad.clone().unwrap());
+        assert_eq!(expected_output_data.clone(), result.borrow().clone().data);
+
+        ////////////////////////////////
+        // 微分をクリアせずにもう一度計算する。
+        ////////////////////////////////
+        let result2 = add(x.clone(), x.clone());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators2 = FunctionExecutor::extract_creators(vec![result2.clone()]);
+        //dbg!(creators);
+        creators2.clone().iter_mut().for_each(|creator| {
+            creator.backward();
+        });
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x.clone());
+
+        // 1回目の微分と２回目の微分を加算した ４ になってしまうことを確認する。
+        let expected_grad2 = Array::from_elem(IxDyn(&[]), 4.0);
+        assert_eq!(expected_grad2, x.borrow().grad.clone().unwrap());
+        assert_eq!(expected_output_data.clone(), result2.borrow().clone().data);
+
+        ////////////////////////////////
+        // 微分をクリアしてもう一度計算する。
+        ////////////////////////////////
+        x.borrow_mut().clear_grad();
+        let result3 = add(x.clone(), x.clone());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators3 = FunctionExecutor::extract_creators(vec![result3.clone()]);
+        //dbg!(creators);
+        creators3.clone().iter_mut().for_each(|creator| {
+            creator.backward();
+        });
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x.clone());
+        // 微分をクリアしたことで正しい結果となることを確認する。
+        let expected_grad3 = Array::from_elem(IxDyn(&[]), 2.0);
+        assert_eq!(expected_grad3, x.borrow().grad.clone().unwrap());
+        assert_eq!(expected_output_data.clone(), result2.borrow().clone().data);
     }
 
     /// 二乗のテスト
