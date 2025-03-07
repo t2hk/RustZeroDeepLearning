@@ -11,13 +11,13 @@ use std::rc::Rc;
 /// * data (Array<f64, IxDyn>): 変数
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
-/// * generation (i64): 計算グラフ上の世代
+/// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
 struct Variable {
     data: Array<f64, IxDyn>,
     grad: Option<Array<f64, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor>>>,
-    generation: i64,
+    generation: i32,
 }
 
 impl Variable {
@@ -46,16 +46,16 @@ impl Variable {
     /// 変数の盛大を取得する。
     ///
     /// Return
-    /// i64: 世代
-    fn get_generation(&self) -> i64 {
+    /// i32: 世代
+    fn get_generation(&self) -> i32 {
         self.generation
     }
 
     /// 生成した関数の世代を取得する。
     ///
     /// Return
-    /// i64: 生成した関数の世代
-    fn get_creator_generation(&self) -> i64 {
+    /// i32: 生成した関数の世代
+    fn get_creator_generation(&self) -> i32 {
         self.creator.clone().unwrap().borrow().generation
     }
 }
@@ -125,7 +125,7 @@ struct FunctionExecutor {
     inputs: Option<Vec<Rc<RefCell<Variable>>>>, // 関数の入力値
     outputs: Option<Vec<Rc<RefCell<Variable>>>>, //関数の出力値
     creator: Rc<RefCell<dyn Function>>,         // 関数のトレイトオブジェクト
-    generation: i64,                            // 関数の世代
+    generation: i32,                            // 関数の世代
 }
 impl FunctionExecutor {
     /// コンストラクタ
@@ -225,7 +225,7 @@ impl FunctionExecutor {
         }
     }
 
-    fn get_generation(&self) -> i64 {
+    fn get_generation(&self) -> i32 {
         self.generation
     }
 
