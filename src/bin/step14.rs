@@ -168,8 +168,14 @@ impl FunctionExecutor {
             .backward(self.inputs.clone().unwrap(), gys);
 
         // 逆伝播の結果を入力値に設定する。
+        // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
         for (i, input) in self.inputs.clone().unwrap().iter().enumerate() {
-            input.borrow_mut().grad = Some(gxs[i].clone());
+            if input.borrow_mut().grad.is_none() {
+                input.borrow_mut().grad = Some(gxs[i].clone());
+            } else {
+                let input_grad = input.borrow().grad.clone().unwrap();
+                input.borrow_mut().grad = Some(input_grad + gxs[i].clone());
+            }
         }
     }
 
@@ -343,17 +349,17 @@ fn main() {
     square_exe.forward(vec![x1.clone()]);
     square_exe.backward();
 
-    dbg!(square_exe);
-    dbg!(x1.borrow());
-    dbg!(x2.borrow());
+    // dbg!(square_exe);
+    // dbg!(x1.borrow());
+    // dbg!(x2.borrow());
 
     let add = Add;
     let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
     add_exe.forward(vec![x1.clone(), x2.clone()]);
     add_exe.backward();
-    dbg!(add_exe);
-    dbg!(x1.borrow());
-    dbg!(x2.borrow());
+    // dbg!(add_exe);
+    // dbg!(x1.borrow());
+    // dbg!(x2.borrow());
 }
 
 #[cfg(test)]
@@ -405,8 +411,10 @@ mod tests {
         assert_eq!(expected_output_data.clone(), output_data.clone());
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
         // 入力値の微分結果が 1 になってしまうが、2が正しい。
-        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
-        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
+        assert_ne!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
+        assert_ne!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), input1_grad.clone());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), input2_grad.clone());
         dbg!(x.clone());
     }
 
