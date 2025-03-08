@@ -5,6 +5,7 @@ use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use rand::random_iter;
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::rc::Rc;
 
 /// Variable 構造体
@@ -57,6 +58,22 @@ impl Variable {
     /// i32: 生成した関数の世代
     fn get_creator_generation(&self) -> i32 {
         self.creator.clone().unwrap().borrow().generation
+    }
+
+    /// 値を取得する。
+    ///
+    /// Return
+    /// * Array<f64, IxDyn>: 値
+    fn get_data(&self) -> Array<f64, IxDyn> {
+        self.data.clone()
+    }
+
+    /// 微分値を取得する。逆伝播を実行した場合のみ値が返る。
+    ///
+    /// Return
+    /// * Array<f64, IxDyn>: 微分値
+    fn get_grad(&self) -> Array<f64, IxDyn> {
+        self.grad.clone().unwrap()
     }
 }
 
@@ -233,9 +250,10 @@ impl FunctionExecutor {
     ///
     /// Arguments
     /// * outputs (Vec<Rc<RefCell<Variable>>>): 計算グラフの順伝播の出力値
-    fn extract_creators(outputs: Vec<Rc<RefCell<Variable>>>) -> Vec<FunctionExecutor> {
+    fn extract_creators(outputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<FunctionExecutor>>> {
         let mut creators = vec![]; // 計算グラフの creator を保持する。
-        let mut local_variables = outputs.clone(); // 1 つの creator の入力値を保持する。
+        let mut creators_map: HashMap<String, &str> = HashMap::new();
+        let mut local_variables: Vec<Rc<RefCell<Variable>>> = outputs.clone(); // 1 つの creator の入力値を保持する。
 
         // 計算グラフ上の creator を取得する。
         // creator の入力値を取得し、さらにその入力値の creator を取得することを繰り返す。
@@ -245,9 +263,13 @@ impl FunctionExecutor {
             // 変数の creator を探す。
             let mut local_creators = vec![];
             local_variables.iter().for_each(|variable| {
+                // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
                 if let Some(creator) = variable.borrow().clone().creator {
-                    creators.push(creator.borrow().clone());
-                    local_creators.push(creator.clone());
+                    if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
+                        creators.push(Rc::clone(&creator));
+                        creators_map.insert(format!("{:p}", creator.as_ptr()), "");
+                        local_creators.push(Rc::clone(&creator));
+                    }
                 }
             });
 
@@ -266,7 +288,8 @@ impl FunctionExecutor {
                     .unwrap()
                     .iter()
                     .for_each(|input| {
-                        local_variables.push(input.clone());
+                        // local_variables.push(input.clone());
+                        local_variables.push(Rc::clone(input));
                     });
             });
         }
@@ -448,6 +471,35 @@ mod tests {
         assert_eq!(1, c.borrow().get_creator_generation());
         assert_eq!(2, d.borrow().get_creator_generation());
         assert_eq!(3, y.borrow().get_creator_generation());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let mut creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+
+        // 実行した関数の数をチェックする。
+        assert_eq!(5, creators.len());
+
+        // 逆伝播を実行する。
+        creators.iter_mut().for_each(|creator| {
+            //dbg!(creator.get_generation());
+            dbg!(creator.as_ptr(), creator.borrow().creator.as_ref());
+            creator.borrow_mut().backward();
+        });
+
+        // 逆伝播の結果の確認
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 64.0), x1.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), x2.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), a.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), b.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), c.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), d.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), y.borrow().get_grad());
     }
 
     /// ステップ14に向けた事前確認用のテスト。
@@ -471,12 +523,12 @@ mod tests {
         let input2_result = add_exe.clone().inputs.unwrap().get(1).unwrap().clone();
         let output_result = add_exe.clone().outputs.unwrap().get(0).unwrap().clone();
 
-        let input1_data = input1_result.borrow().data.clone();
-        let input2_data = input2_result.borrow().data.clone();
-        let input1_grad = input1_result.borrow().grad.clone().unwrap();
-        let input2_grad = input2_result.borrow().grad.clone().unwrap();
-        let output_data = output_result.borrow().data.clone();
-        let output_grad = output_result.borrow().grad.clone().unwrap();
+        let input1_data = input1_result.borrow().get_data();
+        let input2_data = input2_result.borrow().get_data();
+        let input1_grad = input1_result.borrow().get_grad();
+        let input2_grad = input2_result.borrow().get_grad();
+        let output_data = output_result.borrow().get_data();
+        let output_grad = output_result.borrow().get_grad();
         let output_creator = output_result.borrow().creator.clone().unwrap();
 
         dbg!(output_creator.borrow().clone().creator);
@@ -525,7 +577,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -552,7 +604,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -572,7 +624,7 @@ mod tests {
         let creators2 = FunctionExecutor::extract_creators(vec![result2.clone()]);
         //dbg!(creators);
         creators2.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -594,7 +646,7 @@ mod tests {
         let creators3 = FunctionExecutor::extract_creators(vec![result3.clone()]);
         //dbg!(creators);
         creators3.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -769,7 +821,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -827,8 +879,8 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
-            dbg!(creator.generation.clone());
-            creator.backward();
+            dbg!(creator.borrow().generation);
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
@@ -878,7 +930,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
         creators.clone().iter_mut().for_each(|creator| {
-            creator.backward();
+            creator.borrow_mut().backward();
         });
 
         // 逆伝播の結果を確認する。
