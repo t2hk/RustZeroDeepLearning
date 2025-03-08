@@ -5,6 +5,7 @@ use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use rand::random_iter;
 use std::cell::RefCell;
+use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -144,6 +145,29 @@ struct FunctionExecutor {
     creator: Rc<RefCell<dyn Function>>,         // 関数のトレイトオブジェクト
     generation: i32,                            // 関数の世代
 }
+
+/// 関数ラッパーの比較
+/// オブジェクトのポインターが一致する場合、同一と判定する。
+impl PartialEq for FunctionExecutor {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::addr_eq(self, other)
+    }
+}
+impl Eq for FunctionExecutor {}
+
+/// 関数ラッパーの優先度に基づいた大小比較。
+impl PartialOrd for FunctionExecutor {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FunctionExecutor {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.get_generation().cmp(&other.get_generation())
+    }
+}
+
 impl FunctionExecutor {
     /// コンストラクタ
     ///
@@ -250,8 +274,10 @@ impl FunctionExecutor {
     ///
     /// Arguments
     /// * outputs (Vec<Rc<RefCell<Variable>>>): 計算グラフの順伝播の出力値
-    fn extract_creators(outputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<FunctionExecutor>>> {
-        let mut creators = vec![]; // 計算グラフの creator を保持する。
+    fn extract_creators(
+        outputs: Vec<Rc<RefCell<Variable>>>,
+    ) -> BinaryHeap<(i32, Rc<RefCell<FunctionExecutor>>)> {
+        let mut creators = BinaryHeap::new();
         let mut creators_map: HashMap<String, &str> = HashMap::new();
         let mut local_variables: Vec<Rc<RefCell<Variable>>> = outputs.clone(); // 1 つの creator の入力値を保持する。
 
@@ -266,7 +292,7 @@ impl FunctionExecutor {
                 // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
                 if let Some(creator) = variable.borrow().clone().creator {
                     if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
-                        creators.push(Rc::clone(&creator));
+                        creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
                         creators_map.insert(format!("{:p}", creator.as_ptr()), "");
                         local_creators.push(Rc::clone(&creator));
                     }
@@ -293,6 +319,12 @@ impl FunctionExecutor {
                     });
             });
         }
+
+        println!("heap len: {:?}", creators.len());
+        for x in creators.iter() {
+            println!("heap {:?},  {:?}", x.0, x.1.borrow().creator.borrow());
+        }
+
         creators
     }
 }
@@ -473,17 +505,15 @@ mod tests {
         assert_eq!(3, y.borrow().get_creator_generation());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let mut creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+        let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
 
         // 逆伝播を実行する。
-        creators.iter_mut().for_each(|creator| {
-            //dbg!(creator.get_generation());
-            dbg!(creator.as_ptr(), creator.borrow().creator.as_ref());
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果の確認
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
@@ -576,9 +606,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
-        creators.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -603,9 +633,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
-        creators.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -623,9 +653,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators2 = FunctionExecutor::extract_creators(vec![result2.clone()]);
         //dbg!(creators);
-        creators2.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -645,9 +675,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators3 = FunctionExecutor::extract_creators(vec![result3.clone()]);
         //dbg!(creators);
-        creators3.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -820,9 +850,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
-        creators.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -878,10 +908,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
-        creators.clone().iter_mut().for_each(|creator| {
-            dbg!(creator.borrow().generation);
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -929,9 +958,9 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
         //dbg!(creators);
-        creators.clone().iter_mut().for_each(|creator| {
+        for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
-        });
+        }
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
