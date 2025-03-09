@@ -220,7 +220,6 @@ impl FunctionExecutor {
         self.inputs = inputs;
         self.outputs = outputs.clone();
         for output in outputs.clone().iter_mut() {
-            //output.borrow_mut().creator = Some(Rc::new(RefCell::new(self.clone())));
             output
                 .borrow_mut()
                 .set_creator(Rc::new(RefCell::new(self.clone())));
@@ -357,7 +356,6 @@ impl Function for Add {
     // Add (加算) の順伝播
     fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
         let result = vec![&xs[0] + &xs[1]];
-        //dpg!(result);
         result
     }
 
@@ -438,17 +436,10 @@ fn main() {
     square_exe.forward(vec![x1.clone()]);
     square_exe.backward();
 
-    // dbg!(square_exe);
-    // dbg!(x1.borrow());
-    // dbg!(x2.borrow());
-
     let add = Add;
     let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
     add_exe.forward(vec![x1.clone(), x2.clone()]);
     add_exe.backward();
-    // dbg!(add_exe);
-    // dbg!(x1.borrow());
-    // dbg!(x2.borrow());
 }
 
 #[cfg(test)]
@@ -490,6 +481,8 @@ mod tests {
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+
+        dbg!(&d);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
@@ -546,12 +539,9 @@ mod tests {
         let output_creator = output_result.borrow().creator.clone().unwrap();
 
         dbg!(output_creator.borrow().clone().creator);
-        //dbg!(output_creator);
 
-        //dbg!(add_exe.clone());
         dbg!(input1_result.clone());
         dbg!(input2_result.clone());
-        //dbg!(output_result.clone());
 
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_data);
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_data);
