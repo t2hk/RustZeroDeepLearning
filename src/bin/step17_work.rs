@@ -223,10 +223,11 @@ impl FunctionExecutor {
             output
                 .borrow_mut()
                 .set_creator(Rc::new(RefCell::new(self.clone())));
-            self.outputs.push(Rc::downgrade(output));
+            //self.outputs.push(Rc::downgrade(output));
         }
+        self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
         // self.outputs.clone()
-        outputs
+        outputs.clone()
     }
 
     /// 逆伝播
@@ -235,13 +236,15 @@ impl FunctionExecutor {
         // 逆伝播の最初の関数の微分値として 1.0 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
         let mut gys: Vec<Array<f64, IxDyn>> = vec![];
-        self.outputs.iter_mut().for_each(|output| {
-            let tmp_output = output.upgrade().unwrap();
-            if tmp_output.borrow().grad.is_none() {
-                tmp_output.borrow_mut().grad = Some(grad_one.clone());
-            }
-            gys.push(tmp_output.borrow().grad.clone().unwrap());
-        });
+        self.outputs
+            .iter_mut()
+            .filter_map(|output| output.upgrade())
+            .for_each(|output| {
+                if output.borrow().grad.is_none() {
+                    output.borrow_mut().grad = Some(grad_one.clone());
+                }
+                gys.push(output.borrow().grad.clone().unwrap());
+            });
 
         // 逆伝播を実行する。
         let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
@@ -349,7 +352,9 @@ impl Function for Square {
 fn square(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
     let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
     // 二乗の順伝播
-    square.forward(vec![input]).get(0).unwrap().clone()
+    //Rc::clone(square.forward(vec![input]).get(0).unwrap()) //.clone()
+    let result = square.forward(vec![input]).get(0).unwrap().clone();
+    result
 }
 
 /// 加算関数
@@ -384,10 +389,7 @@ impl Function for Add {
 fn add(x1: Rc<RefCell<Variable>>, x2: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
     // 加算の順伝播
-    add.forward(vec![x1.clone(), x2.clone()])
-        .get(0)
-        .unwrap()
-        .clone()
+    Rc::clone(add.forward(vec![x1.clone(), x2.clone()]).get(0).unwrap())
 }
 
 /// Exp 関数
@@ -426,7 +428,7 @@ impl Function for Exp {
 fn exp(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
     let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
     // EXP の順伝播
-    exp.forward(vec![input.clone()]).get(0).unwrap().clone()
+    Rc::clone(exp.forward(vec![input.clone()]).get(0).unwrap())
 }
 
 fn main() {
@@ -458,11 +460,11 @@ mod tests {
     fn test_generations() {
         let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
         let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
-        let a = square(x1.clone());
-        let b = square(a.clone());
-        let c = square(a.clone());
-        let d = add(b.clone(), c.clone());
-        let y = add(d.clone(), x2.clone());
+        let a = square(Rc::clone(&x1));
+        let b = square(Rc::clone(&a));
+        let c = square(Rc::clone(&a));
+        let d = add(Rc::clone(&b), Rc::clone(&c));
+        let y = add(Rc::clone(&d), Rc::clone(&x2));
 
         // 順伝播の結果
         assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().data.clone());
