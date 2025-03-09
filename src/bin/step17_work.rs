@@ -7,7 +7,7 @@ use rand::random_iter;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// Variable 構造体
 /// * data (Array<f64, IxDyn>): 変数
@@ -140,10 +140,10 @@ trait Function: std::fmt::Debug {
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
 struct FunctionExecutor {
-    inputs: Vec<Rc<RefCell<Variable>>>,  // 関数の入力値
-    outputs: Vec<Rc<RefCell<Variable>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function>>,  // 関数のトレイトオブジェクト
-    generation: i32,                     // 関数の世代
+    inputs: Vec<Rc<RefCell<Variable>>>,    // 関数の入力値
+    outputs: Vec<Weak<RefCell<Variable>>>, //関数の出力値
+    creator: Rc<RefCell<dyn Function>>,    // 関数のトレイトオブジェクト
+    generation: i32,                       // 関数の世代
 }
 
 /// 関数ラッパーの比較
@@ -218,13 +218,15 @@ impl FunctionExecutor {
 
         // 入出力を自身に設定する。
         self.inputs = inputs;
-        self.outputs = outputs.clone();
-        for output in outputs.clone().iter_mut() {
+        //self.outputs = outputs.clone();
+        for output in outputs.iter_mut() {
             output
                 .borrow_mut()
                 .set_creator(Rc::new(RefCell::new(self.clone())));
+            self.outputs.push(Rc::downgrade(output));
         }
-        self.outputs.clone()
+        // self.outputs.clone()
+        outputs
     }
 
     /// 逆伝播
@@ -234,10 +236,11 @@ impl FunctionExecutor {
         let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
         let mut gys: Vec<Array<f64, IxDyn>> = vec![];
         self.outputs.iter_mut().for_each(|output| {
-            if output.borrow().grad.is_none() {
-                output.borrow_mut().grad = Some(grad_one.clone());
+            let tmp_output = output.upgrade().unwrap();
+            if tmp_output.borrow().grad.is_none() {
+                tmp_output.borrow_mut().grad = Some(grad_one.clone());
             }
-            gys.push(output.borrow().grad.clone().unwrap());
+            gys.push(tmp_output.borrow().grad.clone().unwrap());
         });
 
         // 逆伝播を実行する。
@@ -534,9 +537,15 @@ mod tests {
         let input2_data = input2_result.borrow().get_data();
         let input1_grad = input1_result.borrow().get_grad();
         let input2_grad = input2_result.borrow().get_grad();
-        let output_data = output_result.borrow().get_data();
-        let output_grad = output_result.borrow().get_grad();
-        let output_creator = output_result.borrow().creator.clone().unwrap();
+        let output_data = output_result.upgrade().unwrap().borrow().get_data();
+        let output_grad = output_result.upgrade().unwrap().borrow().get_grad();
+        let output_creator = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .creator
+            .clone()
+            .unwrap();
 
         dbg!(output_creator.borrow().clone().creator);
 
@@ -686,8 +695,14 @@ mod tests {
 
         let input_data = input_result.borrow().data.clone();
         let input_grad = input_result.borrow().grad.clone().unwrap();
-        let output_data = output_result.borrow().data.clone();
-        let output_grad = output_result.borrow().grad.clone().unwrap();
+        let output_data = output_result.upgrade().unwrap().borrow().data.clone();
+        let output_grad = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .grad
+            .clone()
+            .unwrap();
 
         //dbg!(square_exe.clone());
         // dbg!(input_result.clone());
@@ -731,9 +746,21 @@ mod tests {
         let input2_data = input2_result.borrow().data.clone();
         let input1_grad = input1_result.borrow().grad.clone().unwrap();
         let input2_grad = input2_result.borrow().grad.clone().unwrap();
-        let output_data = output_result.borrow().data.clone();
-        let output_grad = output_result.borrow().grad.clone().unwrap();
-        let output_creator = output_result.borrow().creator.clone().unwrap();
+        let output_data = output_result.upgrade().unwrap().borrow().data.clone();
+        let output_grad = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .grad
+            .clone()
+            .unwrap();
+        let output_creator = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .creator
+            .clone()
+            .unwrap();
 
         dbg!(output_creator.borrow().clone().creator);
         //dbg!(output_creator);
@@ -773,9 +800,21 @@ mod tests {
 
         let input_data = input_result.borrow().data.clone();
         let input_grad = input_result.borrow().grad.clone().unwrap();
-        let output_data = output_result.borrow().data.clone();
-        let output_grad = output_result.borrow().grad.clone().unwrap();
-        let output_creator = output_result.borrow().creator.clone().unwrap();
+        let output_data = output_result.upgrade().unwrap().borrow().data.clone();
+        let output_grad = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .grad
+            .clone()
+            .unwrap();
+        let output_creator = output_result
+            .upgrade()
+            .unwrap()
+            .borrow()
+            .creator
+            .clone()
+            .unwrap();
 
         dbg!(output_creator.borrow().clone().creator);
         dbg!(input_result.clone());
