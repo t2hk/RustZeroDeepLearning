@@ -6,7 +6,6 @@
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use rand::random_iter;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -403,7 +402,7 @@ impl FunctionExecutor {
     fn backward_all(outputs: Vec<Rc<RefCell<Variable>>>) {
         let creators = FunctionExecutor::extract_creators(outputs);
         // 逆伝播を実行する。
-        for (gen, creator) in creators.iter() {
+        for (_gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
         }
     }
