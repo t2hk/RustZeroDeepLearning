@@ -315,6 +315,18 @@ impl FunctionExecutor {
 
         creators
     }
+
+    /// 順伝播の結果から逆伝播を一括で実行する。
+    ///
+    /// Arguments:
+    /// * outputs (Vec<Rc<RefCell<Variable>>>): 順伝播の結果
+    fn backward_all(outputs: Vec<Rc<RefCell<Variable>>>) {
+        let creators = FunctionExecutor::extract_creators(outputs);
+        // 逆伝播を実行する。
+        for (gen, creator) in creators.iter() {
+            creator.borrow_mut().backward();
+        }
+    }
 }
 
 /// 二乗関数
@@ -439,11 +451,12 @@ fn main() {
         Rc::clone(&x1),
         Rc::clone(&add(Rc::clone(&x1), Rc::clone(&x2))),
     );
-    let creators = FunctionExecutor::extract_creators(vec![Rc::clone(&result)]);
-    // 逆伝播を実行する。
-    for (gen, creator) in creators.iter() {
-        creator.borrow_mut().backward();
-    }
+    // let creators = FunctionExecutor::extract_creators(vec![Rc::clone(&result)]);
+    // // 逆伝播を実行する。
+    // for (gen, creator) in creators.iter() {
+    //     creator.borrow_mut().backward();
+    //}
+    FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
     println!(
         "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
         &result.borrow().grad,
