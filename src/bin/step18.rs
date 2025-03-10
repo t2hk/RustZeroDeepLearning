@@ -143,6 +143,7 @@ struct FunctionExecutor {
     outputs: Vec<Weak<RefCell<Variable>>>, //関数の出力値
     creator: Rc<RefCell<dyn Function>>,    // 関数のトレイトオブジェクト
     generation: i32,                       // 関数の世代
+    retain_grad: bool,                     // 逆伝播の中間の変数の微分値を保持しない場合、false
 }
 
 /// 関数ラッパーの比較
@@ -181,7 +182,17 @@ impl FunctionExecutor {
             outputs: vec![],
             creator: creator,
             generation: 0,
+            retain_grad: false,
         }
+    }
+
+    /// メモリ削減のため、逆伝播の中間変数について微分値を保持するかどうか。
+    /// 初期値は false (微分値を保持しない)
+    ///
+    /// Arguments:
+    /// * retain_grad (bool): 微分値を保持しない場合 false
+    fn set_retain_grad(&mut self, retain_grad: bool) {
+        self.retain_grad = retain_grad;
     }
 
     /// 順伝播
@@ -232,10 +243,11 @@ impl FunctionExecutor {
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     fn backward(&mut self) {
+        let retain_grad: bool = false;
+
         // 逆伝播の最初の関数の微分値として 1.0 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
         let mut gys: Vec<Array<f64, IxDyn>> = vec![];
-        dbg!(&self.outputs.get(0));
         self.outputs
             .iter_mut()
             .map(|output| output.upgrade().unwrap())
@@ -258,6 +270,16 @@ impl FunctionExecutor {
                 let input_grad = input.borrow().grad.clone().unwrap();
                 input.borrow_mut().grad = Some(input_grad + gxs[i].clone());
             }
+        }
+
+        // 微分値を保持しない場合、中間変数の微分値を削除する。
+        if !self.retain_grad {
+            self.outputs
+                .iter_mut()
+                .map(|output| output.upgrade().unwrap())
+                .for_each(|output| {
+                    output.borrow_mut().grad = None;
+                });
         }
     }
 
@@ -471,6 +493,67 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    #[test]
+    fn test_retain_grad() {
+        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let a = square(Rc::clone(&x1));
+        let b = square(Rc::clone(&a));
+        let c = square(Rc::clone(&a));
+        let d = add(Rc::clone(&b), Rc::clone(&c));
+        let y = add(Rc::clone(&d), Rc::clone(&x2));
+
+        // 順伝播の結果
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().data.clone());
+        // 各変数の世代のテスト
+        assert_eq!(0, x1.borrow().get_generation());
+        assert_eq!(0, x2.borrow().get_generation());
+        assert_eq!(1, a.borrow().get_generation());
+        assert_eq!(2, b.borrow().get_generation());
+        assert_eq!(2, c.borrow().get_generation());
+        assert_eq!(3, d.borrow().get_generation());
+        assert_eq!(4, y.borrow().get_generation());
+
+        // 各関数の世代のテスト
+        assert_eq!(0, a.borrow().get_creator_generation());
+        assert_eq!(1, b.borrow().get_creator_generation());
+        assert_eq!(1, c.borrow().get_creator_generation());
+        assert_eq!(2, d.borrow().get_creator_generation());
+        assert_eq!(3, y.borrow().get_creator_generation());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+
+        dbg!(&d);
+        dbg!(&creators);
+
+        // 実行した関数の数をチェックする。
+        assert_eq!(5, creators.len());
+
+        // 逆伝播を実行する。微分値を保持しない。
+        for (_gen, creator) in creators.iter() {
+            creator.borrow_mut().set_retain_grad(false);
+            creator.borrow_mut().backward();
+        }
+
+        // 逆伝播の結果の確認
+        // 途中結果の変数には微分値が設定されていないことを確認する。
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 64.0), x1.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), x2.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.borrow().get_data());
+        assert!(a.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.borrow().get_data());
+        assert!(b.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.borrow().get_data());
+        assert!(c.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.borrow().get_data());
+        assert!(d.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
+        assert!(y.borrow().grad.is_none());
+    }
+
     // 世代に関するテスト。
     // x1 -> x1^2 -> a -> a^2 -> b -> b+c -> d -> d+x2 -> y
     //               -> a^2 -> c /          x2
@@ -512,7 +595,8 @@ mod tests {
         assert_eq!(5, creators.len());
 
         // 逆伝播を実行する。
-        for (gen, creator) in creators.iter() {
+        for (_gen, creator) in creators.iter() {
+            creator.borrow_mut().set_retain_grad(true);
             creator.borrow_mut().backward();
         }
 
@@ -603,13 +687,13 @@ mod tests {
         let input2_data = input2_result.borrow().get_data();
         let input1_grad = input1_result.borrow().get_grad();
         let input2_grad = input2_result.borrow().get_grad();
-        let output_data = output_result.borrow().get_data();
-        let output_grad = output_result.borrow().get_grad();
+        // let output_data = output_result.borrow().get_data();
+        // let output_grad = output_result.borrow().get_grad();
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_data);
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_data);
 
-        assert_eq!(expected_output_data.clone(), output_data.clone());
-        assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
+        // assert_eq!(expected_output_data.clone(), output_data.clone());
+        // assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), output_grad.clone());
         // 入力値の微分結果が 1 になってしまうが、2が正しい。
         assert_ne!(Array::from_elem(IxDyn(&[]), 1.0), input1_grad.clone());
         assert_ne!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
@@ -822,10 +906,10 @@ mod tests {
         assert_eq!(expected_output_data, x.borrow().get_grad());
 
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x.borrow().get_data());
-        assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
-            result.borrow().get_grad()
-        );
+        // assert_eq!(
+        //     Array::from_elem(IxDyn(&[]), 1.0),
+        //     result.borrow().get_grad()
+        // );
     }
 
     /// 2乗と加算のテスト
