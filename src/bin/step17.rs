@@ -36,7 +36,7 @@ impl Variable {
     /// Arguments
     /// * creator (Rc<RefCell<FunctionExecutor>>): 関数のラッパー
     fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor>>) {
-        self.creator = Some(creator.clone());
+        self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().generation + 1;
     }
 
@@ -218,7 +218,6 @@ impl FunctionExecutor {
 
         // 入出力を自身に設定する。
         self.inputs = inputs;
-        // self.outputs = outputs.clone();
         self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
         for output in outputs.clone().iter_mut() {
             output
@@ -433,21 +432,7 @@ fn exp(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
     exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
 
-fn main() {
-    let x1: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(2.0)));
-    let x2: Rc<RefCell<Variable>> = Rc::new(RefCell::new(Variable::new(3.0)));
-
-    let square = Square;
-    let mut square_exe = FunctionExecutor::new(Rc::new(RefCell::new(square)));
-
-    square_exe.forward(vec![x1.clone()]);
-    square_exe.backward();
-
-    let add = Add;
-    let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(add)));
-    add_exe.forward(vec![x1.clone(), x2.clone()]);
-    add_exe.backward();
-}
+fn main() {}
 
 #[cfg(test)]
 mod tests {
@@ -490,6 +475,7 @@ mod tests {
         let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
 
         dbg!(&d);
+        dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
