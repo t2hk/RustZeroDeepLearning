@@ -455,11 +455,11 @@ mod tests {
     fn test_generations() {
         let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
         let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
-        let a = square(x1.clone());
-        let b = square(a.clone());
-        let c = square(a.clone());
-        let d = add(b.clone(), c.clone());
-        let y = add(d.clone(), x2.clone());
+        let a = square(Rc::clone(&x1));
+        let b = square(Rc::clone(&a));
+        let c = square(Rc::clone(&a));
+        let d = add(Rc::clone(&b), Rc::clone(&c));
+        let y = add(Rc::clone(&d), Rc::clone(&x2));
 
         // 順伝播の結果
         assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().data.clone());
@@ -526,9 +526,9 @@ mod tests {
         add_exe.backward();
 
         // 順伝播と逆伝播の処理結果を取得する。
-        let input1_result = add_exe.inputs.get(0).unwrap().clone();
-        let input2_result = add_exe.inputs.get(1).unwrap().clone();
-        let output_result = add_exe.outputs.get(0).unwrap().clone();
+        let input1_result = Rc::clone(&add_exe.inputs.get(0).unwrap());
+        let input2_result = Rc::clone(&add_exe.inputs.get(1).unwrap());
+        let output_result = Rc::clone(&add_exe.outputs.get(0).unwrap());
 
         let input1_data = input1_result.borrow().get_data();
         let input2_data = input2_result.borrow().get_data();
@@ -540,8 +540,8 @@ mod tests {
 
         dbg!(output_creator.borrow().clone().creator);
 
-        dbg!(input1_result.clone());
-        dbg!(input2_result.clone());
+        dbg!(Rc::clone(&input1_result));
+        dbg!(Rc::clone(&input2_result));
 
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input1_data);
         assert_eq!(Array::from_elem(IxDyn(&[]), 1.0), input2_data);
@@ -565,7 +565,7 @@ mod tests {
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), 6.0);
 
-        let result = add(add(x.clone(), x.clone()), x.clone());
+        let result = add(add(Rc::clone(&x), Rc::clone(&x)), Rc::clone(&x));
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
@@ -622,10 +622,10 @@ mod tests {
         ////////////////////////////////
         // 微分をクリアせずにもう一度計算する。
         ////////////////////////////////
-        let result2 = add(x.clone(), x.clone());
+        let result2 = add(Rc::clone(&x), Rc::clone(&x));
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators2 = FunctionExecutor::extract_creators(vec![result2.clone()]);
+        let creators2 = FunctionExecutor::extract_creators(vec![Rc::clone(&result2)]);
         //dbg!(creators);
         for (gen, creator) in creators.iter() {
             creator.borrow_mut().backward();
@@ -644,7 +644,7 @@ mod tests {
         // 微分をクリアしてもう一度計算する。
         ////////////////////////////////
         x.borrow_mut().clear_grad();
-        let result3 = add(x.clone(), x.clone());
+        let result3 = add(Rc::clone(&x), Rc::clone(&x));
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators3 = FunctionExecutor::extract_creators(vec![result3.clone()]);
@@ -677,7 +677,7 @@ mod tests {
         let square = Square;
         let mut square_exe = FunctionExecutor::new(Rc::new(RefCell::new(square)));
 
-        square_exe.forward(vec![x.clone()]);
+        square_exe.forward(vec![Rc::clone(&x)]);
         square_exe.backward();
 
         // 順伝播と逆伝播の処理結果を取得する。
