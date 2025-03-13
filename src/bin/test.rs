@@ -18,25 +18,20 @@ struct Variable<A, D: Dimension> {
     generation: i32,
 }
 
+// 数値型用トレイトの定義
 trait CreateVariable<D: Dimension> {
-    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<Self, D>, Box<dyn Error>>
+    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
     where
-        Self: Num + Clone + Sized,
         Sh: ShapeBuilder<Dim = D>;
 }
 
-// 全数値型に対する実装
-impl<A, D> CreateVariable<D> for A
-where
-    A: Num + Clone + 'static,
-    D: Dimension,
-{
-    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<A, D>, Box<dyn Error>>
+impl<D: Dimension> CreateVariable<D> for f64 {
+    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
     where
         Sh: ShapeBuilder<Dim = D>,
     {
         Ok(Variable {
-            data: Array::from_shape_vec(shape, vec![self.clone(); shape.size()])?,
+            data: Array::from_elem(shape, self.clone()),
             name: None,
             grad: None,
             generation: 0,
@@ -83,8 +78,8 @@ fn main() {
     // println!("{}", type_of(&arr));
     // println!("{}", type_of(&var));
 
-    let vector1 = 5.0.create_variable((3,)); // 3要素のベクトル
-    let vector2 = 3.create_variable((3,)); // 3要素のベクトル
+    let vector1 = 5.0.create_variable((3, 3, 3)); // 3要素のベクトル
+    let vector2 = 3.0.create_variable((3,)); // 3要素のベクトル
     let matrix = 1.0.create_variable((2, 2)); // 2x2行列
     let matrix2 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0].create_variable((2, 2, 2));
 
