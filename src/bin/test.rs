@@ -1,6 +1,6 @@
 use core::fmt::Debug;
 use ndarray::{Array, Dimension, IxDyn, ShapeBuilder};
-use num::Num;
+use num;
 use rand::TryRngCore;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
@@ -18,12 +18,38 @@ struct Variable<A, D: Dimension> {
     generation: i32,
 }
 
+impl<A, D> Variable<A, D>
+where
+    D: Dimension,
+{
+    fn new(shape: D) -> Self
+    where
+        A: Default,
+    {
+        Variable {
+            data: Array::default(shape),
+            name: None,
+            grad: None,
+            generation: 0,
+        }
+    }
+
+    /// Variable のコンストラクタ。
+    ///
+    /// # Arguments
+    /// * data - 変数    
+    // fn new(&self, num: f64) -> Result<Variable<A, D>, Box<dyn Error>> {
+    //     num.create_variable((1,))
+    // }
+}
+
 // 数値型用トレイトの定義
 trait CreateVariable<D: Dimension> {
     fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
     where
         Sh: ShapeBuilder<Dim = D>;
 }
+
 
 impl<D: Dimension> CreateVariable<D> for f64 {
     fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
@@ -87,4 +113,6 @@ fn main() {
     dbg!(&vector2);
     dbg!(&matrix);
     dbg!(&matrix2);
+
+    let val1 = Variable::new();
 }
