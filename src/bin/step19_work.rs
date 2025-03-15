@@ -1,11 +1,10 @@
 //! ステップ19 変数を使いやすく
 
 use core::fmt::Debug;
-use ndarray::{Array, Dimension, IxDyn, ShapeBuilder};
+use ndarray::{Array, ArrayD, IntoDimension, IxDyn, ShapeError};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
-use std::error::Error;
 use std::rc::{Rc, Weak};
 
 thread_local!(
@@ -78,38 +77,43 @@ impl Setting {
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
-struct Variable<T> {
-    data: T,
+struct Variable {
+    data: Array<f64, IxDyn>,
     name: Option<String>,
-    grad: Option<T>,
+    grad: Option<Array<f64, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor>>>,
     generation: i32,
 }
 
-impl<T> Variable<T> {
+impl Variable {
     /// Variable のコンストラクタ。
     ///
     /// # Arguments
     /// * data - 変数    
-    fn new<C: CreateVariable>(data: C) -> Variable<T> {
+    fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
     }
 
-    /// ベクトルから配列を生成して構造体を構築
-    fn from_shape_vec<Sh>(
-        shape: Sh,
-        data: Vec<A>,
-        name: Option<String>,
-        grad: Option<Vec<A>>,
-        creator: Option<Rc<RefCell<FunctionExecutor>>>,
-        generation: i32,
-    ) -> Result<Self, Box<dyn Error>>
+    /// Variable のコンストラクタ。
+    /// 以下のように使用する。
+    ///   let dim = vec![2, 2, 2];
+    ///   let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    ///   let variable = Variable::new(dim, values);
+    ///
+    /// Arguments
+    /// * shape (Vec<i32>): 次元
+    /// * values (Vec<f64>): 変数
+    ///
+    /// Returns
+    /// * Result<Self, ShapeError>
+    fn from_shape_vec<Sh>(shape: Sh, values: Vec<f64>) -> Result<Self, ShapeError>
     where
-        Sh: ShapeBuilder<Dim = D>,
+        Sh: IntoDimension<Dim = IxDyn>,
     {
-        let arr = Array::from_shape_vec(shape, data)?;
-        Ok(Self {
-            data: arr,
+        let dim = shape.into_dimension();
+        let array = ArrayD::from_shape_vec(dim, values)?;
+        Ok(Variable {
+            data: array,
             name: None,
             grad: None,
             creator: None,
@@ -147,12 +151,60 @@ impl<T> Variable<T> {
         self.creator.clone().unwrap().borrow().generation
     }
 
+    /// 値を取得する。
+    ///
+    /// Return
+    /// * Array<f64, IxDyn>: 値
+    fn get_data(&self) -> ArrayD<f64> {
+        self.data.clone()
+    }
+
     /// 変数の名前を取得する。
     ///
     /// Return
     /// * String: 名前
     fn get_name(&self) -> Option<String> {
         self.name.clone()
+    }
+
+    /// 微分値を取得する。逆伝播を実行した場合のみ値が返る。
+    ///
+    /// Return
+    /// * Array<f64, IxDyn>: 微分値
+    fn get_grad(&self) -> ArrayD<f64> {
+        self.grad.clone().unwrap()
+    }
+}
+
+/// Variable 構造体を生成するためのトレイト
+/// * create_variable: Variable 構造体を生成する
+trait CreateVariable {
+    fn create_variable(&self) -> Variable;
+}
+
+/// CreateVariable トレイトの Array<f64, IxDyn> 用の実装
+impl CreateVariable for Array<f64, IxDyn> {
+    fn create_variable(&self) -> Variable {
+        Variable {
+            data: self.clone(),
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        }
+    }
+}
+
+/// CreateVariable トレイトの f64 用の実装
+impl CreateVariable for f64 {
+    fn create_variable(&self) -> Variable {
+        Variable {
+            data: Array::from_elem(IxDyn(&[]), *self),
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        }
     }
 }
 
@@ -162,24 +214,24 @@ trait Function: std::fmt::Debug {
     /// 通常の計算を行う順伝播。継承して実装すること。
     ///
     /// Arguments
-    /// * xs (Vec<Array<f64, IxDyn>>): 入力値
+    /// * xs (Vec<ArrayD<f64>>): 入力値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 出力値
-    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>>;
+    /// * Vec<ArrayD<f64>>: 出力値
+    fn forward(&self, xs: Vec<ArrayD<f64>>) -> Vec<ArrayD<f64>>;
 
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
     ///
     /// Arguments
     /// * inputs (Vec<Rc<RefCell<Variable>>>): 順伝播の入力値
-    /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
+    /// * gys (Vec<ArrayD<f64>>): 出力値に対する微分値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
-    fn backward<A, D>(
+    /// * Vec<ArrayD<f64>>: 入力値に対する微分値
+    fn backward(
         &self,
-        inputs: Vec<Rc<RefCell<Variable<A, D>>>>,
+        inputs: Vec<Rc<RefCell<Variable>>>,
         gys: Vec<Array<f64, IxDyn>>,
     ) -> Vec<Array<f64, IxDyn>>;
 }
@@ -187,11 +239,11 @@ trait Function: std::fmt::Debug {
 /// 関数の実行用ラッパー
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
-struct FunctionExecutor<A, D: Dimension> {
-    inputs: Vec<Rc<RefCell<Variable<A, D>>>>,    // 関数の入力値
-    outputs: Vec<Weak<RefCell<Variable<A, D>>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function>>,          // 関数のトレイトオブジェクト
-    generation: i32,                             // 関数の世代
+struct FunctionExecutor {
+    inputs: Vec<Rc<RefCell<Variable>>>,    // 関数の入力値
+    outputs: Vec<Weak<RefCell<Variable>>>, //関数の出力値
+    creator: Rc<RefCell<dyn Function>>,    // 関数のトレイトオブジェクト
+    generation: i32,                       // 関数の世代
 }
 
 /// 関数ラッパーの比較
@@ -236,10 +288,10 @@ impl FunctionExecutor {
     /// 順伝播
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<Variable>>>): 関数の入力値
+    /// * inputs (Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>): 関数の入力値
     ///
     /// Return
-    /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
+    /// * Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>: 関数の実行結果
     fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<Variable>>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<f64, IxDyn>> = inputs
@@ -542,11 +594,6 @@ mod tests {
 
         val.name = Some("test_val".to_string());
         assert_eq!(Some("test_val".to_string()), val.get_name());
-
-        let arr = Array::from_shape_vec((2, 3), vec![0, 1, 2, 3, 4, 5]).unwrap();
-
-        let var2 = Variable::new(2.0);
-        dbg!(&var2);
     }
 
     /// バックプロパゲーションの有効・無効のテスト。

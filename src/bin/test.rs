@@ -1,6 +1,5 @@
 use core::fmt::Debug;
-use ndarray::{Array, Dimension, IxDyn, ShapeBuilder};
-use num;
+use ndarray::{Array, ArrayD, IntoDimension, IxDyn, ShapeError};
 use rand::TryRngCore;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
@@ -10,72 +9,94 @@ use std::ops::Deref;
 use std::rc::{Rc, Weak};
 
 #[derive(Debug, Clone)]
-struct Variable<A, D: Dimension> {
-    data: Array<A, D>,
+
+/// Variable 構造体
+/// * data (ArrayD<f64>): 変数
+/// * name (Option<String>): 変数の名前
+/// * grad (Option<ArrayD<f64>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
+/// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
+/// * generation (i32): 計算グラフ上の世代
+struct Variable<T> {
+    data: T,
     name: Option<String>,
-    grad: Option<Array<A, D>>,
+    grad: Option<T>,
     // creator: Option<Rc<RefCell<FunctionExecutor>>>,
     generation: i32,
 }
 
-impl<A, D> Variable<A, D>
-where
-    D: Dimension,
-{
-    fn new(shape: D) -> Self
-    where
-        A: Default,
-    {
-        Variable {
-            data: Array::default(shape),
-            name: None,
-            grad: None,
-            generation: 0,
-        }
-    }
-
+impl Variable<ArrayD<f64>> {
     /// Variable のコンストラクタ。
     ///
     /// # Arguments
     /// * data - 変数    
-    // fn new(&self, num: f64) -> Result<Variable<A, D>, Box<dyn Error>> {
-    //     num.create_variable((1,))
-    // }
-}
+    fn new<T: CreateVariable<T>>(data: T) -> Variable<T> {
+        CreateVariable::create_variable(&data)
+    }
 
-// 数値型用トレイトの定義
-trait CreateVariable<D: Dimension> {
-    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
+    /// Variable を次元と値から生成する。
+    /// 以下のように使用する。
+    ///   let dim = vec![2, 2, 2];
+    ///   let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    ///   let variable = Variable::new(dim, values);
+    ///
+    /// Arguments
+    /// * shape (Vec<i32>): 次元
+    /// * values (Vec<f64>): 変数
+    ///
+    /// Returns
+    /// * Result<Self, ShapeError>
+    fn from_shape_vec<Sh>(shape: Sh, values: Vec<f64>) -> Result<Self, ShapeError>
     where
-        Sh: ShapeBuilder<Dim = D>;
-}
-
-
-impl<D: Dimension> CreateVariable<D> for f64 {
-    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
-    where
-        Sh: ShapeBuilder<Dim = D>,
+        Sh: IntoDimension<Dim = IxDyn>,
     {
+        let dim = shape.into_dimension();
+        let array = ArrayD::from_shape_vec(dim, values)?;
         Ok(Variable {
-            data: Array::from_elem(shape, self.clone()),
+            data: array,
             name: None,
             grad: None,
             generation: 0,
         })
     }
+
+    /// 変数の名前を設定する。
+    ///
+    /// Arguments
+    /// * name (String): 変数の名前
+    fn set_name(&mut self, name: String) {
+        self.name = Some(name.to_string());
+    }
 }
 
-impl<D: Dimension> CreateVariable<D> for Vec<f64> {
-    fn create_variable<Sh>(&self, shape: Sh) -> Result<Variable<f64, D>, Box<dyn Error>>
-    where
-        Sh: ShapeBuilder<Dim = D>,
-    {
-        Ok(Variable {
-            data: Array::from_shape_vec(shape, self.clone())?,
+/// Variable 構造体を生成するためのトレイト
+/// * create_variable: Variable 構造体を生成する
+trait CreateVariable<T> {
+    fn create_variable(&self) -> Variable<T>;
+}
+
+/// CreateVariable トレイトの Array<f64, IxDyn> 用の実装
+impl CreateVariable<Array<f64, IxDyn>> for Array<f64, IxDyn> {
+    fn create_variable(&self) -> Variable<Array<f64, IxDyn>> {
+        Variable {
+            data: self.clone(),
             name: None,
             grad: None,
+            // creator: None,
             generation: 0,
-        })
+        }
+    }
+}
+
+/// CreateVariable トレイトの f64 用の実装
+impl CreateVariable<Array<f64, IxDyn>> for f64 {
+    fn create_variable(&self) -> Variable<Array<f64, IxDyn>> {
+        Variable {
+            data: Array::from_elem(IxDyn(&[]), *self),
+            name: None,
+            grad: None,
+            // creator: None,
+            generation: 0,
+        }
     }
 }
 
@@ -85,34 +106,13 @@ fn type_of<T>(_: T) -> String {
 }
 
 fn main() {
-    let vector_data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-    // let matrix = Variable::<f64, ndarray::Ix2>::from_shape_vec(
-    //     (2, 3), // 2x3の2次元配列
-    //     vector_data,
-    //     Some("サンプルデータ".to_string()),
-    // )
-    // .unwrap();
-    // dbg!(&matrix);
+    let dim = vec![2, 2, 2];
+    let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
 
-    //    let arr = Array::from_elem(IxDyn(&[]), 2.0);
-    // //let var = Variable::<i32, IxDyn>::from_shape_vec(IxDyn(&[]), vec![2], Some("hoge".to_string()))
-    //     .unwrap();
-    // dbg!(&var);
+    let val = Variable::from_shape_vec(dim, values);
+    dbg!(&val);
 
-    // let arr_val = Variable::new(&arr);
-
-    // println!("{}", type_of(&arr));
-    // println!("{}", type_of(&var));
-
-    let vector1 = 5.0.create_variable((3, 3, 3)); // 3要素のベクトル
-    let vector2 = 3.0.create_variable((3,)); // 3要素のベクトル
-    let matrix = 1.0.create_variable((2, 2)); // 2x2行列
-    let matrix2 = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0].create_variable((2, 2, 2));
-
-    dbg!(&vector1);
-    dbg!(&vector2);
-    dbg!(&matrix);
-    dbg!(&matrix2);
-
-    let val1 = Variable::new();
+    println!("dim: {:?}", val.clone().unwrap().data.dim());
+    println!("shape: {:?}", val.clone().unwrap().data.shape());
+    // println!("shape: {:?}", val.clone().unwrap().data.unwrap().a);
 }
