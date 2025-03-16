@@ -1,11 +1,7 @@
-//! ステップ18 メモリ使用量を減らすモード
-//!
-//! thread_local マクロを使用した設定値に対応した。
-//! * enable_backprop: バックプロパゲーションの有効・無効を設定する (デフォルト true)。
-//! * retain_grad: 中間変数の微分値を保持するかどうかを設定する (デフォルト false)。
+//! ステップ19 変数を使いやすく
 
 use core::fmt::Debug;
-use ndarray::{Array, IxDyn};
+use ndarray::{Array, ArrayD, IntoDimension, IxDyn, ShapeError};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -76,12 +72,14 @@ impl Setting {
 
 /// Variable 構造体
 /// * data (Array<f64, IxDyn>): 変数
+/// * name (Option<String>): 変数の名前
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
 struct Variable {
     data: Array<f64, IxDyn>,
+    name: Option<String>,
     grad: Option<Array<f64, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor>>>,
     generation: i32,
@@ -94,6 +92,33 @@ impl Variable {
     /// * data - 変数    
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
+    }
+
+    /// Variable のコンストラクタ。
+    /// 以下のように使用する。
+    ///   let dim = vec![2, 2, 2];
+    ///   let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    ///   let variable = Variable::new(dim, values);
+    ///
+    /// Arguments
+    /// * shape (Vec<i32>): 次元
+    /// * values (Vec<f64>): 変数
+    ///
+    /// Returns
+    /// * Result<Self, ShapeError>
+    fn from_shape_vec<Sh>(shape: Sh, values: Vec<f64>) -> Result<Self, ShapeError>
+    where
+        Sh: IntoDimension<Dim = IxDyn>,
+    {
+        let dim = shape.into_dimension();
+        let array = ArrayD::from_shape_vec(dim, values)?;
+        Ok(Variable {
+            data: array,
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        })
     }
 
     /// この変数を生成した関数を設定する。
@@ -130,15 +155,23 @@ impl Variable {
     ///
     /// Return
     /// * Array<f64, IxDyn>: 値
-    fn get_data(&self) -> Array<f64, IxDyn> {
+    fn get_data(&self) -> ArrayD<f64> {
         self.data.clone()
+    }
+
+    /// 変数の名前を取得する。
+    ///
+    /// Return
+    /// * String: 名前
+    fn get_name(&self) -> Option<String> {
+        self.name.clone()
     }
 
     /// 微分値を取得する。逆伝播を実行した場合のみ値が返る。
     ///
     /// Return
     /// * Array<f64, IxDyn>: 微分値
-    fn get_grad(&self) -> Array<f64, IxDyn> {
+    fn get_grad(&self) -> ArrayD<f64> {
         self.grad.clone().unwrap()
     }
 }
@@ -154,6 +187,7 @@ impl CreateVariable for Array<f64, IxDyn> {
     fn create_variable(&self) -> Variable {
         Variable {
             data: self.clone(),
+            name: None,
             grad: None,
             creator: None,
             generation: 0,
@@ -166,6 +200,7 @@ impl CreateVariable for f64 {
     fn create_variable(&self) -> Variable {
         Variable {
             data: Array::from_elem(IxDyn(&[]), *self),
+            name: None,
             grad: None,
             creator: None,
             generation: 0,
@@ -179,21 +214,21 @@ trait Function: std::fmt::Debug {
     /// 通常の計算を行う順伝播。継承して実装すること。
     ///
     /// Arguments
-    /// * xs (Vec<Array<f64, IxDyn>>): 入力値
+    /// * xs (Vec<ArrayD<f64>>): 入力値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 出力値
-    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>>;
+    /// * Vec<ArrayD<f64>>: 出力値
+    fn forward(&self, xs: Vec<ArrayD<f64>>) -> Vec<ArrayD<f64>>;
 
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
     ///
     /// Arguments
     /// * inputs (Vec<Rc<RefCell<Variable>>>): 順伝播の入力値
-    /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
+    /// * gys (Vec<ArrayD<f64>>): 出力値に対する微分値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
+    /// * Vec<ArrayD<f64>>: 入力値に対する微分値
     fn backward(
         &self,
         inputs: Vec<Rc<RefCell<Variable>>>,
@@ -253,10 +288,10 @@ impl FunctionExecutor {
     /// 順伝播
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<Variable>>>): 関数の入力値
+    /// * inputs (Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>): 関数の入力値
     ///
     /// Return
-    /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
+    /// * Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>: 関数の実行結果
     fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<Variable>>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<f64, IxDyn>> = inputs
@@ -549,6 +584,17 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    /// 変数の名前のテスト。
+    #[test]
+    fn test_variable_name() {
+        let mut val = Variable::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+
+        assert_eq!(None, val.get_name());
+
+        val.name = Some("test_val".to_string());
+        assert_eq!(Some("test_val".to_string()), val.get_name());
+    }
 
     /// バックプロパゲーションの有効・無効のテスト。
     #[test]

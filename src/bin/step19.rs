@@ -1,11 +1,8 @@
-//! ステップ18 メモリ使用量を減らすモード
-//!
-//! thread_local マクロを使用した設定値に対応した。
-//! * enable_backprop: バックプロパゲーションの有効・無効を設定する (デフォルト true)。
-//! * retain_grad: 中間変数の微分値を保持するかどうかを設定する (デフォルト false)。
+//! ステップ19 変数を使いやすく
 
 use core::fmt::Debug;
-use ndarray::{Array, IxDyn};
+use ndarray::{array, Array, ArrayD, IntoDimension, IxDyn, ShapeError};
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -76,12 +73,14 @@ impl Setting {
 
 /// Variable 構造体
 /// * data (Array<f64, IxDyn>): 変数
+/// * name (Option<String>): 変数の名前
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
 struct Variable {
     data: Array<f64, IxDyn>,
+    name: Option<String>,
     grad: Option<Array<f64, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor>>>,
     generation: i32,
@@ -94,6 +93,34 @@ impl Variable {
     /// * data - 変数    
     fn new<T: CreateVariable>(data: T) -> Variable {
         CreateVariable::create_variable(&data)
+    }
+
+    /// Variable を次元と値から生成する。
+    /// 以下のように使用する。
+    ///   let dim = vec![2, 2, 2];
+    ///   let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    ///   let variable = Variable::new(dim, values);
+    ///
+    /// Arguments
+    /// * shape (Vec<i32>): 次元
+    /// * values (Vec<f64>): 変数
+    ///
+    /// Returns
+    /// * Result<Self, ShapeError>
+    fn from_shape_vec<Sh>(shape: Sh, values: Vec<f64>) -> Self
+    //Result<Self, ShapeError>
+    where
+        Sh: IntoDimension<Dim = IxDyn>,
+    {
+        let dim = shape.into_dimension();
+        let array = ArrayD::from_shape_vec(dim, values).ok().unwrap();
+        Self {
+            data: array,
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        }
     }
 
     /// この変数を生成した関数を設定する。
@@ -134,12 +161,35 @@ impl Variable {
         self.data.clone()
     }
 
+    /// 変数の名前を取得する。
+    ///
+    /// Return
+    /// * String: 名前
+    fn get_name(&self) -> Option<String> {
+        self.name.clone()
+    }
+
     /// 微分値を取得する。逆伝播を実行した場合のみ値が返る。
     ///
     /// Return
     /// * Array<f64, IxDyn>: 微分値
     fn get_grad(&self) -> Array<f64, IxDyn> {
         self.grad.clone().unwrap()
+    }
+
+    /// 要素の数
+    fn get_size(&self) -> usize {
+        self.data.len()
+    }
+
+    /// 次元ごとの要素数
+    fn get_shape(&self) -> &[usize] {
+        self.data.shape()
+    }
+
+    /// 次元数
+    fn get_ndim(&self) -> usize {
+        self.data.ndim()
     }
 }
 
@@ -154,6 +204,7 @@ impl CreateVariable for Array<f64, IxDyn> {
     fn create_variable(&self) -> Variable {
         Variable {
             data: self.clone(),
+            name: None,
             grad: None,
             creator: None,
             generation: 0,
@@ -166,6 +217,7 @@ impl CreateVariable for f64 {
     fn create_variable(&self) -> Variable {
         Variable {
             data: Array::from_elem(IxDyn(&[]), *self),
+            name: None,
             grad: None,
             creator: None,
             generation: 0,
@@ -522,6 +574,11 @@ fn exp(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
     exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
 
+fn type_of<T>(_: T) -> String {
+    let a = std::any::type_name::<T>();
+    return a.to_string();
+}
+
 fn main() {
     let x1 = Rc::new(RefCell::new(Variable::new(1.0)));
     let x2 = Rc::new(RefCell::new(Variable::new(1.0)));
@@ -542,6 +599,56 @@ fn main() {
         &x1.borrow().grad,
         &x2.borrow().grad
     );
+
+    let arr_vals = vec![
+        10., 11., 12., 13., 14., 15., 16., 20., 21., 22., 23., 24., 25., 26., 30., 31., 32., 33.,
+        34., 35., 36., 40., 41., 42., 43., 44., 45., 46., 50., 51., 52., 53., 54., 55., 56.,
+    ];
+    let arr_dim = vec![5, 7];
+    let arr_var = Variable::from_shape_vec(arr_dim, arr_vals);
+    dbg!(&arr_var.data);
+    dbg!(&arr_var.data.ndim());
+    dbg!(&arr_var.data.view());
+
+    let arr = array!(
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [2, 2, 2, 2, 2, 2, 2,],
+    );
+    dbg!(&arr);
+    dbg!(type_of(&arr));
+    println!("arr shape: {:?})", arr.shape());
+    println!("arr len: {:?})", arr.len());
+    println!("arr view: {:?})", arr.view());
+    println!("arr ndim: {:?})", arr.ndim());
+
+    let shape = vec![2, 2, 2];
+    let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    let arr2 = Variable::from_shape_vec(shape, values);
+    dbg!(&arr2.data);
+    println!("arr2 shape: {:?})", arr2.data.shape());
+    println!("arr2 len: {:?})", arr2.data.len());
+    println!("arr2 ndim: {:?})", arr2.data.ndim());
+
+    let arr_2x3x4 = ndarray::array![
+        [[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
+        [
+            [13., 14., 15., 16.],
+            [17., 18., 19., 20.],
+            [21., 22., 23., 24.]
+        ]
+    ];
+    let arr_4x2x3 = ndarray::array![
+        [[1., 2., 3.], [4., 5., 6.]],
+        [[7., 8., 9.], [10., 11., 12.]],
+        [[13., 14., 15.], [16., 17., 18.]],
+        [[19., 20., 21.], [22., 23., 24.]]
+    ];
+
+    dbg!(&arr_2x3x4);
+    dbg!(&arr_4x2x3);
 }
 
 #[cfg(test)]
@@ -549,6 +656,161 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    /// 変数の size, shape, ndim のテスト
+    #[test]
+    fn test_variable_params() {
+        let var0 = Variable::new(1.0);
+        assert_eq!(1, var0.get_size());
+        let a: [usize; 0] = [];
+        assert_eq!(&a, var0.get_shape());
+        assert_eq!(0, var0.get_ndim());
+
+        let var1 = Variable::from_shape_vec(vec![1], vec![1.0]);
+        assert_eq!(1, var1.get_size());
+        assert_eq!([1], var1.get_shape());
+        assert_eq!(1, var1.get_ndim());
+
+        let sh2x2 = vec![2, 2];
+        let val2x2 = vec![1., 2., 3., 4.];
+        let var2x2 = Variable::from_shape_vec(sh2x2, val2x2);
+
+        assert_eq!(4, var2x2.get_size());
+        assert_eq!([2, 2], var2x2.get_shape());
+        assert_eq!(2, var2x2.get_ndim());
+        dbg!(&var2x2.get_shape());
+
+        let sh10x20x30x40x50 = vec![10, 20, 30, 40, 50];
+        let val10x20x30x40x50: Vec<f64> = (1..=12000000).map(|x| x as f64).collect();
+
+        let var10x20x30x40x50 = Variable::from_shape_vec(sh10x20x30x40x50, val10x20x30x40x50);
+        assert_eq!(12000000, var10x20x30x40x50.get_size());
+        assert_eq!([10, 20, 30, 40, 50], var10x20x30x40x50.get_shape());
+        assert_eq!(5, var10x20x30x40x50.get_ndim());
+    }
+
+    /// 2乗と加算のテスト
+    /// (x1 + x2)^2 の順伝播と逆伝播をテストする。
+    #[test]
+    fn test_multidim_add_square_1() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // テスト用の入力値
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+        dbg!(&var1);
+        let sh2 = vec![2, 2];
+        let val2 = vec![11., 12., 13., 14.];
+        let var2 = Variable::from_shape_vec(sh2, val2);
+        dbg!(&var2);
+
+        let x1 = Rc::new(RefCell::new(var1));
+        let x2 = Rc::new(RefCell::new(var2));
+
+        // 順伝播の結果 [[12., 14.],[16., 18.]]^2 = [[144., 196.], [256., 324.]]
+        let expected = Variable::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
+        // 逆伝播の結果 2 * [[12., 14.], [16., 18.]]
+        let expected_grad = Variable::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
+
+        let result = square(add(x1.clone(), x2.clone()));
+
+        // 順伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(None, x1.borrow().grad.clone());
+        assert_eq!(None, x2.borrow().grad.clone());
+        assert_eq!(expected.data, result.borrow().data.clone());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        //dbg!(creators);
+        for (_gen, creator) in creators.iter() {
+            creator.borrow_mut().backward();
+        }
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(expected_grad.get_data(), x1.borrow().grad.clone().unwrap());
+        assert_eq!(expected_grad.get_data(), x2.borrow().grad.clone().unwrap());
+    }
+
+    fn test_multidim_square() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+
+        // 加算値をランダムに生成する。
+        let x1 = Rc::new(RefCell::new(var1));
+
+        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
+
+        // 順伝播、逆伝播を実行する。
+        let mut result = square(Rc::clone(&x1));
+        assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
+
+        dbg!(&result.borrow().get_data());
+
+        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        dbg!(&result.borrow().get_grad());
+    }
+
+    #[test]
+    fn test_multidim_add() {
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+        dbg!(&var1);
+        let sh2 = vec![2, 2];
+        let val2 = vec![11., 12., 13., 14.];
+        let var2 = Variable::from_shape_vec(sh2, val2);
+        dbg!(&var2);
+
+        // 加算値をランダムに生成する。
+        let x1 = Rc::new(RefCell::new(var1));
+        let x2 = Rc::new(RefCell::new(var2));
+
+        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
+
+        // 加算した結果の期待値を計算する。
+        // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
+
+        // 順伝播、逆伝播を実行する。
+        let result = add(Rc::clone(&x1), Rc::clone(&x2));
+        assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
+
+        dbg!(&result.borrow().get_data());
+    }
+
+    #[test]
+    /// 任意の形状に関するテスト。
+    fn test_dyndim_array() {
+        let shape = vec![2, 2, 2];
+        let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+        let var = Variable::from_shape_vec(shape, values);
+        dbg!(&var);
+        assert_eq!(&[2, 2, 2], var.get_data().shape());
+        // assert_eq!([2; 2], var.ok().unwrap().data.dim());
+        //println!("{:?}", var.ok().clone().unwrap().data.dim());
+    }
+
+    /// 変数の名前のテスト。
+    #[test]
+    fn test_variable_name() {
+        let mut val = Variable::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+
+        assert_eq!(None, val.get_name());
+
+        val.name = Some("test_val".to_string());
+        assert_eq!(Some("test_val".to_string()), val.get_name());
+    }
 
     /// バックプロパゲーションの有効・無効のテスト。
     #[test]
