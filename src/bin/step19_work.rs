@@ -1,11 +1,16 @@
 //! ステップ19 変数を使いやすく
 
 use core::fmt::Debug;
-use ndarray::{Array, ArrayD, IntoDimension, IxDyn, ShapeError};
+use ndarray::{array, Array, ArrayD, IntoDimension, IxDyn, ShapeError};
+use num_traits::{Num, NumCast, Pow, ToPrimitive};
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
+
+pub trait MathOps: Num + NumCast + Pow<Self, Output = Self> + Copy {}
+impl<V> MathOps for V where V: Num + NumCast + Pow<V, Output = V> + Copy + Clone {}
 
 thread_local!(
   static SETTING: Rc<RefCell<Setting>> = {
@@ -77,24 +82,24 @@ impl Setting {
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
-struct Variable {
-    data: Array<f64, IxDyn>,
+struct Variable<V: MathOps> {
+    data: Array<V, IxDyn>,
     name: Option<String>,
-    grad: Option<Array<f64, IxDyn>>,
-    creator: Option<Rc<RefCell<FunctionExecutor>>>,
+    grad: Option<Array<V, IxDyn>>,
+    creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
     generation: i32,
 }
 
-impl Variable {
+impl<V: MathOps> Variable<V> {
     /// Variable のコンストラクタ。
     ///
     /// # Arguments
     /// * data - 変数    
-    fn new<T: CreateVariable>(data: T) -> Variable {
+    fn new<T: CreateVariable<V>>(data: T) -> Variable<V> {
         CreateVariable::create_variable(&data)
     }
 
-    /// Variable のコンストラクタ。
+    /// Variable を次元と値から生成する。
     /// 以下のように使用する。
     ///   let dim = vec![2, 2, 2];
     ///   let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
@@ -106,26 +111,27 @@ impl Variable {
     ///
     /// Returns
     /// * Result<Self, ShapeError>
-    fn from_shape_vec<Sh>(shape: Sh, values: Vec<f64>) -> Result<Self, ShapeError>
+    fn from_shape_vec<Sh>(shape: Sh, values: Vec<V>) -> Self
+    //Result<Self, ShapeError>
     where
         Sh: IntoDimension<Dim = IxDyn>,
     {
         let dim = shape.into_dimension();
-        let array = ArrayD::from_shape_vec(dim, values)?;
-        Ok(Variable {
+        let array = ArrayD::from_shape_vec(dim, values).ok().unwrap();
+        Self {
             data: array,
             name: None,
             grad: None,
             creator: None,
             generation: 0,
-        })
+        }
     }
 
     /// この変数を生成した関数を設定する。
     ///
     /// Arguments
     /// * creator (Rc<RefCell<FunctionExecutor>>): 関数のラッパー
-    fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor>>) {
+    fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor<V>>>) {
         self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().generation + 1;
     }
@@ -155,7 +161,7 @@ impl Variable {
     ///
     /// Return
     /// * Array<f64, IxDyn>: 値
-    fn get_data(&self) -> ArrayD<f64> {
+    fn get_data(&self) -> Array<V, IxDyn> {
         self.data.clone()
     }
 
@@ -171,20 +177,35 @@ impl Variable {
     ///
     /// Return
     /// * Array<f64, IxDyn>: 微分値
-    fn get_grad(&self) -> ArrayD<f64> {
+    fn get_grad(&self) -> Array<V, IxDyn> {
         self.grad.clone().unwrap()
+    }
+
+    /// 要素の数
+    fn get_size(&self) -> usize {
+        self.data.len()
+    }
+
+    /// 次元ごとの要素数
+    fn get_shape(&self) -> &[usize] {
+        self.data.shape()
+    }
+
+    /// 次元数
+    fn get_ndim(&self) -> usize {
+        self.data.ndim()
     }
 }
 
 /// Variable 構造体を生成するためのトレイト
 /// * create_variable: Variable 構造体を生成する
-trait CreateVariable {
-    fn create_variable(&self) -> Variable;
+trait CreateVariable<V: MathOps> {
+    fn create_variable(&self) -> Variable<V>;
 }
 
 /// CreateVariable トレイトの Array<f64, IxDyn> 用の実装
-impl CreateVariable for Array<f64, IxDyn> {
-    fn create_variable(&self) -> Variable {
+impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
+    fn create_variable(&self) -> Variable<V> {
         Variable {
             data: self.clone(),
             name: None,
@@ -195,9 +216,9 @@ impl CreateVariable for Array<f64, IxDyn> {
     }
 }
 
-/// CreateVariable トレイトの f64 用の実装
-impl CreateVariable for f64 {
-    fn create_variable(&self) -> Variable {
+/// CreateVariable トレイトの 数値用の実装
+impl<V: MathOps> CreateVariable<V> for V {
+    fn create_variable(&self) -> Variable<V> {
         Variable {
             data: Array::from_elem(IxDyn(&[]), *self),
             name: None,
@@ -209,66 +230,69 @@ impl CreateVariable for f64 {
 }
 
 /// Function トレイト
-trait Function: std::fmt::Debug {
+trait Function<V>: std::fmt::Debug
+where
+    V: MathOps,
+{
     /// 順伝播
     /// 通常の計算を行う順伝播。継承して実装すること。
     ///
     /// Arguments
-    /// * xs (Vec<ArrayD<f64>>): 入力値
+    /// * xs (Vec<Array<f64, IxDyn>>): 入力値
     ///
     /// Returns
-    /// * Vec<ArrayD<f64>>: 出力値
-    fn forward(&self, xs: Vec<ArrayD<f64>>) -> Vec<ArrayD<f64>>;
+    /// * Vec<Array<f64, IxDyn>>: 出力値
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>>;
 
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
     ///
     /// Arguments
     /// * inputs (Vec<Rc<RefCell<Variable>>>): 順伝播の入力値
-    /// * gys (Vec<ArrayD<f64>>): 出力値に対する微分値
+    /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
     ///
     /// Returns
-    /// * Vec<ArrayD<f64>>: 入力値に対する微分値
+    /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
     fn backward(
         &self,
-        inputs: Vec<Rc<RefCell<Variable>>>,
-        gys: Vec<Array<f64, IxDyn>>,
-    ) -> Vec<Array<f64, IxDyn>>;
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
+        gys: Vec<Array<V, IxDyn>>,
+    ) -> Vec<Array<V, IxDyn>>;
 }
 
 /// 関数の実行用ラッパー
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
-struct FunctionExecutor {
-    inputs: Vec<Rc<RefCell<Variable>>>,    // 関数の入力値
-    outputs: Vec<Weak<RefCell<Variable>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function>>,    // 関数のトレイトオブジェクト
-    generation: i32,                       // 関数の世代
+struct FunctionExecutor<V: MathOps> {
+    inputs: Vec<Rc<RefCell<Variable<V>>>>,    // 関数の入力値
+    outputs: Vec<Weak<RefCell<Variable<V>>>>, //関数の出力値
+    creator: Rc<RefCell<dyn Function<V>>>,    // 関数のトレイトオブジェクト
+    generation: i32,                          // 関数の世代
 }
 
 /// 関数ラッパーの比較
 /// オブジェクトのポインターが一致する場合、同一と判定する。
-impl PartialEq for FunctionExecutor {
+impl<V: MathOps> PartialEq for FunctionExecutor<V> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::addr_eq(self, other)
     }
 }
-impl Eq for FunctionExecutor {}
+impl<V: MathOps> Eq for FunctionExecutor<V> {}
 
 /// 関数ラッパーの優先度に基づいた大小比較。
-impl PartialOrd for FunctionExecutor {
+impl<V: MathOps> PartialOrd for FunctionExecutor<V> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for FunctionExecutor {
+impl<V: MathOps> Ord for FunctionExecutor<V> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.get_generation().cmp(&other.get_generation())
     }
 }
 
-impl FunctionExecutor {
+impl<V: MathOps> FunctionExecutor<V> {
     /// コンストラクタ
     ///
     /// Arguments
@@ -276,7 +300,7 @@ impl FunctionExecutor {
     ///
     /// Return
     /// * FunctionExecutor: 関数のラッパー
-    fn new(creator: Rc<RefCell<dyn Function>>) -> FunctionExecutor {
+    fn new(creator: Rc<RefCell<dyn Function<V>>>) -> FunctionExecutor<V> {
         FunctionExecutor {
             inputs: vec![],
             outputs: vec![],
@@ -288,13 +312,13 @@ impl FunctionExecutor {
     /// 順伝播
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>): 関数の入力値
+    /// * inputs (Vec<Rc<RefCell<Variable>>>): 関数の入力値
     ///
     /// Return
-    /// * Vec<Rc<RefCell<Variable<ArrayD<f64>>>>>: 関数の実行結果
-    fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable>>>) -> Vec<Rc<RefCell<Variable>>> {
+    /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
+    fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable<V>>>>) -> Vec<Rc<RefCell<Variable<V>>>> {
         // 入力値からデータを取り出す。
-        let xs_data: Vec<Array<f64, IxDyn>> = inputs
+        let xs_data: Vec<Array<V, IxDyn>> = inputs
             .iter()
             .map(|input| input.borrow().data.clone())
             .collect();
@@ -312,7 +336,7 @@ impl FunctionExecutor {
         let ys_data = self.creator.borrow().forward(xs_data);
 
         // 関数の結果を出力値とする。
-        let mut outputs: Vec<Rc<RefCell<Variable>>> = Vec::new();
+        let mut outputs: Vec<Rc<RefCell<Variable<V>>>> = Vec::new();
         for y_data in ys_data.iter() {
             let val = Variable::new(y_data.clone());
             let y = Rc::new(RefCell::new(val));
@@ -337,9 +361,9 @@ impl FunctionExecutor {
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     fn backward(&mut self) {
-        // 逆伝播の最初の関数の微分値として 1.0 を設定する。
-        let grad_one = Array::from_elem(IxDyn(&[]), 1.0);
-        let mut gys: Vec<Array<f64, IxDyn>> = vec![];
+        // 逆伝播の最初の関数の微分値として 1 を設定する。
+        let grad_one = Array::from_elem(IxDyn(&[]), V::one());
+        let mut gys: Vec<Array<V, IxDyn>> = vec![];
         self.outputs
             .iter_mut()
             .map(|output| output.upgrade().unwrap())
@@ -384,11 +408,11 @@ impl FunctionExecutor {
     /// Arguments
     /// * outputs (Vec<Rc<RefCell<Variable>>>): 計算グラフの順伝播の出力値
     fn extract_creators(
-        outputs: Vec<Rc<RefCell<Variable>>>,
-    ) -> BinaryHeap<(i32, Rc<RefCell<FunctionExecutor>>)> {
+        outputs: Vec<Rc<RefCell<Variable<V>>>>,
+    ) -> BinaryHeap<(i32, Rc<RefCell<FunctionExecutor<V>>>)> {
         let mut creators = BinaryHeap::new();
         let mut creators_map: HashMap<String, &str> = HashMap::new();
-        let mut local_variables: Vec<Rc<RefCell<Variable>>> = outputs.clone(); // 1 つの creator の入力値を保持する。
+        let mut local_variables: Vec<Rc<RefCell<Variable<V>>>> = outputs.clone(); // 1 つの creator の入力値を保持する。
 
         // 計算グラフ上の creator を取得する。
         // creator の入力値を取得し、さらにその入力値の creator を取得することを繰り返す。
@@ -434,7 +458,7 @@ impl FunctionExecutor {
     ///
     /// Arguments:
     /// * outputs (Vec<Rc<RefCell<Variable>>>): 順伝播の結果
-    fn backward_all(outputs: Vec<Rc<RefCell<Variable>>>) {
+    fn backward_all(outputs: Vec<Rc<RefCell<Variable<V>>>>) {
         let creators = FunctionExecutor::extract_creators(outputs);
         // 逆伝播を実行する。
         for (_gen, creator) in creators.iter() {
@@ -446,10 +470,10 @@ impl FunctionExecutor {
 /// 二乗関数
 #[derive(Debug, Clone)]
 struct Square;
-impl Function for Square {
+impl<V: MathOps> Function<V> for Square {
     /// 順伝播
-    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
-        let result = vec![xs[0].mapv(|x| x.powi(2))];
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        let result = vec![xs[0].mapv(|x| x.pow(V::from(2).unwrap()))];
         //dpg!(result);
         result
     }
@@ -458,11 +482,13 @@ impl Function for Square {
     /// y=x^2 の微分であるため、dy/dx=2x である。
     fn backward(
         &self,
-        inputs: Vec<Rc<RefCell<Variable>>>,
-        gys: Vec<Array<f64, IxDyn>>,
-    ) -> Vec<Array<f64, IxDyn>> {
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
+        gys: Vec<Array<V, IxDyn>>,
+    ) -> Vec<Array<V, IxDyn>> {
         let x = inputs[0].borrow().data.clone();
-        let gxs = vec![2.0 * x * gys[0].clone()];
+        // let gxs = vec![V::from(2).unwrap() * &x * &gys[0].clone()];
+        let x_gys = &gys[0].clone() * &x;
+        let gxs = vec![x_gys.mapv(|x| x * V::from(2).unwrap())];
         gxs
     }
 }
@@ -474,7 +500,7 @@ impl Function for Square {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 二乗の結果
-fn square(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+fn square<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
     let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
     // 二乗の順伝播
     square.forward(vec![input]).get(0).unwrap().clone()
@@ -483,9 +509,9 @@ fn square(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
 /// 加算関数
 #[derive(Debug, Clone)]
 struct Add;
-impl Function for Add {
+impl<V: MathOps> Function<V> for Add {
     // Add (加算) の順伝播
-    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![&xs[0] + &xs[1]];
         result
     }
@@ -494,9 +520,9 @@ impl Function for Add {
     /// y=x0+x1 の微分であるため、dy/dx0=1, dy/dx1=1 である。
     fn backward(
         &self,
-        _inputs: Vec<Rc<RefCell<Variable>>>,
-        gys: Vec<Array<f64, IxDyn>>,
-    ) -> Vec<Array<f64, IxDyn>> {
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
+        gys: Vec<Array<V, IxDyn>>,
+    ) -> Vec<Array<V, IxDyn>> {
         vec![gys[0].clone(), gys[0].clone()]
     }
 }
@@ -509,7 +535,10 @@ impl Function for Add {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 加算結果
-fn add(x1: Rc<RefCell<Variable>>, x2: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+fn add<V: MathOps>(
+    x1: Rc<RefCell<Variable<V>>>,
+    x2: Rc<RefCell<Variable<V>>>,
+) -> Rc<RefCell<Variable<V>>> {
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
     // 加算の順伝播
     add.forward(vec![x1.clone(), x2.clone()])
@@ -521,12 +550,15 @@ fn add(x1: Rc<RefCell<Variable>>, x2: Rc<RefCell<Variable>>) -> Rc<RefCell<Varia
 /// Exp 関数
 #[derive(Debug, Clone)]
 struct Exp;
-impl Function for Exp {
+impl<V: MathOps> Function<V> for Exp {
     // Exp (y=e^x) の順伝播
-    fn forward(&self, xs: Vec<Array<f64, IxDyn>>) -> Vec<Array<f64, IxDyn>> {
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
+        // let result = vec![xs[0].mapv(|x| e.powf(x.to_f64().unwrap()))];
 
-        let result = vec![xs[0].mapv(|x| e.powf(x))];
+        // let result = vec![xs[0].mapv(|x| V::from(x.to_f64().unwrap().exp()).unwrap())];
+        let result = vec![xs[0].mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
+
         result
     }
 
@@ -534,12 +566,14 @@ impl Function for Exp {
     /// dy/dx=e^x である。
     fn backward(
         &self,
-        inputs: Vec<Rc<RefCell<Variable>>>,
-        gys: Vec<Array<f64, IxDyn>>,
-    ) -> Vec<Array<f64, IxDyn>> {
-        let x = inputs[0].borrow().data.clone();
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
+        gys: Vec<Array<V, IxDyn>>,
+    ) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
-        let gxs = vec![x.mapv(|x| e.powf(x)) * gys[0].clone()];
+        let x = inputs[0].borrow().data.clone();
+        let gys_val = gys[0].clone();
+        let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
+        let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
         gxs
     }
 }
@@ -551,10 +585,15 @@ impl Function for Exp {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 結果
-fn exp(input: Rc<RefCell<Variable>>) -> Rc<RefCell<Variable>> {
+fn exp<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
     let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
     // EXP の順伝播
     exp.forward(vec![input.clone()]).get(0).unwrap().clone()
+}
+
+fn type_of<T>(_: T) -> String {
+    let a = std::any::type_name::<T>();
+    return a.to_string();
 }
 
 fn main() {
@@ -577,6 +616,56 @@ fn main() {
         &x1.borrow().grad,
         &x2.borrow().grad
     );
+
+    let arr_vals = vec![
+        10., 11., 12., 13., 14., 15., 16., 20., 21., 22., 23., 24., 25., 26., 30., 31., 32., 33.,
+        34., 35., 36., 40., 41., 42., 43., 44., 45., 46., 50., 51., 52., 53., 54., 55., 56.,
+    ];
+    let arr_dim = vec![5, 7];
+    let arr_var = Variable::from_shape_vec(arr_dim, arr_vals);
+    dbg!(&arr_var.data);
+    dbg!(&arr_var.data.ndim());
+    dbg!(&arr_var.data.view());
+
+    let arr = array!(
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [2, 2, 2, 2, 2, 2, 2,],
+    );
+    dbg!(&arr);
+    dbg!(type_of(&arr));
+    println!("arr shape: {:?})", arr.shape());
+    println!("arr len: {:?})", arr.len());
+    println!("arr view: {:?})", arr.view());
+    println!("arr ndim: {:?})", arr.ndim());
+
+    let shape = vec![2, 2, 2];
+    let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    let arr2 = Variable::from_shape_vec(shape, values);
+    dbg!(&arr2.data);
+    println!("arr2 shape: {:?})", arr2.data.shape());
+    println!("arr2 len: {:?})", arr2.data.len());
+    println!("arr2 ndim: {:?})", arr2.data.ndim());
+
+    let arr_2x3x4 = ndarray::array![
+        [[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
+        [
+            [13., 14., 15., 16.],
+            [17., 18., 19., 20.],
+            [21., 22., 23., 24.]
+        ]
+    ];
+    let arr_4x2x3 = ndarray::array![
+        [[1., 2., 3.], [4., 5., 6.]],
+        [[7., 8., 9.], [10., 11., 12.]],
+        [[13., 14., 15.], [16., 17., 18.]],
+        [[19., 20., 21.], [22., 23., 24.]]
+    ];
+
+    dbg!(&arr_2x3x4);
+    dbg!(&arr_4x2x3);
 }
 
 #[cfg(test)]
@@ -584,6 +673,211 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    /// 中間変数の微分結果を保持し無い場合のテスト
+    #[test]
+    fn test_retain_grad_disabled_u32() {
+        let x1 = Rc::new(RefCell::new(Variable::new(2u32)));
+        let x2 = Rc::new(RefCell::new(Variable::new(3u32)));
+        let a = square(Rc::clone(&x1));
+        let b = square(Rc::clone(&a));
+        let c = square(Rc::clone(&a));
+        let d = add(Rc::clone(&b), Rc::clone(&c));
+        let y = add(Rc::clone(&d), Rc::clone(&x2));
+
+        // 順伝播の結果
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35), y.borrow().data.clone());
+        // 各変数の世代のテスト
+        assert_eq!(0, x1.borrow().get_generation());
+        assert_eq!(0, x2.borrow().get_generation());
+        assert_eq!(1, a.borrow().get_generation());
+        assert_eq!(2, b.borrow().get_generation());
+        assert_eq!(2, c.borrow().get_generation());
+        assert_eq!(3, d.borrow().get_generation());
+        assert_eq!(4, y.borrow().get_generation());
+
+        // 各関数の世代のテスト
+        assert_eq!(0, a.borrow().get_creator_generation());
+        assert_eq!(1, b.borrow().get_creator_generation());
+        assert_eq!(1, c.borrow().get_creator_generation());
+        assert_eq!(2, d.borrow().get_creator_generation());
+        assert_eq!(3, y.borrow().get_creator_generation());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+
+        // dbg!(&d);
+        // dbg!(&creators);
+
+        // 実行した関数の数をチェックする。
+        assert_eq!(5, creators.len());
+
+        // 逆伝播を実行する。微分値を保持しない。
+        Setting::set_retain_grad_disabled();
+        for (_gen, creator) in creators.iter() {
+            creator.borrow_mut().backward();
+        }
+
+        // 逆伝播の結果の確認
+        // 途中結果の変数には微分値が設定されていないことを確認する。
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2), x1.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 64), x1.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3), x2.borrow().get_data());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 1), x2.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 4), a.borrow().get_data());
+        assert!(a.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16), b.borrow().get_data());
+        assert!(b.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 16), c.borrow().get_data());
+        assert!(c.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 32), d.borrow().get_data());
+        assert!(d.borrow().grad.is_none());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 35), y.borrow().get_data());
+        assert!(y.borrow().grad.is_none());
+    }
+
+    /// 変数の size, shape, ndim のテスト
+    #[test]
+    fn test_variable_params() {
+        let var0 = Variable::new(1.0);
+        assert_eq!(1, var0.get_size());
+        let a: [usize; 0] = [];
+        assert_eq!(&a, var0.get_shape());
+        assert_eq!(0, var0.get_ndim());
+
+        let var1 = Variable::from_shape_vec(vec![1], vec![1.0]);
+        assert_eq!(1, var1.get_size());
+        assert_eq!([1], var1.get_shape());
+        assert_eq!(1, var1.get_ndim());
+
+        let sh2x2 = vec![2, 2];
+        let val2x2 = vec![1., 2., 3., 4.];
+        let var2x2 = Variable::from_shape_vec(sh2x2, val2x2);
+
+        assert_eq!(4, var2x2.get_size());
+        assert_eq!([2, 2], var2x2.get_shape());
+        assert_eq!(2, var2x2.get_ndim());
+        dbg!(&var2x2.get_shape());
+
+        let sh10x20x30x40x50 = vec![10, 20, 30, 40, 50];
+        let val10x20x30x40x50: Vec<f64> = (1..=12000000).map(|x| x as f64).collect();
+
+        let var10x20x30x40x50 = Variable::from_shape_vec(sh10x20x30x40x50, val10x20x30x40x50);
+        assert_eq!(12000000, var10x20x30x40x50.get_size());
+        assert_eq!([10, 20, 30, 40, 50], var10x20x30x40x50.get_shape());
+        assert_eq!(5, var10x20x30x40x50.get_ndim());
+    }
+
+    /// 2乗と加算のテスト
+    /// (x1 + x2)^2 の順伝播と逆伝播をテストする。
+    #[test]
+    fn test_multidim_add_square_1() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // テスト用の入力値
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+        dbg!(&var1);
+        let sh2 = vec![2, 2];
+        let val2 = vec![11., 12., 13., 14.];
+        let var2 = Variable::from_shape_vec(sh2, val2);
+        dbg!(&var2);
+
+        let x1 = Rc::new(RefCell::new(var1));
+        let x2 = Rc::new(RefCell::new(var2));
+
+        // 順伝播の結果 [[12., 14.],[16., 18.]]^2 = [[144., 196.], [256., 324.]]
+        let expected = Variable::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
+        // 逆伝播の結果 2 * [[12., 14.], [16., 18.]]
+        let expected_grad = Variable::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
+
+        let result = square(add(x1.clone(), x2.clone()));
+
+        // 順伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(None, x1.borrow().grad.clone());
+        assert_eq!(None, x2.borrow().grad.clone());
+        assert_eq!(expected.data, result.borrow().data.clone());
+
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        //dbg!(creators);
+        for (_gen, creator) in creators.iter() {
+            creator.borrow_mut().backward();
+        }
+
+        // 逆伝播の結果を確認する。
+        // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
+        dbg!(x1.clone());
+        dbg!(x2.clone());
+        assert_eq!(expected_grad.get_data(), x1.borrow().grad.clone().unwrap());
+        assert_eq!(expected_grad.get_data(), x2.borrow().grad.clone().unwrap());
+    }
+
+    #[test]
+    fn test_multidim_square() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+
+        // 加算値をランダムに生成する。
+        let x1 = Rc::new(RefCell::new(var1));
+
+        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
+
+        // 順伝播、逆伝播を実行する。
+        let mut result = square(Rc::clone(&x1));
+        assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
+
+        // dbg!(&result.borrow().get_data());
+
+        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        // dbg!(&result.borrow().get_grad());
+    }
+
+    #[test]
+    fn test_multidim_add() {
+        let sh1 = vec![2, 2];
+        let val1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, val1);
+        dbg!(&var1);
+        let sh2 = vec![2, 2];
+        let val2 = vec![11., 12., 13., 14.];
+        let var2 = Variable::from_shape_vec(sh2, val2);
+        // dbg!(&var2);
+
+        // 加算値をランダムに生成する。
+        let x1 = Rc::new(RefCell::new(var1));
+        let x2 = Rc::new(RefCell::new(var2));
+
+        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
+
+        // 加算した結果の期待値を計算する。
+        // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
+
+        // 順伝播、逆伝播を実行する。
+        let result = add(Rc::clone(&x1), Rc::clone(&x2));
+        assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
+
+        // dbg!(&result.borrow().get_data());
+    }
+
+    #[test]
+    /// 任意の形状に関するテスト。
+    fn test_dyndim_array() {
+        let shape = vec![2, 2, 2];
+        let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+        let var = Variable::from_shape_vec(shape, values);
+        // dbg!(&var);
+        assert_eq!(&[2, 2, 2], var.get_data().shape());
+    }
 
     /// 変数の名前のテスト。
     #[test]
@@ -608,7 +902,7 @@ mod tests {
 
         let result = square(square(square(Rc::clone(&x))));
 
-        dbg!(&result.borrow().generation);
+        // dbg!(&result.borrow().generation);
         assert_eq!(1, result.borrow().generation);
 
         // バックプロパゲーションを行う場合
@@ -620,7 +914,7 @@ mod tests {
 
         let result = square(square(square(Rc::clone(&x))));
 
-        dbg!(&result.borrow().generation);
+        //dbg!(&result.borrow().generation);
         assert_eq!(3, result.borrow().generation);
     }
 
@@ -656,8 +950,8 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
 
-        dbg!(&d);
-        dbg!(&creators);
+        // dbg!(&d);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
@@ -718,8 +1012,8 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
 
-        dbg!(&d);
-        dbg!(&creators);
+        // dbg!(&d);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
@@ -782,8 +1076,8 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
 
-        dbg!(&d);
-        dbg!(&creators);
+        // dbg!(&d);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(5, creators.len());
@@ -826,7 +1120,7 @@ mod tests {
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
         let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
 
-        dbg!(&creators);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(1, creators.len());
@@ -893,7 +1187,7 @@ mod tests {
         assert_ne!(Array::from_elem(IxDyn(&[]), 1.0), input2_grad.clone());
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), input1_grad.clone());
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), input2_grad.clone());
-        dbg!(&output_result);
+        //  dbg!(&output_result);
     }
 
     /// ステップ14 同一の値を３回加算した場合のテスト。
@@ -909,7 +1203,7 @@ mod tests {
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
         assert_eq!(
             expected_output_data.clone(),
             //results.clone().get(0).unwrap().borrow().clone().data
@@ -926,7 +1220,7 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
 
         let expected_grad = Array::from_elem(IxDyn(&[]), 3.0);
         assert_eq!(expected_grad, x.borrow().grad.clone().unwrap());
@@ -953,7 +1247,7 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
 
         let expected_grad = Array::from_elem(IxDyn(&[]), 2.0);
         assert_eq!(expected_grad, x.borrow().grad.clone().unwrap());
@@ -973,7 +1267,7 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
 
         // 1回目の微分と２回目の微分を加算した ４ になってしまうことを確認する。
         let expected_grad2 = Array::from_elem(IxDyn(&[]), 4.0);
@@ -995,7 +1289,7 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
         // 微分をクリアしたことで正しい結果となることを確認する。
         let expected_grad3 = Array::from_elem(IxDyn(&[]), 2.0);
         assert_eq!(expected_grad3, x.borrow().grad.clone().unwrap());
@@ -1020,7 +1314,7 @@ mod tests {
         let result = square(Rc::clone(&x));
         let creators = FunctionExecutor::extract_creators(vec![Rc::clone(&result)]);
 
-        dbg!(&creators);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(1, creators.len());
@@ -1054,7 +1348,7 @@ mod tests {
         let result = add(Rc::clone(&x1), Rc::clone(&x2));
         let creators = FunctionExecutor::extract_creators(vec![Rc::clone(&result)]);
 
-        dbg!(&creators);
+        // dbg!(&creators);
 
         // 実行した関数の数をチェックする。
         assert_eq!(1, creators.len());
@@ -1128,8 +1422,8 @@ mod tests {
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
-        dbg!(x1.clone());
-        dbg!(x2.clone());
+        // dbg!(x1.clone());
+        // dbg!(x2.clone());
         assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
         assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
         assert_eq!(None, x1.borrow().grad.clone());
@@ -1150,8 +1444,8 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x1.clone());
-        dbg!(x2.clone());
+        // dbg!(x1.clone());
+        // dbg!(x2.clone());
 
         let expected_grad = Array::from_elem(IxDyn(&[]), 10.0);
         assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
@@ -1187,8 +1481,8 @@ mod tests {
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
-        dbg!(x1.clone());
-        dbg!(x2.clone());
+        //  dbg!(x1.clone());
+        // dbg!(x2.clone());
         assert_eq!(x1_arr.clone(), x1.borrow().data.clone());
         assert_eq!(x2_arr.clone(), x2.borrow().data.clone());
         assert_eq!(None, x1.borrow().grad.clone());
@@ -1208,9 +1502,9 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x1.clone());
-        dbg!(x2.clone());
-        dbg!(result.clone().borrow().generation);
+        // dbg!(x1.clone());
+        // dbg!(x2.clone());
+        // dbg!(result.clone().borrow().generation);
 
         let expected_x1_grad = Array::from_elem(IxDyn(&[]), 4.0);
         let expected_x2_grad = Array::from_elem(IxDyn(&[]), 6.0);
@@ -1231,7 +1525,7 @@ mod tests {
 
         let e = std::f64::consts::E;
         let expected = Array::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));
-        dbg!(expected.clone());
+        // dbg!(expected.clone());
 
         // 関数を用意する。
         // let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
@@ -1244,7 +1538,7 @@ mod tests {
 
         // 順伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていないことも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
         assert_eq!(x_arr.clone(), x.borrow().data.clone());
         assert_eq!(None, x.borrow().grad.clone());
         assert_eq!(expected.clone(), result.borrow().data.clone());
@@ -1258,7 +1552,7 @@ mod tests {
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
-        dbg!(x.clone());
+        // dbg!(x.clone());
 
         // 逆伝播の正解は書籍の値を使用。
         let expected_x_grad = Array::from_elem(IxDyn(&[]), 3.297442541400256);
