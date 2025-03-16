@@ -9,6 +9,7 @@ dependencies = [
  "approx",
  "ndarray",
  "num-complex",
+ "num-traits",
  "rand",
 ]
 
