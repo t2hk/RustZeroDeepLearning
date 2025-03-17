@@ -9,8 +9,8 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
-pub trait MathOps: Num + NumCast + Pow<Self, Output = Self> + Copy {}
-impl<V> MathOps for V where V: Num + NumCast + Pow<V, Output = V> + Copy + Clone {}
+pub trait MathOps: Num + NumCast + Copy {}
+impl<V> MathOps for V where V: Num + NumCast + Copy + Clone {}
 
 thread_local!(
   static SETTING: Rc<RefCell<Setting>> = {
@@ -194,6 +194,11 @@ impl<V: MathOps> Variable<V> {
     /// 次元数
     fn get_ndim(&self) -> usize {
         self.data.ndim()
+    }
+
+    /// 型
+    fn get_dtype(&self) -> String {
+        format!("{}", std::any::type_name::<V>())
     }
 }
 
@@ -473,8 +478,11 @@ struct Square;
 impl<V: MathOps> Function<V> for Square {
     /// 順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        let result = vec![xs[0].mapv(|x| x.pow(V::from(2).unwrap()))];
+        //let result = vec![xs[0].mapv(|x| x.pow(V::from(2).unwrap()))];
+        let result = vec![xs[0].mapv(|x| x * x)];
+
         //dpg!(result);
+
         result
     }
 
@@ -600,6 +608,9 @@ fn main() {
     let x1 = Rc::new(RefCell::new(Variable::new(1.0)));
     let x2 = Rc::new(RefCell::new(Variable::new(1.0)));
 
+    let dtypetest = Variable::new(10i32);
+    println!("dtype: {:?}", dtypetest.get_dtype());
+
     let result = add(
         Rc::clone(&x1),
         Rc::clone(&add(Rc::clone(&x1), Rc::clone(&x2))),
@@ -673,6 +684,31 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    #[test]
+    /// 変数の型名に関するテスト。
+    fn test_get_dtype() {
+        let var_i8 = Variable::new(10i8);
+        let var_i16 = Variable::new(10i16);
+        let var_i32 = Variable::new(10i32);
+        let var_i64 = Variable::new(10i64);
+        let var_f32 = Variable::new(10.0f32);
+        let var_f64 = Variable::new(10.0f64);
+        let var_u8 = Variable::new(10u8);
+        let var_u16 = Variable::new(10u16);
+        let var_u32 = Variable::new(10u32);
+        let var_u64 = Variable::new(10u64);
+        assert_eq!("i8", var_i8.get_dtype());
+        assert_eq!("i16", var_i16.get_dtype());
+        assert_eq!("i32", var_i32.get_dtype());
+        assert_eq!("i64", var_i64.get_dtype());
+        assert_eq!("f32", var_f32.get_dtype());
+        assert_eq!("f64", var_f64.get_dtype());
+        assert_eq!("u8", var_u8.get_dtype());
+        assert_eq!("u16", var_u16.get_dtype());
+        assert_eq!("u32", var_u32.get_dtype());
+        assert_eq!("u64", var_u64.get_dtype());
+    }
 
     /// 中間変数の微分結果を保持し無い場合のテスト
     #[test]
