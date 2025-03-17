@@ -97,11 +97,27 @@ impl<V: MathOps> Add for Variable<V> {
     fn add(self, rhs: Self) -> Self {
         let x1 = Rc::new(RefCell::new(self));
         let x2 = Rc::new(RefCell::new(rhs));
-        // add(Rc::clone(&x1), Rc::clone(&x2)).borrow();
 
         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
         // 加算の順伝播
         add.forward(vec![Rc::clone(&x1), Rc::clone(&x2)])
+            .get(0)
+            .unwrap()
+            .borrow()
+            .clone()
+    }
+}
+
+/// 乗算のオーバーロード
+impl<V: MathOps> Mul for Variable<V> {
+    type Output = Self;
+    fn mul(self, rhs: Self) -> Self {
+        let x1 = Rc::new(RefCell::new(self));
+        let x2 = Rc::new(RefCell::new(rhs));
+
+        let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
+        // 乗算の順伝播
+        mul.forward(vec![Rc::clone(&x1), Rc::clone(&x2)])
             .get(0)
             .unwrap()
             .borrow()
@@ -751,6 +767,55 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    #[test]
+    fn test_overload_add_mul() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        // 順伝播
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let c = Variable::new(1.0f32);
+        let expected = Variable::new(7f32);
+
+        //let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+        let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+
+        //assert_eq!(expected.get_data(), result.clone().get_data());
+
+        // 逆伝播
+        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        println!(
+            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+            &result.borrow().grad,
+            &a.grad,
+            &b.grad,
+            &c.grad,
+        );
+
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1.0),
+            &result.borrow().get_grad()
+        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a.get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b.get_grad());
+    }
+
+    /// 乗算のオーバーロードのテスト
+    #[test]
+    fn test_mul_overload() {
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let result = a * b;
+        let expected = Variable::new(6.0f32);
+        dbg!(&result);
+        assert_eq!(expected.get_data(), result.get_data());
+    }
+
+    /// 加算のオーバーロードのテスト
     #[test]
     fn test_add_overload() {
         let a = Variable::new(3.0f32);
