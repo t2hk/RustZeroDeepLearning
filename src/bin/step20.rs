@@ -7,6 +7,7 @@ use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::ops::{Add, Mul};
 use std::rc::{Rc, Weak};
 
 pub trait MathOps: Num + NumCast + Copy {}
@@ -88,6 +89,24 @@ struct Variable<V: MathOps> {
     grad: Option<Array<V, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
     generation: i32,
+}
+
+/// 加算のオーバーロード
+impl<V: MathOps> Add for Variable<V> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        let x1 = Rc::new(RefCell::new(self));
+        let x2 = Rc::new(RefCell::new(rhs));
+        // add(Rc::clone(&x1), Rc::clone(&x2)).borrow();
+
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        // 加算の順伝播
+        add.forward(vec![Rc::clone(&x1), Rc::clone(&x2)])
+            .get(0)
+            .unwrap()
+            .borrow()
+            .clone()
+    }
 }
 
 impl<V: MathOps> Variable<V> {
@@ -516,8 +535,8 @@ fn square<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>
 
 /// 加算関数
 #[derive(Debug, Clone)]
-struct Add;
-impl<V: MathOps> Function<V> for Add {
+struct AddFunction;
+impl<V: MathOps> Function<V> for AddFunction {
     // Add (加算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![&xs[0] + &xs[1]];
@@ -547,7 +566,7 @@ fn add<V: MathOps>(
     x1: Rc<RefCell<Variable<V>>>,
     x2: Rc<RefCell<Variable<V>>>,
 ) -> Rc<RefCell<Variable<V>>> {
-    let mut add = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
+    let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
     // 加算の順伝播
     add.forward(vec![x1.clone(), x2.clone()])
         .get(0)
@@ -557,8 +576,8 @@ fn add<V: MathOps>(
 
 /// Exp 関数
 #[derive(Debug, Clone)]
-struct Exp;
-impl<V: MathOps> Function<V> for Exp {
+struct ExpFunction;
+impl<V: MathOps> Function<V> for ExpFunction {
     // Exp (y=e^x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
@@ -594,7 +613,7 @@ impl<V: MathOps> Function<V> for Exp {
 /// Return
 /// * Rc<RefCell<Variable>>: 結果
 fn exp<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
-    let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
+    let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
     // EXP の順伝播
     exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
@@ -606,8 +625,8 @@ fn type_of<T>(_: T) -> String {
 
 /// 乗算関数
 #[derive(Debug, Clone)]
-struct Mul;
-impl<V: MathOps> Function<V> for Mul {
+struct MulFunction;
+impl<V: MathOps> Function<V> for MulFunction {
     // Mul (乗算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![&xs[0] * &xs[1]];
@@ -643,7 +662,7 @@ fn mul<V: MathOps>(
     x1: Rc<RefCell<Variable<V>>>,
     x2: Rc<RefCell<Variable<V>>>,
 ) -> Rc<RefCell<Variable<V>>> {
-    let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(Mul)));
+    let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
     // 乗算の順伝播
     mul.forward(vec![x1.clone(), x2.clone()])
         .get(0)
@@ -731,6 +750,16 @@ mod tests {
     use super::*;
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
+
+    #[test]
+    fn test_add_overload() {
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let result = a + b;
+        let expected = Variable::new(5.0f32);
+        dbg!(&result);
+        assert_eq!(expected.get_data(), result.get_data());
+    }
 
     #[test]
     fn test_add_mul() {
