@@ -6,6 +6,7 @@ use num_traits::{Num, NumCast};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::ops::Deref;
 use std::ops::{Add, Mul};
 use std::rc::{Rc, Weak};
 
@@ -81,7 +82,7 @@ impl Setting {
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 struct Variable<V: MathOps> {
     data: Array<V, IxDyn>,
     name: Option<String>,
@@ -90,7 +91,24 @@ struct Variable<V: MathOps> {
     generation: i32,
 }
 
-// /// 加算のオーバーロード
+/// 加算のオーバーロード
+impl<V: MathOps> Add for &Variable<V> {
+    type Output = Variable<V>;
+    fn add(self, rhs: Self) -> Variable<V> {
+        let x1 = Rc::new(RefCell::new(self));
+        let x2 = Rc::new(RefCell::new(rhs));
+
+        // 加算の順伝播
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        let result = add
+            .forward(vec![x1, x2])
+            .get(0)
+            .unwrap()
+            .borrow_mut()
+            .clone();
+        result
+    }
+}
 // impl<V: MathOps> Add for Variable<V> {
 //     type Output = Self;
 //     fn add(self, rhs: Variable<V>) -> Variable<V> {
@@ -109,26 +127,45 @@ struct Variable<V: MathOps> {
 //     }
 // }
 
-impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
+// impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
+//     type Output = Variable<V>;
+
+//     fn add(self, rhs: &'b Variable<V>) -> Variable<V> {
+//         println!("=========== add ================");
+//         if let Some(creator) = self.creator.clone() {
+//             println!("====== add <self> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
+
+//         if let Some(creator) = rhs.creator.clone() {
+//             println!("====== add <rhs> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
+//         let x1 = Rc::new(RefCell::new(self.clone()));
+//         let x2 = Rc::new(RefCell::new(rhs.clone()));
+
+//         // 加算の順伝播
+//         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+//         let result = add
+//             .forward(vec![x1, x2])
+//             .get(0)
+//             .unwrap()
+//             .borrow_mut()
+//             .clone();
+//         result
+//     }
+// }
+
+/// 乗算のオーバーロード
+impl<V: MathOps> Mul for &Variable<V> {
     type Output = Variable<V>;
-
-    fn add(self, rhs: &'b Variable<V>) -> Variable<V> {
-        println!("=========== add ================");
-        if let Some(creator) = self.creator.clone() {
-            println!("====== add <self> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
-
-        if let Some(creator) = rhs.creator.clone() {
-            println!("====== add <rhs> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
-        let x1 = Rc::new(RefCell::new(self.clone()));
-        let x2 = Rc::new(RefCell::new(rhs.clone()));
+    fn mul(self, rhs: Self) -> Variable<V> {
+        let x1 = Rc::new(RefCell::new(self));
+        let x2 = Rc::new(RefCell::new(rhs));
 
         // 加算の順伝播
-        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-        let result = add
+        let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
+        let result = mul
             .forward(vec![x1, x2])
             .get(0)
             .unwrap()
@@ -138,7 +175,6 @@ impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
     }
 }
 
-/// 乗算のオーバーロード
 // impl<V: MathOps> Mul for Variable<V> {
 //     type Output = Self;
 //     fn mul(self, rhs: Self) -> Self {
@@ -154,46 +190,46 @@ impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
 //             .clone()
 //     }
 // }
-impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
-    type Output = Variable<V>;
-    fn mul(self, rhs: &'b Variable<V>) -> Variable<V> {
-        println!("=========== mul ================");
-        if let Some(creator) = self.creator.clone() {
-            println!("====== mul <self> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
+// impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
+//     type Output = Variable<V>;
+//     fn mul(self, rhs: &'b Variable<V>) -> Variable<V> {
+//         println!("=========== mul ================");
+//         if let Some(creator) = self.creator.clone() {
+//             println!("====== mul <self> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
 
-        if let Some(creator) = rhs.creator.clone() {
-            println!("====== mul <rhs> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
+//         if let Some(creator) = rhs.creator.clone() {
+//             println!("====== mul <rhs> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
 
-        let x1 = Rc::new(RefCell::new(self.clone()));
-        let x2 = Rc::new(RefCell::new(rhs.clone()));
+//         let x1 = Rc::new(RefCell::new(self.clone()));
+//         let x2 = Rc::new(RefCell::new(rhs.clone()));
 
-        let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
-        // 乗算の順伝播
-        let result = mul
-            .forward(vec![x1, x2])
-            .get(0)
-            .unwrap()
-            .borrow_mut()
-            .clone();
+//         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
+//         // 乗算の順伝播
+//         let result = mul
+//             .forward(vec![x1, x2])
+//             .get(0)
+//             .unwrap()
+//             .borrow_mut()
+//             .clone();
 
-        println!("=========== return mul ================");
-        if let Some(creator) = self.creator.clone() {
-            println!("====== return mul <self> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
+//         println!("=========== return mul ================");
+//         if let Some(creator) = self.creator.clone() {
+//             println!("====== return mul <self> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
 
-        if let Some(creator) = rhs.creator.clone() {
-            println!("====== return mul <rhs> here 1 =====");
-            dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-        }
+//         if let Some(creator) = rhs.creator.clone() {
+//             println!("====== return mul <rhs> here 1 =====");
+//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
+//         }
 
-        result
-    }
-}
+//         result
+//     }
+// }
 
 impl<V: MathOps> Variable<V> {
     /// Variable のコンストラクタ。
@@ -426,7 +462,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
-    fn forward(&mut self, inputs: Vec<Rc<RefCell<Variable<V>>>>) -> Vec<Rc<RefCell<Variable<V>>>> {
+    fn forward(&mut self, inputs: Vec<Rc<RefCell<&Variable<V>>>>) -> Vec<Rc<RefCell<Variable<V>>>> {
         println!("=========== forward ================");
         if let Some(input) = inputs.get(0) {
             println!("====== here 1 =====");
@@ -464,7 +500,10 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
 
         // 入出力を自身に設定する。
-        self.inputs = inputs;
+        self.inputs = inputs
+            .iter()
+            .map(|input| Rc::new(RefCell::new(**input.borrow())))
+            .collect();
         self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
         for output in outputs.clone().iter_mut() {
             output
@@ -622,11 +661,11 @@ impl<V: MathOps> Function<V> for Square {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 二乗の結果
-fn square<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
-    let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-    // 二乗の順伝播
-    square.forward(vec![input]).get(0).unwrap().clone()
-}
+// fn square<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
+//     let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+//     // 二乗の順伝播
+//     square.forward(vec![input]).get(0).unwrap().clone()
+// }
 
 /// 加算関数
 #[derive(Debug, Clone)]
@@ -658,15 +697,12 @@ impl<V: MathOps> Function<V> for AddFunction {
 /// Return
 /// * Rc<RefCell<Variable>>: 加算結果
 fn add<V: MathOps>(
-    x1: Rc<RefCell<Variable<V>>>,
-    x2: Rc<RefCell<Variable<V>>>,
+    x1: Rc<RefCell<&Variable<V>>>,
+    x2: Rc<RefCell<&Variable<V>>>,
 ) -> Rc<RefCell<Variable<V>>> {
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
     // 加算の順伝播
-    add.forward(vec![x1.clone(), x2.clone()])
-        .get(0)
-        .unwrap()
-        .clone()
+    add.forward(vec![x1, x2]).get(0).unwrap().clone()
 }
 
 /// Exp 関数
@@ -698,19 +734,6 @@ impl<V: MathOps> Function<V> for ExpFunction {
         let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
         gxs
     }
-}
-
-/// Exp 関数
-///
-/// Arguments
-/// * input (Rc<RefCell<Variable>>): 入力値
-///
-/// Return
-/// * Rc<RefCell<Variable>>: 結果
-fn exp<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
-    let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
-    // EXP の順伝播
-    exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
 
 fn type_of<T>(_: T) -> String {
@@ -754,15 +777,12 @@ impl<V: MathOps> Function<V> for MulFunction {
 /// Return
 /// * Rc<RefCell<Variable>>: 乗算結果
 fn mul<V: MathOps>(
-    x1: Rc<RefCell<Variable<V>>>,
-    x2: Rc<RefCell<Variable<V>>>,
+    x1: Rc<RefCell<&Variable<V>>>,
+    x2: Rc<RefCell<&Variable<V>>>,
 ) -> Rc<RefCell<Variable<V>>> {
     let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
     // 乗算の順伝播
-    mul.forward(vec![x1.clone(), x2.clone()])
-        .get(0)
-        .unwrap()
-        .clone()
+    mul.forward(vec![x1, x2]).get(0).unwrap().clone()
 }
 
 fn main() {}
