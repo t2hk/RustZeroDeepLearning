@@ -1,12 +1,8 @@
 use crate::functions::*;
 use crate::settings::*;
-
-use ndarray::{array, Array, ArrayD, IntoDimension, IxDyn};
-use num_traits::{Num, NumCast};
+use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
 use std::cell::RefCell;
-use std::collections::BinaryHeap;
-use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 /// Variable 構造体
 /// * data (Array<f64, IxDyn>): 変数

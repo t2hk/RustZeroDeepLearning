@@ -1,8 +1,7 @@
 use crate::settings::*;
 use crate::variable::*;
 
-use ndarray::{array, Array, ArrayD, IntoDimension, IxDyn};
-use num_traits::{Num, NumCast};
+use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -187,10 +186,6 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
     }
 
-    pub fn get_generation(&self) -> i32 {
-        self.generation
-    }
-
     /// 逆伝播のために計算グラフ上の関数を取得する。
     ///
     /// Arguments
@@ -211,12 +206,12 @@ impl<V: MathOps> FunctionExecutor<V> {
             let mut local_creators = vec![];
             local_variables.iter().for_each(|variable| {
                 // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
-                if let Some(creator) = variable.borrow().get_creator() {
-                    if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
-                        creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
-                        creators_map.insert(format!("{:p}", creator.as_ptr()), "");
-                        local_creators.push(Rc::clone(&creator));
-                    }
+                // if let Some(creator) = variable.borrow().get_creator() {
+                let creator = variable.borrow().get_creator();
+                if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
+                    creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
+                    creators_map.insert(format!("{:p}", creator.as_ptr()), "");
+                    local_creators.push(Rc::clone(&creator));
                 }
             });
 
