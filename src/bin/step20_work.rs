@@ -1,7 +1,7 @@
 //! ステップ20 演算子のオーバーロード(1)
 
 use core::fmt::Debug;
-use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
+use ndarray::{array, Array, ArrayD, IntoDimension, IxDyn};
 use num_traits::{Num, NumCast};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
@@ -10,7 +10,7 @@ use std::ops::Deref;
 use std::ops::{Add, Mul};
 use std::rc::{Rc, Weak};
 
-pub trait MathOps: Num + NumCast + Copy + Clone + Debug {}
+pub trait MathOps: Num + NumCast + Copy + Debug {}
 impl<V> MathOps for V where V: Num + NumCast + Copy + Clone + Debug {}
 
 thread_local!(
@@ -82,7 +82,7 @@ impl Setting {
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Variable<V: MathOps> {
     data: Array<V, IxDyn>,
     name: Option<String>,
@@ -92,144 +92,34 @@ struct Variable<V: MathOps> {
 }
 
 /// 加算のオーバーロード
-impl<V: MathOps> Add for &Variable<V> {
-    type Output = Variable<V>;
-    fn add(self, rhs: Self) -> Variable<V> {
+impl<'a, V: MathOps> Add for &'a Variable<V> {
+    type Output = Rc<RefCell<Variable<V>>>;
+    fn add(self, rhs: &Variable<V>) -> Rc<RefCell<Variable<V>>> {
+        // let x1 = Rc::new(RefCell::new(self));
+        // let x2 = Rc::new(RefCell::new(rhs));
         let x1 = Rc::new(RefCell::new(self));
         let x2 = Rc::new(RefCell::new(rhs));
 
-        // 加算の順伝播
         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-        let result = add
-            .forward(vec![x1, x2])
-            .get(0)
-            .unwrap()
-            .borrow_mut()
-            .clone();
-        result
+        // 加算の順伝播
+        let result = add.forward(vec![&x1, &x2]);
+        result.get(0).unwrap().clone()
     }
 }
-// impl<V: MathOps> Add for Variable<V> {
-//     type Output = Self;
-//     fn add(self, rhs: Variable<V>) -> Variable<V> {
-//         let x1 = Rc::new(RefCell::new(self));
-//         let x2 = Rc::new(RefCell::new(rhs));
-
-//         // 加算の順伝播
-//         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-//         let result = add
-//             .forward(vec![x1, x2])
-//             .get(0)
-//             .unwrap()
-//             .borrow_mut()
-//             .clone();
-//         result
-//     }
-// }
-
-// impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
-//     type Output = Variable<V>;
-
-//     fn add(self, rhs: &'b Variable<V>) -> Variable<V> {
-//         println!("=========== add ================");
-//         if let Some(creator) = self.creator.clone() {
-//             println!("====== add <self> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-
-//         if let Some(creator) = rhs.creator.clone() {
-//             println!("====== add <rhs> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-//         let x1 = Rc::new(RefCell::new(self.clone()));
-//         let x2 = Rc::new(RefCell::new(rhs.clone()));
-
-//         // 加算の順伝播
-//         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-//         let result = add
-//             .forward(vec![x1, x2])
-//             .get(0)
-//             .unwrap()
-//             .borrow_mut()
-//             .clone();
-//         result
-//     }
-// }
 
 /// 乗算のオーバーロード
-impl<V: MathOps> Mul for &Variable<V> {
-    type Output = Variable<V>;
-    fn mul(self, rhs: Self) -> Variable<V> {
+impl<'a, V: MathOps> Mul for &'a Variable<V> {
+    type Output = Rc<RefCell<Variable<V>>>;
+    fn mul(self, rhs: &Variable<V>) -> Rc<RefCell<Variable<V>>> {
         let x1 = Rc::new(RefCell::new(self));
         let x2 = Rc::new(RefCell::new(rhs));
 
-        // 加算の順伝播
         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
-        let result = mul
-            .forward(vec![x1, x2])
-            .get(0)
-            .unwrap()
-            .borrow_mut()
-            .clone();
-        result
+        // 乗算の順伝播
+        let result = mul.forward(vec![&x1, &x2]);
+        result.get(0).unwrap().clone()
     }
 }
-
-// impl<V: MathOps> Mul for Variable<V> {
-//     type Output = Self;
-//     fn mul(self, rhs: Self) -> Self {
-//         let x1 = Rc::new(RefCell::new(self));
-//         let x2 = Rc::new(RefCell::new(rhs));
-
-//         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
-//         // 乗算の順伝播
-//         mul.forward(vec![x1, x2])
-//             .get(0)
-//             .unwrap()
-//             .borrow_mut()
-//             .clone()
-//     }
-// }
-// impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
-//     type Output = Variable<V>;
-//     fn mul(self, rhs: &'b Variable<V>) -> Variable<V> {
-//         println!("=========== mul ================");
-//         if let Some(creator) = self.creator.clone() {
-//             println!("====== mul <self> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-
-//         if let Some(creator) = rhs.creator.clone() {
-//             println!("====== mul <rhs> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-
-//         let x1 = Rc::new(RefCell::new(self.clone()));
-//         let x2 = Rc::new(RefCell::new(rhs.clone()));
-
-//         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
-//         // 乗算の順伝播
-//         let result = mul
-//             .forward(vec![x1, x2])
-//             .get(0)
-//             .unwrap()
-//             .borrow_mut()
-//             .clone();
-
-//         println!("=========== return mul ================");
-//         if let Some(creator) = self.creator.clone() {
-//             println!("====== return mul <self> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-
-//         if let Some(creator) = rhs.creator.clone() {
-//             println!("====== return mul <rhs> here 1 =====");
-//             dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-//         }
-
-//         result
-//     }
-// }
 
 impl<V: MathOps> Variable<V> {
     /// Variable のコンストラクタ。
@@ -341,6 +231,15 @@ impl<V: MathOps> Variable<V> {
     fn get_dtype(&self) -> String {
         format!("{}", std::any::type_name::<V>())
     }
+
+    /// この変数を出力結果とした場合の逆伝播を行う。
+    fn backward(&self) {
+        let creators =
+            FunctionExecutor::extract_creators(vec![Rc::new(RefCell::new(self.clone()))]);
+        for (_gen, creator) in creators.iter() {
+            creator.borrow().backward();
+        }
+    }
 }
 
 /// Variable 構造体を生成するためのトレイト
@@ -409,36 +308,36 @@ where
 /// 関数の実行用ラッパー
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
-struct FunctionExecutor<V: MathOps> {
-    inputs: Vec<Rc<RefCell<Variable<V>>>>,    // 関数の入力値
-    outputs: Vec<Weak<RefCell<Variable<V>>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function<V>>>,    // 関数のトレイトオブジェクト
-    generation: i32,                          // 関数の世代
+struct FunctionExecutor<'a, V: MathOps> {
+    inputs: Vec<Rc<RefCell<&'a Variable<V>>>>, // 関数の入力値
+    outputs: Vec<Weak<RefCell<Variable<V>>>>,  //関数の出力値
+    creator: Rc<RefCell<dyn Function<V>>>,     // 関数のトレイトオブジェクト
+    generation: i32,                           // 関数の世代
 }
 
 /// 関数ラッパーの比較
 /// オブジェクトのポインターが一致する場合、同一と判定する。
-impl<V: MathOps> PartialEq for FunctionExecutor<V> {
+impl<'a, V: MathOps> PartialEq for FunctionExecutor<'a, V> {
     fn eq(&self, other: &Self) -> bool {
         std::ptr::addr_eq(self, other)
     }
 }
-impl<V: MathOps> Eq for FunctionExecutor<V> {}
+impl<'a, V: MathOps> Eq for FunctionExecutor<'a, V> {}
 
 /// 関数ラッパーの優先度に基づいた大小比較。
-impl<V: MathOps> PartialOrd for FunctionExecutor<V> {
+impl<'a, V: MathOps> PartialOrd for FunctionExecutor<'a, V> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<V: MathOps> Ord for FunctionExecutor<V> {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+impl<'a, V: MathOps> Ord for FunctionExecutor<'a, V> {
+    fn cmp(&'a self, other: &'a Self) -> std::cmp::Ordering {
         self.get_generation().cmp(&other.get_generation())
     }
 }
 
-impl<V: MathOps> FunctionExecutor<V> {
+impl<'a, V: MathOps> FunctionExecutor<'a, V> {
     /// コンストラクタ
     ///
     /// Arguments
@@ -446,7 +345,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * FunctionExecutor: 関数のラッパー
-    fn new(creator: Rc<RefCell<dyn Function<V>>>) -> FunctionExecutor<V> {
+    fn new(creator: Rc<RefCell<dyn Function<'a, V>>>) -> FunctionExecutor<'a, V> {
         FunctionExecutor {
             inputs: vec![],
             outputs: vec![],
@@ -462,16 +361,10 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
-    fn forward(&mut self, inputs: Vec<Rc<RefCell<&Variable<V>>>>) -> Vec<Rc<RefCell<Variable<V>>>> {
-        println!("=========== forward ================");
-        if let Some(input) = inputs.get(0) {
-            println!("====== here 1 =====");
-            if let Some(creator) = input.borrow().creator.clone() {
-                println!("====== here 2 =====");
-                // dbg!(&creator.borrow().outputs);
-                dbg!(&creator.borrow().outputs.get(0).unwrap().upgrade());
-            }
-        }
+    fn forward(
+        &mut self,
+        inputs: Vec<&Rc<RefCell<&Variable<V>>>>,
+    ) -> Vec<Rc<RefCell<Variable<V>>>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
             .iter()
@@ -500,9 +393,13 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
 
         // 入出力を自身に設定する。
+        // self.inputs = inputs;
         self.inputs = inputs
             .iter()
-            .map(|input| Rc::new(RefCell::new(**input.borrow())))
+            .map(|input| {
+                let i = **input.borrow();
+                Rc::new(RefCell::new(i))
+            })
             .collect();
         self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
         for output in outputs.clone().iter_mut() {
@@ -518,12 +415,12 @@ impl<V: MathOps> FunctionExecutor<V> {
 
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
-    fn backward(&mut self) {
+    fn backward(&self) {
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), V::one());
         let mut gys: Vec<Array<V, IxDyn>> = vec![];
         self.outputs
-            .iter_mut()
+            .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
                 if output.borrow().grad.is_none() {
@@ -549,7 +446,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         // 微分値を保持しない場合、中間変数の微分値を削除する。
         if !Setting::is_enable_retain_grad() {
             self.outputs
-                .iter_mut()
+                .iter()
                 .map(|output| output.upgrade().unwrap())
                 .for_each(|output| {
                     output.borrow_mut().grad = None;
@@ -661,11 +558,11 @@ impl<V: MathOps> Function<V> for Square {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 二乗の結果
-// fn square<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
-//     let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-//     // 二乗の順伝播
-//     square.forward(vec![input]).get(0).unwrap().clone()
-// }
+fn square<V: MathOps>(input: Rc<RefCell<&Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
+    let mut square = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
+    // 二乗の順伝播
+    square.forward(vec![&input]).get(0).unwrap().clone()
+}
 
 /// 加算関数
 #[derive(Debug, Clone)]
@@ -696,13 +593,13 @@ impl<V: MathOps> Function<V> for AddFunction {
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 加算結果
-fn add<V: MathOps>(
-    x1: Rc<RefCell<&Variable<V>>>,
-    x2: Rc<RefCell<&Variable<V>>>,
-) -> Rc<RefCell<Variable<V>>> {
+fn add<'a, V: MathOps>(
+    x1: &'a Rc<RefCell<&Variable<V>>>,
+    x2: &'a Rc<RefCell<&Variable<V>>>,
+) -> &'a Rc<RefCell<Variable<V>>> {
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
     // 加算の順伝播
-    add.forward(vec![x1, x2]).get(0).unwrap().clone()
+    add.forward(&vec![&x1, &x2]).get(0).unwrap().clone()
 }
 
 /// Exp 関数
@@ -734,6 +631,19 @@ impl<V: MathOps> Function<V> for ExpFunction {
         let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
         gxs
     }
+}
+
+/// Exp 関数
+///
+/// Arguments
+/// * input (Rc<RefCell<Variable>>): 入力値
+///
+/// Return
+/// * Rc<RefCell<Variable>>: 結果
+fn exp<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V>>> {
+    let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
+    // EXP の順伝播
+    exp.forward(vec![&input]).get(0).unwrap().clone()
 }
 
 fn type_of<T>(_: T) -> String {
@@ -777,15 +687,91 @@ impl<V: MathOps> Function<V> for MulFunction {
 /// Return
 /// * Rc<RefCell<Variable>>: 乗算結果
 fn mul<V: MathOps>(
-    x1: Rc<RefCell<&Variable<V>>>,
-    x2: Rc<RefCell<&Variable<V>>>,
+    x1: Rc<RefCell<Variable<V>>>,
+    x2: Rc<RefCell<Variable<V>>>,
 ) -> Rc<RefCell<Variable<V>>> {
     let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
     // 乗算の順伝播
-    mul.forward(vec![x1, x2]).get(0).unwrap().clone()
+    mul.forward(vec![x1.clone(), x2.clone()])
+        .get(0)
+        .unwrap()
+        .clone()
 }
 
-fn main() {}
+fn main() {
+    let x1 = Rc::new(RefCell::new(Variable::new(1.0)));
+    let x2 = Rc::new(RefCell::new(Variable::new(1.0)));
+
+    let dtypetest = Variable::new(10i32);
+    println!("dtype: {:?}", dtypetest.get_dtype());
+
+    let result = add(
+        Rc::clone(&x1),
+        Rc::clone(&add(Rc::clone(&x1), Rc::clone(&x2))),
+    );
+    // let creators = FunctionExecutor::extract_creators(vec![Rc::clone(&result)]);
+    // // 逆伝播を実行する。
+    // for (gen, creator) in creators.iter() {
+    //     creator.borrow_mut().backward();
+    //}
+    FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+    println!(
+        "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
+        &result.borrow().grad,
+        &x1.borrow().grad,
+        &x2.borrow().grad
+    );
+
+    let arr_vals = vec![
+        10., 11., 12., 13., 14., 15., 16., 20., 21., 22., 23., 24., 25., 26., 30., 31., 32., 33.,
+        34., 35., 36., 40., 41., 42., 43., 44., 45., 46., 50., 51., 52., 53., 54., 55., 56.,
+    ];
+    let arr_dim = vec![5, 7];
+    let arr_var = Variable::from_shape_vec(arr_dim, arr_vals);
+    dbg!(&arr_var.data);
+    dbg!(&arr_var.data.ndim());
+    dbg!(&arr_var.data.view());
+
+    let arr = array!(
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [12, 12, 12, 12, 12, 12, 12,],
+        [2, 2, 2, 2, 2, 2, 2,],
+    );
+    dbg!(&arr);
+    dbg!(type_of(&arr));
+    println!("arr shape: {:?})", arr.shape());
+    println!("arr len: {:?})", arr.len());
+    println!("arr view: {:?})", arr.view());
+    println!("arr ndim: {:?})", arr.ndim());
+
+    let shape = vec![2, 2, 2];
+    let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+    let arr2 = Variable::from_shape_vec(shape, values);
+    dbg!(&arr2.data);
+    println!("arr2 shape: {:?})", arr2.data.shape());
+    println!("arr2 len: {:?})", arr2.data.len());
+    println!("arr2 ndim: {:?})", arr2.data.ndim());
+
+    let arr_2x3x4 = ndarray::array![
+        [[1., 2., 3., 4.], [5., 6., 7., 8.], [9., 10., 11., 12.]],
+        [
+            [13., 14., 15., 16.],
+            [17., 18., 19., 20.],
+            [21., 22., 23., 24.]
+        ]
+    ];
+    let arr_4x2x3 = ndarray::array![
+        [[1., 2., 3.], [4., 5., 6.]],
+        [[7., 8., 9.], [10., 11., 12.]],
+        [[13., 14., 15.], [16., 17., 18.]],
+        [[19., 20., 21.], [22., 23., 24.]]
+    ];
+
+    dbg!(&arr_2x3x4);
+    dbg!(&arr_4x2x3);
+}
 
 #[cfg(test)]
 mod tests {
@@ -793,6 +779,46 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+    /// Variable に実装した逆伝播メソッドのテスト。
+    #[test]
+    fn test_add_mul2() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        // 順伝播
+        let a = Rc::new(RefCell::new(Variable::new(3.0f32)));
+        let b = Rc::new(RefCell::new(Variable::new(2.0f32)));
+        let c = Rc::new(RefCell::new(Variable::new(1.0f32)));
+        let expected = Variable::new(7f32);
+
+        let result = add(mul(Rc::clone(&a), Rc::clone(&b)), Rc::clone(&c));
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+
+        // 逆伝播
+        result.as_ref().clone().borrow().backward();
+
+        println!(
+            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+            &result.borrow().grad,
+            &a.borrow().grad,
+            &b.borrow().grad,
+            &c.borrow().grad,
+        );
+
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1.0),
+            result.borrow().get_grad()
+        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b.borrow().get_grad());
+    }
+
+    /// 複数の演算を結合した場合のオーバーロードのテスト
+    /// Weak 参照が解放されてしまい、微分値を保持できず失敗する。
+    /// 対応を検討中。
     #[test]
     fn test_overload_add_mul() {
         // 逆伝播を実行する。微分値を保持する。
@@ -802,36 +828,37 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 順伝播
-        let a = Rc::new(Variable::new(3.0f32));
-        let b = Rc::new(Variable::new(2.0f32));
-        let c = Rc::new(Variable::new(1.0f32));
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let c = Variable::new(1.0f32);
         let expected = Variable::new(7f32);
-        // let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
-        // let result = Rc::new(RefCell::new(&(&*a * &*b) + &*c));
-        let proc = &*a * &*b;
-        let result = &proc + &*c;
-        dbg!(&result);
-        assert_eq!(expected.get_data(), result.get_data());
 
-        // assert_eq!(expected.get_data(), result.borrow().get_data());
+        //let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+        //let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+        let a_ref = Rc::new(RefCell::new(a.clone()));
+        let b_ref = Rc::new(RefCell::new(b.clone()));
+        let a_mul_b = a * b;
+        let result = a_mul_b.borrow().clone() + c;
+
+        //assert_eq!(expected.get_data(), result.clone().get_data());
 
         // 逆伝播
-        FunctionExecutor::backward_all(vec![Rc::new(RefCell::new(result.clone()))]);
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            // &result.borrow().grad,
-            &result.grad,
-            &a.grad,
-            &b.grad,
-            &c.grad,
-        );
-
-        // assert_eq!(
-        //     Array::from_elem(IxDyn(&[]), 1.0),
-        //     &result.borrow().get_grad()
+        // FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+        //     &result.borrow().grad,
+        //     &a.grad,
+        //     &b.grad,
+        //     &c.grad,
         // );
-        // assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a.get_grad());
-        // assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b.get_grad());
+        result.as_ref().clone().borrow().backward();
+
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1.0),
+            &result.borrow().get_grad()
+        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a_ref.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b_ref.borrow().get_grad());
     }
 
     /// 乗算のオーバーロードのテスト
@@ -839,22 +866,51 @@ mod tests {
     fn test_mul_overload() {
         let a = Variable::new(3.0f32);
         let b = Variable::new(2.0f32);
-        let result = &a * &b;
+        let result = a + b;
+        result
+            .borrow()
+            .creator
+            .clone()
+            .unwrap()
+            .borrow()
+            .outputs
+            .iter()
+            .for_each(|output| {
+                dbg!(output.upgrade());
+                dbg!(output);
+            });
         let expected = Variable::new(6.0f32);
-        dbg!(&result);
-        assert_eq!(expected.get_data(), result.get_data());
+
+        let a = Rc::new(RefCell::new(Variable::new(3.0f32)));
+        let b = Rc::new(RefCell::new(Variable::new(2.0f32)));
+        let result2 = add(a, b);
+        result2
+            .as_ref()
+            .borrow()
+            .creator
+            .clone()
+            .unwrap()
+            .borrow()
+            .outputs
+            .iter()
+            .for_each(|output| {
+                dbg!(&output.upgrade());
+                output;
+            });
+        // dbg!(&result);
+        // assert_eq!(expected.get_data(), result.get_data());
     }
 
     /// 加算のオーバーロードのテスト
-    #[test]
-    fn test_add_overload() {
-        let a = Variable::new(3.0f32);
-        let b = Variable::new(2.0f32);
-        let result = &a + &b;
-        let expected = Variable::new(5.0f32);
-        dbg!(&result);
-        assert_eq!(expected.get_data(), result.get_data());
-    }
+    // #[test]
+    // fn test_add_overload() {
+    //     let a = Variable::new(3.0f32);
+    //     let b = Variable::new(2.0f32);
+    //     let result = a + b;
+    //     let expected = Variable::new(5.0f32);
+    //     dbg!(&result);
+    //     assert_eq!(expected.get_data(), result.get_data());
+    // }
 
     #[test]
     fn test_add_mul() {
@@ -874,7 +930,9 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
 
         // 逆伝播
-        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        result.as_ref().clone().borrow().backward();
+
         println!(
             "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
             &result.borrow().grad,
@@ -909,7 +967,9 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
 
         // 逆伝播
-        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        result.as_ref().clone().borrow().backward();
+
         println!(
             "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
             &result.borrow().grad,
@@ -943,7 +1003,9 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
 
         // 逆伝播
-        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        result.as_ref().clone().borrow().backward();
+
         println!(
             "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
             &result.borrow().grad,
@@ -1111,11 +1173,12 @@ mod tests {
         assert_eq!(expected.data, result.borrow().data.clone());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1130,23 +1193,23 @@ mod tests {
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
 
+        // 入力値の準備
         let sh1 = vec![2, 2];
-        let val1 = vec![1., 2., 3., 4.];
-        let var1 = Variable::from_shape_vec(sh1, val1);
-
-        // 加算値をランダムに生成する。
-        let x1 = Rc::new(RefCell::new(var1));
+        let arr1 = vec![1., 2., 3., 4.];
+        let var1 = Variable::from_shape_vec(sh1, arr1);
+        let x1 = Rc::new(RefCell::new(var1.clone()));
 
         let expected_var = Variable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
+        let expected_grad = Variable::from_shape_vec(vec![2, 2], vec![2., 4., 6., 8.]);
 
         // 順伝播、逆伝播を実行する。
-        let mut result = square(Rc::clone(&x1));
+        let result = square(Rc::clone(&x1));
         assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
 
-        // dbg!(&result.borrow().get_data());
-
-        FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        result.as_ref().clone().borrow().backward();
         // dbg!(&result.borrow().get_grad());
+        // dbg!(&x1.borrow().get_grad());
+        assert_eq!(&expected_grad.get_data(), &x1.borrow().get_grad());
     }
 
     #[test]
@@ -1169,7 +1232,7 @@ mod tests {
         // 加算した結果の期待値を計算する。
         // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
 
-        // 順伝播、逆伝播を実行する。
+        // 順伝播を実行する。
         let result = add(Rc::clone(&x1), Rc::clone(&x2));
         assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
 
@@ -1265,9 +1328,10 @@ mod tests {
 
         // 逆伝播を実行する。微分値を保持しない。
         Setting::set_retain_grad_disabled();
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        y.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果の確認
         // 途中結果の変数には微分値が設定されていないことを確認する。
@@ -1327,9 +1391,10 @@ mod tests {
 
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        y.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果の確認
         // 途中結果の変数には微分値が設定されていないことを確認する。
@@ -1354,6 +1419,9 @@ mod tests {
     //               -> a^2 -> c /          x2
     #[test]
     fn test_generations() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
         let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
         let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
         let a = square(Rc::clone(&x1));
@@ -1390,10 +1458,11 @@ mod tests {
         assert_eq!(5, creators.len());
 
         // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            Setting::set_retain_grad_enabled();
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     Setting::set_retain_grad_enabled();
+        //     creator.borrow_mut().backward();
+        // }
+        y.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果の確認
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
@@ -1433,9 +1502,10 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 足し算の結果
         assert_eq!(expected_output_data, result.borrow().data);
@@ -1519,11 +1589,12 @@ mod tests {
         );
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1546,11 +1617,12 @@ mod tests {
         let result = add(x.clone(), x.clone());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1566,11 +1638,12 @@ mod tests {
         let result2 = add(Rc::clone(&x), Rc::clone(&x));
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators2 = FunctionExecutor::extract_creators(vec![Rc::clone(&result2)]);
-        //dbg!(creators);
-        for (_gen, creator) in creators2.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators2 = FunctionExecutor::extract_creators(vec![Rc::clone(&result2)]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators2.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result2.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1588,11 +1661,12 @@ mod tests {
         let result3 = add(Rc::clone(&x), Rc::clone(&x));
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators3 = FunctionExecutor::extract_creators(vec![Rc::clone(&result3)]);
+        // let creators3 = FunctionExecutor::extract_creators(vec![Rc::clone(&result3)]);
         //dbg!(creators);
-        for (_gen, creator) in creators3.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators3.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result3.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1627,9 +1701,10 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 二乗の結果
         assert_eq!(expected_output_data, result.borrow().data);
@@ -1661,9 +1736,10 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 足し算の結果
         assert_eq!(expected_output_data, result.borrow().data);
@@ -1691,9 +1767,10 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // exp 結果
         assert_eq!(expected_output_data, result.borrow().data);
@@ -1743,11 +1820,12 @@ mod tests {
         );
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1801,11 +1879,12 @@ mod tests {
         );
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -1851,11 +1930,12 @@ mod tests {
         assert_eq!(expected.clone(), result.borrow().data.clone());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        //dbg!(creators);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
+        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        // //dbg!(creators);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow_mut().backward();
+        // }
+        result.as_ref().clone().borrow().backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
