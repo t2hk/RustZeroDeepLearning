@@ -111,12 +111,11 @@ impl<V: MathOps> Variable<V> {
     /// Returns
     /// * Result<Self, ShapeError>
     fn from_shape_vec<Sh>(shape: Sh, values: Vec<V>) -> Self
-    //Result<Self, ShapeError>
     where
         Sh: IntoDimension<Dim = IxDyn>,
     {
         let dim = shape.into_dimension();
-        let array = ArrayD::from_shape_vec(dim, values).ok().unwrap();
+        let array = ArrayD::from_shape_vec(dim, values).expect("Shape error while creating array");
         Self {
             data: array,
             name: None,
@@ -340,35 +339,32 @@ impl<V: MathOps> FunctionExecutor<V> {
         if Setting::is_enable_backprop() {
             self.generation = inputs
                 .iter()
-                .map(|input| input.borrow().generation.clone())
+                .map(|input| input.borrow().generation)
                 .max()
-                .unwrap();
+                .unwrap_or(0);
         }
 
         // 関数を実行する。
         let ys_data = self.creator.borrow().forward(xs_data);
 
         // 関数の結果を出力値とする。
-        let mut outputs: Vec<Rc<RefCell<Variable<V>>>> = Vec::new();
-        for y_data in ys_data.iter() {
-            let val = Variable::new(y_data.clone());
-            let y = Rc::new(RefCell::new(val));
-
-            outputs.push(Rc::clone(&y));
-        }
+        let mut outputs: Vec<Rc<RefCell<Variable<V>>>> = ys_data
+            .into_iter()
+            .map(|y_data| {
+                let val = Variable::new(y_data);
+                Rc::new(RefCell::new(val))
+            })
+            .collect();
 
         // 入出力を自身に設定する。
         self.inputs = inputs;
         self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
-        for output in outputs.clone().iter_mut() {
+        for output in &outputs {
             output
                 .borrow_mut()
                 .set_creator(Rc::new(RefCell::new(self.clone())));
         }
-        self.outputs
-            .iter()
-            .map(|output| output.upgrade().unwrap())
-            .collect()
+        outputs
     }
 
     /// 逆伝播
@@ -740,6 +736,109 @@ mod tests {
     // use approx::assert_abs_diff_eq;
     use rand::prelude::*;
 
+<<<<<<< HEAD
+=======
+    /// Variable に実装した逆伝播メソッドのテスト。
+    #[test]
+    fn test_add_mul2() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        // 順伝播
+        let a = Rc::new(RefCell::new(Variable::new(3.0f32)));
+        let b = Rc::new(RefCell::new(Variable::new(2.0f32)));
+        let c = Rc::new(RefCell::new(Variable::new(1.0f32)));
+        let expected = Variable::new(7f32);
+
+        let result = add(mul(Rc::clone(&a), Rc::clone(&b)), Rc::clone(&c));
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+
+        // 逆伝播
+        result.as_ref().clone().borrow().backward();
+
+        println!(
+            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+            &result.borrow().grad,
+            &a.borrow().grad,
+            &b.borrow().grad,
+            &c.borrow().grad,
+        );
+
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1.0),
+            result.borrow().get_grad()
+        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a.borrow().get_grad());
+        assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b.borrow().get_grad());
+    }
+
+    /// 複数の演算を結合した場合のオーバーロードのテスト
+    /// Weak 参照が解放されてしまい、微分値を保持できず失敗する。
+    /// 対応を検討中。
+    // #[test]
+    // fn test_overload_add_mul() {
+    //     // 逆伝播を実行する。微分値を保持する。
+    //     Setting::set_retain_grad_enabled();
+
+    //     // バックプロパゲーションを行う。
+    //     Setting::set_backprop_enabled();
+
+    //     // 順伝播
+    //     let a = Variable::new(3.0f32);
+    //     let b = Variable::new(2.0f32);
+    //     let c = Variable::new(1.0f32);
+    //     let expected = Variable::new(7f32);
+
+    //     //let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+    //     let result = Rc::new(RefCell::new(a.clone() * b.clone() + c.clone()));
+
+    //     //assert_eq!(expected.get_data(), result.clone().get_data());
+
+    //     // 逆伝播
+    //     // FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+    //     // println!(
+    //     //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+    //     //     &result.borrow().grad,
+    //     //     &a.grad,
+    //     //     &b.grad,
+    //     //     &c.grad,
+    //     // );
+    //     result.as_ref().clone().borrow().backward();
+
+    //     assert_eq!(
+    //         Array::from_elem(IxDyn(&[]), 1.0),
+    //         &result.borrow().get_grad()
+    //     );
+    //     assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), a.get_grad());
+    //     assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), b.get_grad());
+    // }
+
+    /// 乗算のオーバーロードのテスト
+    #[test]
+    fn test_mul_overload() {
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let result = a * b;
+        let expected = Variable::new(6.0f32);
+        dbg!(&result);
+        assert_eq!(expected.get_data(), result.get_data());
+    }
+
+    /// 加算のオーバーロードのテスト
+    #[test]
+    fn test_add_overload() {
+        let a = Variable::new(3.0f32);
+        let b = Variable::new(2.0f32);
+        let result = a + b;
+        let expected = Variable::new(5.0f32);
+        dbg!(&result);
+        assert_eq!(expected.get_data(), result.get_data());
+    }
+
+>>>>>>> 078d94f (ちょっとしたリファクタリング)
     #[test]
     fn test_add_mul() {
         // 逆伝播を実行する。微分値を保持する。
