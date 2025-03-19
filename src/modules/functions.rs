@@ -245,10 +245,10 @@ impl<V: MathOps> FunctionExecutor<V> {
             });
         }
 
-        println!("heap len: {:?}", creators.len());
-        for x in creators.iter() {
-            println!("heap {:?},  {:?}", x.0, x.1.borrow().creator.borrow());
-        }
+        // println!("heap len: {:?}", creators.len());
+        // for x in creators.iter() {
+        //     println!("heap {:?},  {:?}", x.0, x.1.borrow().creator.borrow());
+        // }
 
         creators
     }

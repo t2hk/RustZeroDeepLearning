@@ -179,3 +179,50 @@ pub fn exp<V: MathOps>(input: Rc<RefCell<Variable<V>>>) -> Rc<RefCell<Variable<V
     // EXP の順伝播
     exp.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::prelude::*;
+
+    /// 加算のテスト
+    #[test]
+    fn test_add() {
+        // 加算値をランダムに生成する。
+        let mut rng = rand::rng();
+        let rand_x1 = rng.random::<f64>();
+        let rand_x2 = rng.random::<f64>();
+        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+
+        // 加算した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
+
+        // 順伝播、逆伝播を実行する。
+        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
+        let result = add(Rc::clone(&x1), Rc::clone(&x2));
+
+        // 足し算の結果
+        assert_eq!(expected_output_data, result.borrow().get_data());
+    }
+
+    /// 二乗のテスト
+    #[test]
+    fn test_square() {
+        // 2乗する値をランダムに生成する。
+        let mut rng = rand::rng();
+        let rand_x = rng.random::<f64>();
+        let x = Rc::new(RefCell::new(Variable::new(rand_x)));
+
+        // 2乗した結果の期待値を計算する。
+        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
+        let expected_grad_val = rand_x * 2.0 * 1.0;
+        let expected_output_grad = Array::from_elem(IxDyn(&[]), expected_grad_val);
+
+        // 順伝播実行する。
+        let result = square(Rc::clone(&x));
+
+        // 二乗の結果
+        assert_eq!(expected_output_data, result.borrow().get_data());
+    }
+}

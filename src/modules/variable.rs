@@ -62,10 +62,6 @@ impl<V: MathOps> Variable<V> {
     pub fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor<V>>>) {
         self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().get_generation() + 1;
-        println!(
-            "===== variable set creator's ptr: {:p}",
-            self.creator.clone().unwrap().as_ptr()
-        );
     }
 
     /// この変数を算出した関数を取得する。
