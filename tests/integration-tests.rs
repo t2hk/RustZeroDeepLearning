@@ -1,6 +1,5 @@
 #[cfg(test)]
-mo
-d tests {
+mod tests {
     use rust_zero_deeplearning::modules::functions::*;
     use rust_zero_deeplearning::modules::math::*;
     use rust_zero_deeplearning::modules::settings::*;
