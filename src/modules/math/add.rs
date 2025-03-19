@@ -1,6 +1,6 @@
-use crate::functions::*;
-use crate::settings::*;
-use crate::variable::*;
+use crate::modules::functions::*;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;

@@ -1,5 +1,5 @@
-use crate::settings::*;
-use crate::variable::*;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
 
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -125,7 +125,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         let ys_data = self.creator.borrow().forward(xs_data);
 
         // 関数の結果を出力値とする。
-        let mut outputs: Vec<Rc<RefCell<Variable<V>>>> = ys_data
+        let outputs: Vec<Rc<RefCell<Variable<V>>>> = ys_data
             .into_iter()
             .map(|y_data| {
                 let val = Variable::new(y_data);

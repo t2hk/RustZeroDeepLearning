@@ -1,5 +1,5 @@
-use crate::functions::*;
-use crate::settings::*;
+use crate::modules::functions::*;
+use crate::modules::settings::*;
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;

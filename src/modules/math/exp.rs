@@ -1,9 +1,7 @@
-use crate::functions::*;
-use crate::settings::*;
-use crate::variable::*;
-
+use crate::modules::functions::*;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
 use ndarray::{Array, IxDyn};
-use num_traits::NumCast;
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -30,7 +28,7 @@ impl<V: MathOps> Function<V> for Exp {
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
-        let x = inputs[0].borrow().data.clone();
+        let x = inputs[0].borrow().get_data().clone();
         let gys_val = gys[0].clone();
         let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
         let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();

@@ -1,6 +1,6 @@
-use crate::functions::*;
-use crate::settings::*;
-use crate::variable::*;
+use crate::modules::functions::*;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -23,8 +23,8 @@ impl<V: MathOps> Function<V> for Mul {
         inputs: Vec<Rc<RefCell<Variable<V>>>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
-        let x1 = inputs[0].borrow().data.clone();
-        let x2 = inputs[1].borrow().data.clone();
+        let x1 = inputs[0].borrow().get_data();
+        let x2 = inputs[1].borrow().get_data();
         let gx_x1 = &gys[0].clone() * &x2;
         let gx_x2 = &gys[0].clone() * &x1;
 

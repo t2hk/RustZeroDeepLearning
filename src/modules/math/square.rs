@@ -1,6 +1,6 @@
-use crate::functions::*;
-use crate::settings::*;
-use crate::variable::*;
+use crate::modules::functions::*;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -27,7 +27,7 @@ impl<V: MathOps> Function<V> for Square {
         inputs: Vec<Rc<RefCell<Variable<V>>>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
-        let x = inputs[0].borrow().data.clone();
+        let x = inputs[0].borrow().get_data();
         // let gxs = vec![V::from(2).unwrap() * &x * &gys[0].clone()];
         let x_gys = &gys[0].clone() * &x;
         let gxs = vec![x_gys.mapv(|x| x * V::from(2).unwrap())];
