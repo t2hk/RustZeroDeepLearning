@@ -225,4 +225,44 @@ mod tests {
         // 二乗の結果
         assert_eq!(expected_output_data, result.borrow().get_data());
     }
+
+    /// Exp 関数のテスト。
+    #[test]
+    fn test_exp() {
+        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+
+        let e = std::f64::consts::E;
+        let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
+        dbg!(expected_output_data.clone());
+
+        // 順伝播、逆伝播を実行する。
+        let result = exp(Rc::clone(&x));
+
+        // exp 結果
+        assert_eq!(expected_output_data, result.borrow().get_data());
+    }
+
+    #[test]
+    /// 乗算のテスト(f32)
+    fn test_mul_2() {
+        // 順伝播
+        let x1 = Rc::new(RefCell::new(Variable::new(5.0f32)));
+        let x2 = Rc::new(RefCell::new(Variable::new(10.0f32)));
+        let expected = Variable::new(50.0f32);
+
+        let result = mul(Rc::clone(&x1), Rc::clone(&x2));
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+    }
+
+    #[test]
+    /// 乗算のテスト(i32)
+    fn test_mul_1() {
+        // 順伝播
+        let x1 = Rc::new(RefCell::new(Variable::new(5i32)));
+        let x2 = Rc::new(RefCell::new(Variable::new(10i32)));
+        let expected = Variable::new(50);
+
+        let result = mul(Rc::clone(&x1), Rc::clone(&x2));
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+    }
 }
