@@ -87,6 +87,22 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
     }
 
+    /// 入力値を取得する。
+    ///
+    /// Return
+    /// * Vec<Weak<RefCell<Variable<V>>>>: 関数に対する入力値のベクタ
+    pub fn get_inputs(&self) -> Vec<Rc<RefCell<Variable<V>>>> {
+        self.inputs.clone()
+    }
+
+    /// 出力値を取得する。
+    ///
+    /// Return
+    /// * Vec<Weak<RefCell<Variable<V>>>>: 関数の出力値のベクタ
+    pub fn get_outputs(&self) -> Vec<Weak<RefCell<Variable<V>>>> {
+        self.outputs.clone()
+    }
+
     /// 世代を取得する。
     ///
     /// Return
@@ -206,12 +222,12 @@ impl<V: MathOps> FunctionExecutor<V> {
             let mut local_creators = vec![];
             local_variables.iter().for_each(|variable| {
                 // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
-                // if let Some(creator) = variable.borrow().get_creator() {
-                let creator = variable.borrow().get_creator();
-                if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
-                    creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
-                    creators_map.insert(format!("{:p}", creator.as_ptr()), "");
-                    local_creators.push(Rc::clone(&creator));
+                if let Some(creator) = variable.borrow().get_creator() {
+                    if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
+                        creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
+                        creators_map.insert(format!("{:p}", creator.as_ptr()), "");
+                        local_creators.push(Rc::clone(&creator));
+                    }
                 }
             });
 

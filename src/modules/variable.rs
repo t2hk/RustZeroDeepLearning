@@ -62,12 +62,22 @@ impl<V: MathOps> Variable<V> {
     pub fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor<V>>>) {
         self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().get_generation() + 1;
+        println!(
+            "===== variable set creator's ptr: {:p}",
+            self.creator.clone().unwrap().as_ptr()
+        );
     }
 
-    pub fn get_creator(&self) -> Rc<RefCell<FunctionExecutor<V>>> {
-        Rc::new(RefCell::new(
-            self.creator.as_ref().unwrap().borrow().clone(),
-        ))
+    /// この変数を算出した関数を取得する。
+    ///
+    /// Return
+    /// * Option<Rc<RefCell<FunctionExecutor<V>>>>: 関数
+    pub fn get_creator(&self) -> Option<Rc<RefCell<FunctionExecutor<V>>>> {
+        if let Some(creator) = self.creator.clone() {
+            Some(Rc::clone(&self.creator.clone().unwrap()))
+        } else {
+            None
+        }
     }
 
     /// 微分をリセットする。
@@ -98,6 +108,14 @@ impl<V: MathOps> Variable<V> {
     /// * Array<f64, IxDyn>: 値
     pub fn get_data(&self) -> Array<V, IxDyn> {
         self.data.clone()
+    }
+
+    /// 変数の名前を設定する。
+    ///
+    /// Arguments
+    /// * name (String): 変数名
+    pub fn set_name(&mut self, name: String) {
+        self.name = Some(name.to_string());
     }
 
     /// 変数の名前を取得する。
