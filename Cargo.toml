@@ -1,5 +1,5 @@
 [package]
-name = "RustDeepLearning"
+name = "rust_zero_deeplearning"
 version = "0.1.0"
 edition = "2021"
 
