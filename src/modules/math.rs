@@ -52,13 +52,25 @@ pub fn add<V: MathOps>(
 impl<V: MathOps> Add for Variable<V> {
     type Output = Rc<RefCell<Variable<V>>>;
     fn add(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
-        let x1 = Rc::new(RefCell::new(self));
-        let x2 = Rc::new(RefCell::new(rhs));
+        // let x1 = Rc::new(RefCell::new(self));
+        // let x2 = Rc::new(RefCell::new(rhs));
+        // // let x1 = Rc::clone(&Rc::new(RefCell::new(self)));
+        // let x2 = Rc::clone(&Rc::new(RefCell::new(rhs)));
 
-        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-        // 加算の順伝播
-        let result = add.forward(vec![x1.clone(), x2.clone()]);
-        result.get(0).unwrap().clone()
+        // 順伝播
+        let a = Rc::new(RefCell::new(self));
+        let b = Rc::new(RefCell::new(rhs));
+
+        add(Rc::clone(&a), Rc::clone(&b))
+
+        // let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        // // 加算の順伝播
+        // add.forward(vec![x1.clone(), x2.clone()])
+        //     .get(0)
+        //     .unwrap()
+        //     .clone()
+
+        // add(x1, x2)
     }
 }
 
@@ -107,6 +119,23 @@ pub fn mul<V: MathOps>(
         .get(0)
         .unwrap()
         .clone()
+}
+
+/// 乗算のオーバーロード
+impl<V: MathOps> Mul for Variable<V> {
+    type Output = Rc<RefCell<Variable<V>>>;
+    fn mul(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
+        // let x1 = Rc::new(RefCell::new(self));
+        // let x2 = Rc::new(RefCell::new(rhs));
+        // // let x1 = Rc::clone(&Rc::new(RefCell::new(self)));
+        // let x2 = Rc::clone(&Rc::new(RefCell::new(rhs)));
+
+        // 順伝播
+        let a = Rc::new(RefCell::new(self));
+        let b = Rc::new(RefCell::new(rhs));
+
+        mul(Rc::clone(&a), Rc::clone(&b))
+    }
 }
 
 /// 二乗関数
@@ -269,5 +298,89 @@ mod tests {
 
         let result = mul(Rc::clone(&x1), Rc::clone(&x2));
         assert_eq!(expected.get_data(), result.borrow().get_data());
+    }
+
+    /// 加算のオーバーロードのテスト
+    #[test]
+    fn test_add_overload() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let mut a = Variable::new(3.0f32);
+        a.set_name("val_a".to_string());
+        let mut b = Variable::new(2.0f32);
+        b.set_name("val_b".to_string());
+        let mut c = Variable::new(1.0f32);
+        c.set_name("val_c".to_string());
+        let result1 = a.clone() * b.clone();
+        let result = result1.borrow().clone() + c.clone();
+        //let result = (a.clone() + b.clone()).borrow().clone() + c.clone();
+
+        // let result = ((a.clone() + b.clone()).as_ref().borrow().clone() + c.clone());
+
+        let expected = Variable::new(7.0f32);
+        //dbg!(&result);
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+
+        // let a2 = Rc::new(RefCell::new(a));
+        // let b2 = Rc::new(RefCell::new(b));
+        // let c2 = Rc::new(RefCell::new(c));
+        // let result2 = add(add(Rc::clone(&a2), Rc::clone(&b2)), Rc::clone(&c2));
+
+        result.as_ref().clone().borrow().backward();
+        println!(
+            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+            &result.borrow().get_grad(),
+            &a.get_grad(),
+            &b.get_grad(),
+            &c.get_grad(),
+        );
+        dbg!(&result);
+    }
+
+    #[test]
+    fn test_add_mul() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        // 順伝播
+        let a = Rc::new(RefCell::new(Variable::new(3.0f32)));
+        let b = Rc::new(RefCell::new(Variable::new(2.0f32)));
+        let c = Rc::new(RefCell::new(Variable::new(1.0f32)));
+        let expected = Variable::new(7f32);
+
+        let result = add(mul(Rc::clone(&a), Rc::clone(&b)), Rc::clone(&c));
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+
+        // 逆伝播
+        //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
+        result.as_ref().clone().borrow().backward();
+
+        println!(
+            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+            &result.borrow().get_grad(),
+            &a.borrow().get_grad(),
+            &b.borrow().get_grad(),
+            &c.borrow().get_grad(),
+        );
+
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1.0),
+            result.borrow().get_grad().expect("No grad exist.")
+        );
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 2.0),
+            a.borrow().get_grad().expect("No grad exist.")
+        );
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 3.0),
+            b.borrow().get_grad().expect("No grad exist.")
+        );
     }
 }
