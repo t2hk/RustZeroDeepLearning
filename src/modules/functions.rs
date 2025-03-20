@@ -166,14 +166,15 @@ impl<V: MathOps> FunctionExecutor<V> {
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), V::one());
         let mut gys: Vec<Array<V, IxDyn>> = vec![];
+
         self.outputs
             .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
-                // if output.borrow().grad.is_none() {
                 if output.borrow().get_grad().is_none() {
                     output.borrow_mut().set_grad(grad_one.clone());
                 }
+
                 gys.push(output.borrow().get_grad().clone().unwrap());
             });
 
