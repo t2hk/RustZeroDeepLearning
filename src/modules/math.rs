@@ -48,6 +48,20 @@ pub fn add<V: MathOps>(
         .clone()
 }
 
+/// 加算のオーバーロード
+impl<V: MathOps> Add for Variable<V> {
+    type Output = Rc<RefCell<Variable<V>>>;
+    fn add(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
+        let x1 = Rc::new(RefCell::new(self));
+        let x2 = Rc::new(RefCell::new(rhs));
+
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        // 加算の順伝播
+        let result = add.forward(vec![x1.clone(), x2.clone()]);
+        result.get(0).unwrap().clone()
+    }
+}
+
 /// 乗算関数
 #[derive(Debug, Clone)]
 pub struct MulFunction;
