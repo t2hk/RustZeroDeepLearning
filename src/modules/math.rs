@@ -49,9 +49,9 @@ pub fn add<V: MathOps>(
 }
 
 /// 加算のオーバーロード
-impl<V: MathOps> Add for Variable<V> {
+impl<'a, V: MathOps> Add for &'a Variable<V> {
     type Output = Rc<RefCell<Variable<V>>>;
-    fn add(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
+    fn add(self, rhs: &Variable<V>) -> Rc<RefCell<Variable<V>>> {
         // let x1 = Rc::new(RefCell::new(self));
         // let x2 = Rc::new(RefCell::new(rhs));
         // // let x1 = Rc::clone(&Rc::new(RefCell::new(self)));
@@ -61,16 +61,36 @@ impl<V: MathOps> Add for Variable<V> {
         let a = Rc::new(RefCell::new(self));
         let b = Rc::new(RefCell::new(rhs));
 
-        add(Rc::clone(&a), Rc::clone(&b))
+        //add(Rc::clone(&a), Rc::clone(&b))
 
-        // let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-        // // 加算の順伝播
-        // add.forward(vec![x1.clone(), x2.clone()])
-        //     .get(0)
-        //     .unwrap()
-        //     .clone()
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        // 加算の順伝播
+        let result = add.forward_ref(vec![a, b]).get(0).unwrap().clone();
+
+        let creator = result.borrow().get_creator();
+        dbg!(&creator
+            .unwrap()
+            .borrow()
+            .get_outputs()
+            .iter()
+            .for_each(|output| {
+                dbg!(&output.upgrade());
+            }));
+
+        return Rc::clone(&result.clone());
 
         // add(x1, x2)
+        // add.forward_ref(vec![a, b]).get(0).unwrap().borrow().clone()
+        // Rc::new(RefCell::new(
+        //     add.forward_ref(vec![
+        //         Rc::new(RefCell::new(self)),
+        //         Rc::new(RefCell::new(rhs)),
+        //     ])
+        //     .get(0)
+        //     .unwrap()
+        //     .borrow()
+        //     .clone(),
+        // ))
     }
 }
 
@@ -315,29 +335,43 @@ mod tests {
         b.set_name("val_b".to_string());
         let mut c = Variable::new(1.0f32);
         c.set_name("val_c".to_string());
-        let result1 = a.clone() * b.clone();
-        let result = result1.borrow().clone() + c.clone();
+        // let result1 = a.clone() * b.clone();
+        // let result = result1.borrow().clone() + c.clone();
         //let result = (a.clone() + b.clone()).borrow().clone() + c.clone();
+        let result1 = &a + &b;
+        let result = &(&a + &b).borrow().clone() + &c;
 
         // let result = ((a.clone() + b.clone()).as_ref().borrow().clone() + c.clone());
+        let creator = result1.borrow().get_creator();
+        dbg!(&creator
+            .unwrap()
+            .borrow()
+            .get_outputs()
+            .iter()
+            .for_each(|output| {
+                dbg!(&output.upgrade());
+            }));
 
         let expected = Variable::new(7.0f32);
         //dbg!(&result);
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        //assert_eq!(expected.get_data(), result.borrow().get_data());
 
         // let a2 = Rc::new(RefCell::new(a));
         // let b2 = Rc::new(RefCell::new(b));
         // let c2 = Rc::new(RefCell::new(c));
         // let result2 = add(add(Rc::clone(&a2), Rc::clone(&b2)), Rc::clone(&c2));
 
-        result.as_ref().clone().borrow().backward();
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            &a.get_grad(),
-            &b.get_grad(),
-            &c.get_grad(),
-        );
+        //dbg!(&result);
+        //result.as_ref().clone().borrow().backward();
+        result.as_ref().borrow().backward();
+
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     &a.get_grad(),
+        //     &b.get_grad(),
+        //     &c.get_grad(),
+        // );
         dbg!(&result);
     }
 

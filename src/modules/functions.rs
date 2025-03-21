@@ -160,6 +160,53 @@ impl<V: MathOps> FunctionExecutor<V> {
         outputs
     }
 
+    pub fn forward_ref(
+        &mut self,
+        inputs: Vec<Rc<RefCell<&Variable<V>>>>,
+    ) -> Vec<Rc<RefCell<Variable<V>>>> {
+        // 入力値からデータを取り出す。
+        let xs_data: Vec<Array<V, IxDyn>> = inputs
+            .iter()
+            .map(|input| input.borrow().get_data().clone())
+            .collect();
+
+        // 逆伝播を有効にする場合、世代を設定する。
+        if Setting::is_enable_backprop() {
+            self.generation = inputs
+                .iter()
+                .map(|input| input.borrow().get_generation())
+                .max()
+                .unwrap_or(0);
+        }
+
+        // 関数を実行する。
+        let ys_data = self.creator.borrow().forward(xs_data);
+
+        // 関数の結果を出力値とする。
+        let outputs: Vec<Rc<RefCell<Variable<V>>>> = ys_data
+            .into_iter()
+            .map(|y_data| {
+                let val = Variable::new(y_data);
+                Rc::new(RefCell::new(val))
+            })
+            .collect();
+
+        // 入出力を自身に設定する。
+        // self.inputs = inputs;
+        self.inputs = inputs
+            .into_iter()
+            .map(|input| Rc::new(RefCell::new((*input.borrow()).clone())))
+            .collect();
+        self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
+        for output in &outputs {
+            output
+                .borrow_mut()
+                .set_creator(Rc::new(RefCell::new(self.clone())));
+        }
+
+        outputs
+    }
+
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     pub fn backward(&self) {
