@@ -49,9 +49,9 @@ pub fn add<V: MathOps>(
 }
 
 /// 加算のオーバーロード
-impl<'a, V: MathOps> Add for &'a Variable<V> {
+impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
     type Output = Rc<RefCell<Variable<V>>>;
-    fn add(self, rhs: &Variable<V>) -> Rc<RefCell<Variable<V>>> {
+    fn add(self, rhs: &'b Variable<V>) -> Rc<RefCell<Variable<V>>> {
         // let x1 = Rc::new(RefCell::new(self));
         // let x2 = Rc::new(RefCell::new(rhs));
         // // let x1 = Rc::clone(&Rc::new(RefCell::new(self)));
@@ -65,19 +65,21 @@ impl<'a, V: MathOps> Add for &'a Variable<V> {
 
         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
         // 加算の順伝播
-        let result = add.forward_ref(vec![a, b]).get(0).unwrap().clone();
+        // Rc::new(RefCell::new(
+        add.forward_ref(vec![a, b]).get(0).unwrap().clone()
+        // ))
 
-        let creator = result.borrow().get_creator();
-        dbg!(&creator
-            .unwrap()
-            .borrow()
-            .get_outputs()
-            .iter()
-            .for_each(|output| {
-                dbg!(&output.upgrade());
-            }));
+        // let creator = result.borrow().get_creator();
+        // dbg!(&creator
+        //     .unwrap()
+        //     .borrow()
+        //     .get_outputs()
+        //     .iter()
+        //     .for_each(|output| {
+        //         dbg!(&output.upgrade());
+        //     }));
 
-        return Rc::clone(&result.clone());
+        // return Rc::clone(&result.clone());
 
         // add(x1, x2)
         // add.forward_ref(vec![a, b]).get(0).unwrap().borrow().clone()
@@ -339,10 +341,11 @@ mod tests {
         // let result = result1.borrow().clone() + c.clone();
         //let result = (a.clone() + b.clone()).borrow().clone() + c.clone();
         let result1 = &a + &b;
-        let result = &(&a + &b).borrow().clone() + &c;
+        // let result = &(&a + &b).borrow().clone() + &c;
+        let result = &result1.borrow().clone() + &c;
 
         // let result = ((a.clone() + b.clone()).as_ref().borrow().clone() + c.clone());
-        let creator = result1.borrow().get_creator();
+        let creator = result.borrow().get_creator();
         dbg!(&creator
             .unwrap()
             .borrow()
@@ -363,7 +366,7 @@ mod tests {
 
         //dbg!(&result);
         //result.as_ref().clone().borrow().backward();
-        result.as_ref().borrow().backward();
+        result.as_ref().clone().borrow().backward();
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",

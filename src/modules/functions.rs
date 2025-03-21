@@ -204,6 +204,10 @@ impl<V: MathOps> FunctionExecutor<V> {
                 .set_creator(Rc::new(RefCell::new(self.clone())));
         }
 
+        dbg!(&self.outputs.iter().for_each(|output| {
+            dbg!(&output.upgrade());
+        }));
+
         outputs
     }
 
