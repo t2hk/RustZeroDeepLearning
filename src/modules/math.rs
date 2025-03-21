@@ -144,19 +144,16 @@ pub fn mul<V: MathOps>(
 }
 
 /// 乗算のオーバーロード
-impl<V: MathOps> Mul for Variable<V> {
+impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
     type Output = Rc<RefCell<Variable<V>>>;
-    fn mul(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
-        // let x1 = Rc::new(RefCell::new(self));
-        // let x2 = Rc::new(RefCell::new(rhs));
-        // // let x1 = Rc::clone(&Rc::new(RefCell::new(self)));
-        // let x2 = Rc::clone(&Rc::new(RefCell::new(rhs)));
-
+    fn mul(self, rhs: &'b Variable<V>) -> Rc<RefCell<Variable<V>>> {
         // 順伝播
         let a = Rc::new(RefCell::new(self));
         let b = Rc::new(RefCell::new(rhs));
 
-        mul(Rc::clone(&a), Rc::clone(&b))
+        let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
+        // 順伝播
+        mul.forward_ref(vec![a, b]).get(0).unwrap().clone()
     }
 }
 
@@ -340,21 +337,29 @@ mod tests {
         // let result1 = a.clone() * b.clone();
         // let result = result1.borrow().clone() + c.clone();
         //let result = (a.clone() + b.clone()).borrow().clone() + c.clone();
-        let result1 = &a + &b;
+        let result1 = &a * &b;
         // let result = &(&a + &b).borrow().clone() + &c;
         let result = &result1.borrow().clone() + &c;
 
         // let result = ((a.clone() + b.clone()).as_ref().borrow().clone() + c.clone());
         let creator = result.borrow().get_creator();
+        // dbg!(&creator
+        //     .unwrap()
+        //     .borrow()
+        //     .get_outputs()
+        //     .iter()
+        //     .for_each(|output| {
+        //         dbg!(&output.upgrade());
+        //     }));
         dbg!(&creator
             .unwrap()
             .borrow()
-            .get_outputs()
+            .get_inputs()
             .iter()
-            .for_each(|output| {
-                dbg!(&output.upgrade());
+            .for_each(|input| {
+                dbg!(&input.borrow().get_name());
+                dbg!(&input.borrow().get_grad());
             }));
-
         let expected = Variable::new(7.0f32);
         //dbg!(&result);
         //assert_eq!(expected.get_data(), result.borrow().get_data());
