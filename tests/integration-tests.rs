@@ -460,7 +460,7 @@ mod tests {
         let a = square(x1.clone());
         let b = square(a.clone());
         let c = square(a.clone());
-        let d = add(a.clone(), c.clone());
+        let d = add(b.clone(), c.clone());
         let y = add(d.clone(), x2.clone());
 
         // 順伝播の結果
