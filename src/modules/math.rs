@@ -77,6 +77,16 @@ impl<'a, 'b, V: MathOps> Add<&'b V> for &'a Variable<V> {
     }
 }
 
+/// 加算のオーバーロード (Array との計算)
+impl<'a, 'b, V: MathOps> Add<&'b Array<V, IxDyn>> for &'a Variable<V> {
+    type Output = Variable<V>;
+    fn add(self, rhs: &'b Array<V, IxDyn>) -> Variable<V> {
+        // 順伝播
+        let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
+        self + &rhs_val
+    }
+}
+
 /// 乗算関数
 #[derive(Debug, Clone)]
 pub struct MulFunction;
@@ -149,6 +159,16 @@ impl<'a, 'b, V: MathOps> Mul<&'b V> for &'a Variable<V> {
     fn mul(self, rhs: &'b V) -> Variable<V> {
         // 順伝播
         let rhs_val = Variable::new(RawVariable::new(*rhs));
+        self * &rhs_val
+    }
+}
+
+/// 乗算のオーバーロード (Array との計算)
+impl<'a, 'b, V: MathOps> Mul<&'b Array<V, IxDyn>> for &'a Variable<V> {
+    type Output = Variable<V>;
+    fn mul(self, rhs: &'b Array<V, IxDyn>) -> Variable<V> {
+        // 順伝播
+        let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
         self * &rhs_val
     }
 }
@@ -422,5 +442,62 @@ mod tests {
             Array::from_elem(IxDyn(&[]), 3),
             b.borrow().get_grad().expect("No grad exist.")
         );
+    }
+
+    /// オーバーロードのテスト (Array との計算)
+    #[test]
+    fn test_add_mul_with_array_overload() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        // 変数を用意する。
+        let mut raw_a = RawVariable::new(3i32);
+        raw_a.set_name("val_a".to_string());
+        let a = Variable::new(raw_a);
+
+        // let mut raw_b = RawVariable::new(2i32);
+        // raw_b.set_name("val_b".to_string());
+        // let b = Variable::new(raw_b);
+
+        // b は Array とする。
+        let b = Array::from_elem(IxDyn(&[]), 2i32);
+
+        let mut raw_c = RawVariable::new(1i32);
+        raw_c.set_name("val_c".to_string());
+        let c = Variable::new(raw_c);
+
+        // 計算する。a * b + c
+        let result = &(&a * &b) + &c;
+
+        let expected = RawVariable::new(7i32);
+
+        // 逆伝播を実行する。
+        result.backward();
+
+        println!(
+            "result grad: {:?}, a grad: {:?}, c grad: {:?}",
+            &result.borrow().get_grad(),
+            // &a.borrow().get_grad(),
+            &a.borrow().get_grad(),
+            // &b.borrow().get_grad(),
+            &c.borrow().get_grad(),
+        );
+
+        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 1),
+            result.borrow().get_grad().expect("No grad exist.")
+        );
+        assert_eq!(
+            Array::from_elem(IxDyn(&[]), 2),
+            a.borrow().get_grad().expect("No grad exist.")
+        );
+        // assert_eq!(
+        //     Array::from_elem(IxDyn(&[]), 3),
+        //     b.borrow().get_grad().expect("No grad exist.")
+        // );
     }
 }
