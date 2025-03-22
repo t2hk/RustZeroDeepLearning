@@ -1,5 +1,5 @@
 # ゼロから作る Deep Learning 3 を Rust で実装してみる。
-* 本プロジェクトは、O'Reilly Japan の書籍『ゼロから作る Deep Learning 3』を基に、Rust 実装することを目的としています。
+* 本プロジェクトは、O'Reilly Japan の書籍『ゼロから作る Deep Learning 3』を基に、Rust で実装することを目的としています。
 * https://www.oreilly.co.jp/books/9784873119069/
 
 ## 基本的な使い方
