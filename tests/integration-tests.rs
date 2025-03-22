@@ -31,7 +31,8 @@ mod tests {
 
         // 逆伝播
         //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
-        result.as_ref().clone().borrow().backward();
+        //result.as_ref().clone().borrow().backward();
+        result.backward();
 
         println!(
             "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
@@ -74,7 +75,8 @@ mod tests {
 
         // 逆伝播
         //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
-        result.as_ref().clone().borrow().backward();
+        // result.as_ref().clone().borrow().backward();
+        result.backward();
 
         println!(
             "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
@@ -112,11 +114,10 @@ mod tests {
         let expected = RawVariable::new(50);
 
         let result = mul(x1.clone(), x2.clone());
-        assert_eq!(expected.get_data(), result.raw().borrow().get_data());
+        assert_eq!(expected.get_data(), result.borrow().get_data());
 
         // 逆伝播
-        //FunctionExecutor::backward_all(vec![Rc::clone(&result)]);
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         println!(
             "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
@@ -244,7 +245,7 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data().clone());
 
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -270,7 +271,7 @@ mod tests {
         let result = square(x1.clone());
         assert_eq!(&expected_var.get_data(), &result.borrow().get_data());
 
-        result.as_ref().clone().borrow().backward();
+        result.backward();
         assert_eq!(
             &expected_grad.get_data(),
             &x1.borrow().get_grad().expect("No grad exist.")
@@ -372,10 +373,8 @@ mod tests {
 
         // 逆伝播を実行する。微分値を保持しない。
         Setting::set_retain_grad_disabled();
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        y.as_ref().clone().borrow().backward();
+
+        y.backward();
 
         // 逆伝播の結果の確認
         // 途中結果の変数には微分値が設定されていないことを確認する。
@@ -441,24 +440,16 @@ mod tests {
 
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        y.as_ref().clone().borrow().backward();
+
+        y.backward();
 
         // 逆伝播の結果の確認
         // 途中結果の変数には微分値が設定されていないことを確認する。
-        assert_eq!(
-            Array::from_elem(IxDyn(&[]), 2.0),
-            x1.raw().borrow().get_data()
-        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
 
         // 逆伝播の結果の確認
         // 途中結果の変数には微分値が設定されていないことを確認する。
-        assert_eq!(
-            Array::from_elem(IxDyn(&[]), 2.0),
-            x1.raw().borrow().get_data()
-        );
+        assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 64.0),
             x1.borrow().get_grad().expect("No grad exist.")
@@ -539,11 +530,7 @@ mod tests {
         assert_eq!(5, creators.len());
 
         // 逆伝播を実行する。
-        // for (_gen, creator) in creators.iter() {
-        //     Setting::set_retain_grad_enabled();
-        //     creator.borrow_mut().backward();
-        // }
-        y.as_ref().clone().borrow().backward();
+        y.backward();
 
         // 逆伝播の結果の確認
         assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
@@ -604,13 +591,8 @@ mod tests {
             result.borrow().get_data()
         );
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -632,13 +614,8 @@ mod tests {
 
         let result = add(x.clone(), x.clone());
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -653,13 +630,8 @@ mod tests {
         ////////////////////////////////
         let result2 = add(x.clone(), x.clone());
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators2 = FunctionExecutor::extract_creators(vec![Rc::clone(&result2)]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators2.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result2.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result2.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -669,7 +641,7 @@ mod tests {
         let expected_grad2 = Array::from_elem(IxDyn(&[]), 4.0);
         assert_eq!(
             expected_grad2,
-            x.raw().borrow().get_grad().expect("No grad exist.")
+            x.borrow().get_grad().expect("No grad exist.")
         );
         assert_eq!(expected_output_data.clone(), result2.borrow().get_data());
 
@@ -679,13 +651,8 @@ mod tests {
         x.borrow_mut().clear_grad();
         let result3 = add(x.clone(), x.clone());
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators3 = FunctionExecutor::extract_creators(vec![Rc::clone(&result3)]);
-        //dbg!(creators);
-        // for (_gen, creator) in creators3.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result3.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result3.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -694,12 +661,9 @@ mod tests {
         let expected_grad3 = Array::from_elem(IxDyn(&[]), 2.0);
         assert_eq!(
             expected_grad3,
-            x.raw().borrow().get_grad().expect("No grad exist.")
+            x.borrow().get_grad().expect("No grad exist.")
         );
-        assert_eq!(
-            expected_output_data.clone(),
-            result2.raw().borrow().get_data()
-        );
+        assert_eq!(expected_output_data.clone(), result2.borrow().get_data());
     }
 
     /// 二乗のテスト
@@ -726,10 +690,7 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         // 二乗の結果
         assert_eq!(expected_output_data, result.borrow().get_data());
@@ -764,17 +725,14 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         // 足し算の結果
-        assert_eq!(expected_output_data, result.raw().borrow().get_data());
+        assert_eq!(expected_output_data, result.borrow().get_data());
         // 逆伝播の結果
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            x1.raw().borrow().get_grad().expect("No grad exist.")
+            x1.borrow().get_grad().expect("No grad exist.")
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
@@ -801,10 +759,7 @@ mod tests {
         assert_eq!(1, creators.len());
 
         // 逆伝播を実行する。
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         // exp 結果
         assert_eq!(expected_output_data, result.borrow().get_data());
@@ -856,13 +811,8 @@ mod tests {
             result.borrow().get_data()
         );
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -921,13 +871,8 @@ mod tests {
             result.borrow().get_data()
         );
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
@@ -978,13 +923,8 @@ mod tests {
         assert_eq!(None, x.borrow().get_grad());
         assert_eq!(expected.clone(), result.borrow().get_data());
 
-        // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-        // let creators = FunctionExecutor::extract_creators(vec![result.clone()]);
-        // //dbg!(creators);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow_mut().backward();
-        // }
-        result.as_ref().clone().borrow().backward();
+        // 逆伝播を実行する。
+        result.backward();
 
         // 逆伝播の結果を確認する。
         // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
