@@ -322,7 +322,7 @@ mod tests {
         let expected = RawVariable::new(7.0f32);
 
         // 逆伝播を実行する。
-        result.as_ref().clone().borrow().backward();
+        result.backward();
 
         println!(
             "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",

@@ -114,4 +114,5 @@ cargo run
     * Variable 構造体自体の参照共有や内部可変に対応するため、Variable を RawVariable に変更し、そのラッパーとなる構造体 Variable を追加して、Rc<RefCell<Variable>> として保持するように変更した。
     * 上記の対応のため、コードを全面的に修正した。
 
-  
+### ステップ21 演算子のオーバーロード (2)
+* 対応中

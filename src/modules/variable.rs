@@ -64,6 +64,11 @@ impl<V: MathOps> Variable<V> {
     pub fn as_ref(&self) -> &RefCell<RawVariable<V>> {
         self.raw.as_ref()
     }
+
+    /// 逆伝播を実行する。
+    pub fn backward(&self) {
+        self.raw.as_ref().clone().borrow().backward();
+    }
 }
 
 impl<V: MathOps> RawVariable<V> {

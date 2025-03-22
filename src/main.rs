@@ -64,7 +64,8 @@ fn main() {
     assert_eq!(5, creators.len());
 
     // 逆伝播を実行する。
-    y.as_ref().clone().borrow().backward();
+    // y.as_ref().clone().borrow().backward();
+    y.backward();
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
