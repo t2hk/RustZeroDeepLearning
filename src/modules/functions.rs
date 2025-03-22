@@ -26,26 +26,23 @@ where
     /// 継承して実装すること。
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<Variable>>>): 順伝播の入力値
+    /// * inputs (Vec<Rc<RefCell<RawVariable>>>): 順伝播の入力値
     /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
     ///
     /// Returns
     /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
-    fn backward(
-        &self,
-        inputs: Vec<Rc<RefCell<Variable<V>>>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>>;
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Array<V, IxDyn>>)
+        -> Vec<Array<V, IxDyn>>;
 }
 
 /// 関数の実行用ラッパー
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
 pub struct FunctionExecutor<V: MathOps> {
-    inputs: Vec<Rc<RefCell<Variable<V>>>>,    // 関数の入力値
-    outputs: Vec<Weak<RefCell<Variable<V>>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function<V>>>,    // 関数のトレイトオブジェクト
-    generation: i32,                          // 関数の世代
+    inputs: Vec<Variable<V>>,                    // 関数の入力値
+    outputs: Vec<Weak<RefCell<RawVariable<V>>>>, //関数の出力値
+    creator: Rc<RefCell<dyn Function<V>>>,       // 関数のトレイトオブジェクト
+    generation: i32,                             // 関数の世代
 }
 
 /// 関数ラッパーの比較
@@ -64,12 +61,14 @@ impl<V: MathOps> PartialOrd for FunctionExecutor<V> {
     }
 }
 
+/// 関数ラッパーの世代に基づいた大小比較。
 impl<V: MathOps> Ord for FunctionExecutor<V> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.get_generation().cmp(&other.get_generation())
     }
 }
 
+/// 関数ラッパーの実装
 impl<V: MathOps> FunctionExecutor<V> {
     /// コンストラクタ
     ///
@@ -90,8 +89,8 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 入力値を取得する。
     ///
     /// Return
-    /// * Vec<Weak<RefCell<Variable<V>>>>: 関数に対する入力値のベクタ
-    pub fn get_inputs(&self) -> Vec<Rc<RefCell<Variable<V>>>> {
+    /// * Vec<Variable<V>>: 関数に対する入力値のベクタ
+    pub fn get_inputs(&self) -> Vec<Variable<V>> {
         self.inputs.clone()
     }
 
@@ -99,7 +98,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * Vec<Weak<RefCell<Variable<V>>>>: 関数の出力値のベクタ
-    pub fn get_outputs(&self) -> Vec<Weak<RefCell<Variable<V>>>> {
+    pub fn get_outputs(&self) -> Vec<Weak<RefCell<RawVariable<V>>>> {
         self.outputs.clone()
     }
 
@@ -114,25 +113,22 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 順伝播
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<Variable>>>): 関数の入力値
+    /// * inputs (Vec<Variable<V>>): 関数の入力値
     ///
     /// Return
-    /// * Vec<Rc<RefCell<Variable>>>: 関数の実行結果
-    pub fn forward(
-        &mut self,
-        inputs: Vec<Rc<RefCell<Variable<V>>>>,
-    ) -> Vec<Rc<RefCell<Variable<V>>>> {
+    /// * Vec<Variable<V>>: 関数の実行結果
+    pub fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
             .iter()
-            .map(|input| input.borrow().get_data().clone())
+            .map(|variable| variable.raw().borrow().get_data())
             .collect();
 
         // 逆伝播を有効にする場合、世代を設定する。
         if Setting::is_enable_backprop() {
             self.generation = inputs
                 .iter()
-                .map(|input| input.borrow().get_generation())
+                .map(|variable| variable.raw().borrow().get_generation())
                 .max()
                 .unwrap_or(0);
         }
@@ -141,22 +137,28 @@ impl<V: MathOps> FunctionExecutor<V> {
         let ys_data = self.creator.borrow().forward(xs_data);
 
         // 関数の結果を出力値とする。
-        let outputs: Vec<Rc<RefCell<Variable<V>>>> = ys_data
+        let outputs: Vec<Variable<V>> = ys_data
             .into_iter()
             .map(|y_data| {
-                let val = Variable::new(y_data);
-                Rc::new(RefCell::new(val))
+                let val = Rc::new(RefCell::new(RawVariable::new(y_data)));
+                Variable::new(val)
             })
             .collect();
 
         // 入出力を自身に設定する。
-        self.inputs = inputs;
-        self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
+        self.inputs = inputs.into_iter().map(|input| input).collect();
+        self.outputs = outputs
+            .iter()
+            .map(|output| Rc::downgrade(&output.raw()))
+            .collect();
+
         for output in &outputs {
             output
+                .raw()
                 .borrow_mut()
                 .set_creator(Rc::new(RefCell::new(self.clone())));
         }
+
         outputs
     }
 
@@ -166,14 +168,15 @@ impl<V: MathOps> FunctionExecutor<V> {
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         let grad_one = Array::from_elem(IxDyn(&[]), V::one());
         let mut gys: Vec<Array<V, IxDyn>> = vec![];
+
         self.outputs
             .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
-                // if output.borrow().grad.is_none() {
                 if output.borrow().get_grad().is_none() {
                     output.borrow_mut().set_grad(grad_one.clone());
                 }
+
                 gys.push(output.borrow().get_grad().clone().unwrap());
             });
 
@@ -183,11 +186,14 @@ impl<V: MathOps> FunctionExecutor<V> {
         // 逆伝播の結果を入力値に設定する。
         // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
         for (i, input) in self.inputs.iter().enumerate() {
-            if input.borrow_mut().get_grad().is_none() {
-                input.borrow_mut().set_grad(gxs[i].clone());
+            if input.raw().borrow_mut().get_grad().is_none() {
+                input.raw().borrow_mut().set_grad(gxs[i].clone());
             } else {
-                let input_grad = input.borrow().get_grad().clone().unwrap();
-                input.borrow_mut().set_grad(input_grad + gxs[i].clone());
+                let input_grad = input.raw().borrow().get_grad().clone().unwrap();
+                input
+                    .raw()
+                    .borrow_mut()
+                    .set_grad(input_grad + gxs[i].clone());
             }
         }
 
@@ -205,13 +211,13 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 逆伝播のために計算グラフ上の関数を取得する。
     ///
     /// Arguments
-    /// * outputs (Vec<Rc<RefCell<Variable>>>): 計算グラフの順伝播の出力値
+    /// * outputs (Vec<Rc<RefCell<RawVariable>>>): 計算グラフの順伝播の出力値
     pub fn extract_creators(
-        outputs: Vec<Rc<RefCell<Variable<V>>>>,
+        outputs: Vec<Variable<V>>,
     ) -> BinaryHeap<(i32, Rc<RefCell<FunctionExecutor<V>>>)> {
         let mut creators = BinaryHeap::new();
         let mut creators_map: HashMap<String, &str> = HashMap::new();
-        let mut local_variables: Vec<Rc<RefCell<Variable<V>>>> = outputs.clone(); // 1 つの creator の入力値を保持する。
+        let mut local_variables: Vec<Variable<V>> = outputs.clone(); // 1 つの creator の入力値を保持する。
 
         // 計算グラフ上の creator を取得する。
         // creator の入力値を取得し、さらにその入力値の creator を取得することを繰り返す。
@@ -222,7 +228,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             let mut local_creators = vec![];
             local_variables.iter().for_each(|variable| {
                 // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
-                if let Some(creator) = variable.borrow().get_creator() {
+                if let Some(creator) = variable.raw().borrow().get_creator() {
                     if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
                         creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
                         creators_map.insert(format!("{:p}", creator.as_ptr()), "");
@@ -240,28 +246,10 @@ impl<V: MathOps> FunctionExecutor<V> {
             local_variables.clear();
             local_creators.iter_mut().for_each(|creator| {
                 creator.borrow().inputs.iter().for_each(|input| {
-                    local_variables.push(Rc::clone(input));
+                    local_variables.push(input.clone());
                 });
             });
         }
-
-        // println!("heap len: {:?}", creators.len());
-        // for x in creators.iter() {
-        //     println!("heap {:?},  {:?}", x.0, x.1.borrow().creator.borrow());
-        // }
-
         creators
-    }
-
-    /// 順伝播の結果から逆伝播を一括で実行する。
-    ///
-    /// Arguments:
-    /// * outputs (Vec<Rc<RefCell<Variable>>>): 順伝播の結果
-    fn backward_all(outputs: Vec<Rc<RefCell<Variable<V>>>>) {
-        let creators = FunctionExecutor::extract_creators(outputs);
-        // 逆伝播を実行する。
-        for (_gen, creator) in creators.iter() {
-            creator.borrow_mut().backward();
-        }
     }
 }
