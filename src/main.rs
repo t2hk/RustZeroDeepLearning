@@ -31,7 +31,10 @@ fn main() {
     let b = square(a.clone());
     let c = square(a.clone());
     let d = add(b.clone(), c.clone());
-    let y = add(d.clone(), x2.clone());
+    //let y = add(d.clone(), x2.clone());
+    let y = &d + &x2;
+
+    dbg!(&y);
 
     // 順伝播の結果を確認する。
     assert_eq!(

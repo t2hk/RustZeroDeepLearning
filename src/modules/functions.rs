@@ -110,53 +110,13 @@ impl<V: MathOps> FunctionExecutor<V> {
         self.generation
     }
 
-    // /// 順伝播
-    // ///
-    // /// Arguments
-    // /// * inputs (Vec<Variable<V>>): 関数の入力値
-    // ///
-    // /// Return
-    // /// * Vec<Variable<V>>: 関数の実行結果
-    // pub fn forward_bak(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
-    //     // 入力値からデータを取り出す。
-    //     let xs_data: Vec<Array<V, IxDyn>> = inputs
-    //         .iter()
-    //         .map(|input| input.raw().borrow().get_data().clone())
-    //         .collect();
-
-    //     // 逆伝播を有効にする場合、世代を設定する。
-    //     if Setting::is_enable_backprop() {
-    //         self.generation = inputs
-    //             .iter()
-    //             .map(|input| input.raw().borrow().get_generation())
-    //             .max()
-    //             .unwrap_or(0);
-    //     }
-
-    //     // 関数を実行する。
-    //     let ys_data = self.creator.borrow().forward(xs_data);
-
-    //     // 関数の結果を出力値とする。
-    //     let outputs: Vec<Variable<V>> = ys_data
-    //         .into_iter()
-    //         .map(|y_data| {
-    //             let val = RawVariable::new(y_data);
-    //             Rc::new(RefCell::new(val))
-    //         })
-    //         .collect();
-
-    //     // 入出力を自身に設定する。
-    //     self.inputs = inputs;
-    //     self.outputs = outputs.iter().map(|output| Rc::downgrade(output)).collect();
-    //     for output in &outputs {
-    //         output
-    //             .borrow_mut()
-    //             .set_creator(Rc::new(RefCell::new(self.clone())));
-    //     }
-    //     outputs
-    // }
-
-    /// オーバーロード用の順伝播
+    /// 順伝播
+    ///
+    /// Arguments
+    /// * inputs (Vec<Variable<V>>): 関数の入力値
+    ///
+    /// Return
+    /// * Vec<Variable<V>>: 関数の実行結果
     pub fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
@@ -187,11 +147,6 @@ impl<V: MathOps> FunctionExecutor<V> {
 
         // 入出力を自身に設定する。
         self.inputs = inputs.into_iter().map(|input| input).collect();
-
-        // self.outputs = outputs
-        //     .iter()
-        //     .map(|output| Rc::downgrade(&Rc::new(output)))
-        //     .collect();
         self.outputs = outputs
             .iter()
             .map(|output| Rc::downgrade(&output.raw()))
@@ -295,12 +250,6 @@ impl<V: MathOps> FunctionExecutor<V> {
                 });
             });
         }
-
-        // println!("heap len: {:?}", creators.len());
-        // for x in creators.iter() {
-        //     println!("heap {:?},  {:?}", x.0, x.1.borrow().creator.borrow());
-        // }
-
         creators
     }
 }
