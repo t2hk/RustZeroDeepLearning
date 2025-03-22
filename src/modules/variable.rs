@@ -192,8 +192,9 @@ impl<V: MathOps> RawVariable<V> {
 
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
-        let creators =
-            FunctionExecutor::extract_creators(vec![Rc::new(RefCell::new(self.clone()))]);
+        let creators = FunctionExecutor::extract_creators(vec![Variable::new(Rc::new(
+            RefCell::new(self.clone()),
+        ))]);
         for (_gen, creator) in creators.iter() {
             creator.borrow().backward();
         }
