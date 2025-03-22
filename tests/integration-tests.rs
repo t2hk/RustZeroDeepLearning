@@ -21,10 +21,10 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 順伝播
-        let a = Rc::new(RefCell::new(Variable::new(3.0f32)));
-        let b = Rc::new(RefCell::new(Variable::new(2.0f32)));
-        let c = Rc::new(RefCell::new(Variable::new(1.0f32)));
-        let expected = Variable::new(7f32);
+        let a = Rc::new(RefCell::new(RawVariable::new(3.0f32)));
+        let b = Rc::new(RefCell::new(RawVariable::new(2.0f32)));
+        let c = Rc::new(RefCell::new(RawVariable::new(1.0f32)));
+        let expected = RawVariable::new(7f32);
 
         let result = add(mul(Rc::clone(&a), Rc::clone(&b)), Rc::clone(&c));
         assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -65,9 +65,9 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 順伝播
-        let x1 = Rc::new(RefCell::new(Variable::new(5.0f32)));
-        let x2 = Rc::new(RefCell::new(Variable::new(10.0f32)));
-        let expected = Variable::new(50.0f32);
+        let x1 = Rc::new(RefCell::new(RawVariable::new(5.0f32)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(10.0f32)));
+        let expected = RawVariable::new(50.0f32);
 
         let result = mul(Rc::clone(&x1), Rc::clone(&x2));
         assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -107,9 +107,9 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 順伝播
-        let x1 = Rc::new(RefCell::new(Variable::new(5i32)));
-        let x2 = Rc::new(RefCell::new(Variable::new(10i32)));
-        let expected = Variable::new(50);
+        let x1 = Rc::new(RefCell::new(RawVariable::new(5i32)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(10i32)));
+        let expected = RawVariable::new(50);
 
         let result = mul(Rc::clone(&x1), Rc::clone(&x2));
         assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -142,8 +142,8 @@ mod tests {
     /// 中間変数の微分結果を保持し無い場合のテスト
     #[test]
     fn test_retain_grad_disabled_u32() {
-        let x1 = Rc::new(RefCell::new(Variable::new(2u32)));
-        let x2 = Rc::new(RefCell::new(Variable::new(3u32)));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(2u32)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(3u32)));
         let a = square(Rc::clone(&x1));
         let b = square(Rc::clone(&a));
         let c = square(Rc::clone(&a));
@@ -220,20 +220,20 @@ mod tests {
         // テスト用の入力値
         let sh1 = vec![2, 2];
         let val1 = vec![1., 2., 3., 4.];
-        let var1 = Variable::from_shape_vec(sh1, val1);
+        let var1 = RawVariable::from_shape_vec(sh1, val1);
         dbg!(&var1);
         let sh2 = vec![2, 2];
         let val2 = vec![11., 12., 13., 14.];
-        let var2 = Variable::from_shape_vec(sh2, val2);
+        let var2 = RawVariable::from_shape_vec(sh2, val2);
         dbg!(&var2);
 
         let x1 = Rc::new(RefCell::new(var1));
         let x2 = Rc::new(RefCell::new(var2));
 
         // 順伝播の結果 [[12., 14.],[16., 18.]]^2 = [[144., 196.], [256., 324.]]
-        let expected = Variable::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
+        let expected = RawVariable::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
         // 逆伝播の結果 2 * [[12., 14.], [16., 18.]]
-        let expected_grad = Variable::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
+        let expected_grad = RawVariable::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
 
         let result = square(add(x1.clone(), x2.clone()));
 
@@ -269,11 +269,11 @@ mod tests {
         // 入力値の準備
         let sh1 = vec![2, 2];
         let arr1 = vec![1., 2., 3., 4.];
-        let var1 = Variable::from_shape_vec(sh1, arr1);
+        let var1 = RawVariable::from_shape_vec(sh1, arr1);
         let x1 = Rc::new(RefCell::new(var1.clone()));
 
-        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
-        let expected_grad = Variable::from_shape_vec(vec![2, 2], vec![2., 4., 6., 8.]);
+        let expected_var = RawVariable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
+        let expected_grad = RawVariable::from_shape_vec(vec![2, 2], vec![2., 4., 6., 8.]);
 
         // 順伝播、逆伝播を実行する。
         let result = square(Rc::clone(&x1));
@@ -292,18 +292,18 @@ mod tests {
     fn test_multidim_add() {
         let sh1 = vec![2, 2];
         let val1 = vec![1., 2., 3., 4.];
-        let var1 = Variable::from_shape_vec(sh1, val1);
+        let var1 = RawVariable::from_shape_vec(sh1, val1);
         dbg!(&var1);
         let sh2 = vec![2, 2];
         let val2 = vec![11., 12., 13., 14.];
-        let var2 = Variable::from_shape_vec(sh2, val2);
+        let var2 = RawVariable::from_shape_vec(sh2, val2);
         // dbg!(&var2);
 
         // 加算値をランダムに生成する。
         let x1 = Rc::new(RefCell::new(var1));
         let x2 = Rc::new(RefCell::new(var2));
 
-        let expected_var = Variable::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
+        let expected_var = RawVariable::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
 
         // 加算した結果の期待値を計算する。
         // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
@@ -320,7 +320,7 @@ mod tests {
     fn test_disable_backprop() {
         // バックプロパゲーションを行わない場合
         Setting::set_backprop_disabled();
-        let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
+        let x = Rc::new(RefCell::new(RawVariable::new(Array::from_elem(
             IxDyn(&[100, 100, 100]),
             1.0,
         ))));
@@ -332,7 +332,7 @@ mod tests {
 
         // バックプロパゲーションを行う場合
         Setting::set_backprop_enabled();
-        let x = Rc::new(RefCell::new(Variable::new(Array::from_elem(
+        let x = Rc::new(RefCell::new(RawVariable::new(Array::from_elem(
             IxDyn(&[100, 100, 100]),
             1.0,
         ))));
@@ -346,8 +346,8 @@ mod tests {
     /// 中間変数の微分結果を保持し無い場合のテスト
     #[test]
     fn test_retain_grad_disabled() {
-        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
-        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(3.0)));
         let a = square(Rc::clone(&x1));
         let b = square(Rc::clone(&a));
         let c = square(Rc::clone(&a));
@@ -415,8 +415,8 @@ mod tests {
     /// 中間変数の微分結果を保持する場合のテスト。
     #[test]
     fn test_retain_grad_enabled() {
-        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
-        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(3.0)));
         let a = square(Rc::clone(&x1));
         let b = square(Rc::clone(&a));
         let c = square(Rc::clone(&a));
@@ -504,8 +504,8 @@ mod tests {
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
 
-        let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
-        let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(2.0)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(3.0)));
         let a = square(Rc::clone(&x1));
         let b = square(Rc::clone(&a));
         let c = square(Rc::clone(&a));
@@ -588,7 +588,7 @@ mod tests {
     #[test]
     fn test_add_same_input() {
         // 加算値をランダムに生成する。
-        let x = Rc::new(RefCell::new(Variable::new(1.0)));
+        let x = Rc::new(RefCell::new(RawVariable::new(1.0)));
 
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
@@ -677,7 +677,7 @@ mod tests {
     #[test]
     fn test_add_same_input_3times() {
         // 加算値をランダムに生成する。
-        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x = Rc::new(RefCell::new(RawVariable::new(2.0)));
 
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), 6.0);
@@ -715,7 +715,7 @@ mod tests {
     #[test]
     fn test_clear_grad() {
         // 加算値を生成する。
-        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x = Rc::new(RefCell::new(RawVariable::new(2.0)));
 
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), 4.0);
@@ -795,7 +795,7 @@ mod tests {
         // 2乗する値をランダムに生成する。
         let mut rng = rand::rng();
         let rand_x = rng.random::<f64>();
-        let x = Rc::new(RefCell::new(Variable::new(rand_x)));
+        let x = Rc::new(RefCell::new(RawVariable::new(rand_x)));
 
         // 2乗した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
@@ -834,8 +834,8 @@ mod tests {
         let mut rng = rand::rng();
         let rand_x1 = rng.random::<f64>();
         let rand_x2 = rng.random::<f64>();
-        let x1 = Rc::new(RefCell::new(Variable::new(rand_x1)));
-        let x2 = Rc::new(RefCell::new(Variable::new(rand_x2)));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(rand_x1)));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(rand_x2)));
 
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
@@ -872,7 +872,7 @@ mod tests {
     /// Exp 関数のテスト。
     #[test]
     fn test_exp() {
-        let x = Rc::new(RefCell::new(Variable::new(2.0)));
+        let x = Rc::new(RefCell::new(RawVariable::new(2.0)));
 
         let e = std::f64::consts::E;
         let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
@@ -915,8 +915,8 @@ mod tests {
         // テスト用の入力値
         let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
         let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
-        let x1 = Rc::new(RefCell::new(Variable::new(x1_arr.clone())));
-        let x2 = Rc::new(RefCell::new(Variable::new(x2_arr.clone())));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(x1_arr.clone())));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(x2_arr.clone())));
 
         let expected = Array::from_elem(IxDyn(&[]), 25.0);
 
@@ -977,8 +977,8 @@ mod tests {
         // テスト用の入力値
         let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
         let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
-        let x1 = Rc::new(RefCell::new(Variable::new(x1_arr.clone())));
-        let x2 = Rc::new(RefCell::new(Variable::new(x2_arr.clone())));
+        let x1 = Rc::new(RefCell::new(RawVariable::new(x1_arr.clone())));
+        let x2 = Rc::new(RefCell::new(RawVariable::new(x2_arr.clone())));
 
         let expected = Array::from_elem(IxDyn(&[]), 13.0);
 
@@ -1043,7 +1043,7 @@ mod tests {
     fn test_square_exp_square() {
         // テスト用の入力値
         let x_arr = Array::from_elem(IxDyn(&[]), 0.5);
-        let x = Rc::new(RefCell::new(Variable::new(x_arr.clone())));
+        let x = Rc::new(RefCell::new(RawVariable::new(x_arr.clone())));
 
         let e = std::f64::consts::E;
         let expected = Array::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));

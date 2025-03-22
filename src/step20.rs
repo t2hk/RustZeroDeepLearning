@@ -838,7 +838,6 @@ mod tests {
         assert_eq!(expected.get_data(), result.get_data());
     }
 
->>>>>>> 078d94f (ちょっとしたリファクタリング)
     #[test]
     fn test_add_mul() {
         // 逆伝播を実行する。微分値を保持する。

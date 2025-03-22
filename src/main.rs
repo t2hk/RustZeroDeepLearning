@@ -22,8 +22,8 @@ fn main() {
     Setting::set_backprop_enabled();
 
     // 入力値を用意する。
-    let x1 = Rc::new(RefCell::new(Variable::new(2.0)));
-    let x2 = Rc::new(RefCell::new(Variable::new(3.0)));
+    let x1 = Rc::new(RefCell::new(RawVariable::new(2.0)));
+    let x2 = Rc::new(RefCell::new(RawVariable::new(3.0)));
 
     // 計算する。
     let a = square(Rc::clone(&x1));
