@@ -84,8 +84,8 @@ impl<V: MathOps> Function<V> for MulFunction {
         inputs: Vec<Variable<V>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
-        let x1 = inputs[0].raw().borrow().get_data();
-        let x2 = inputs[1].raw().borrow().get_data();
+        let x1 = inputs[0].borrow().get_data();
+        let x2 = inputs[1].borrow().get_data();
         let gx_x1 = &gys[0].clone() * &x2;
         let gx_x2 = &gys[0].clone() * &x1;
 
@@ -151,7 +151,7 @@ impl<V: MathOps> Function<V> for SquareFunction {
         inputs: Vec<Variable<V>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
-        let x = inputs[0].raw().borrow().get_data();
+        let x = inputs[0].borrow().get_data();
         let x_gys = &gys[0].clone() * &x;
         let gxs = vec![x_gys.mapv(|x| x * V::from(2).unwrap())];
         gxs
@@ -191,7 +191,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
-        let x = inputs[0].raw().borrow().get_data();
+        let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].clone();
         let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
         let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
@@ -224,8 +224,8 @@ mod tests {
         let mut rng = rand::rng();
         let rand_x1 = rng.random::<f64>();
         let rand_x2 = rng.random::<f64>();
-        let x1 = Variable::new(Rc::new(RefCell::new(RawVariable::new(rand_x1))));
-        let x2 = Variable::new(Rc::new(RefCell::new(RawVariable::new(rand_x2))));
+        let x1 = Variable::new(RawVariable::new(rand_x1));
+        let x2 = Variable::new(RawVariable::new(rand_x2));
 
         // 加算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
@@ -235,7 +235,7 @@ mod tests {
         let result = add(x1, x2);
 
         // 足し算の結果
-        assert_eq!(expected_output_data, result.raw().borrow().get_data());
+        assert_eq!(expected_output_data, result.borrow().get_data());
     }
 
     /// 二乗のテスト
@@ -244,7 +244,7 @@ mod tests {
         // 2乗する値をランダムに生成する。
         let mut rng = rand::rng();
         let rand_x = rng.random::<f64>();
-        let x = Variable::new(Rc::new(RefCell::new(RawVariable::new(rand_x))));
+        let x = Variable::new(RawVariable::new(rand_x));
 
         // 2乗した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
@@ -253,13 +253,13 @@ mod tests {
         let result = square(x);
 
         // 二乗の結果
-        assert_eq!(expected_output_data, result.raw().borrow().get_data());
+        assert_eq!(expected_output_data, result.borrow().get_data());
     }
 
     /// Exp 関数のテスト。
     #[test]
     fn test_exp() {
-        let x = Variable::new(Rc::new(RefCell::new(RawVariable::new(2.0))));
+        let x = Variable::new(RawVariable::new(2.0));
 
         let e = std::f64::consts::E;
         let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
@@ -268,31 +268,31 @@ mod tests {
         let result = exp(x);
 
         // exp 結果
-        assert_eq!(expected_output_data, result.raw().borrow().get_data());
+        assert_eq!(expected_output_data, result.borrow().get_data());
     }
 
     #[test]
     /// 乗算のテスト(f32)
     fn test_mul_2() {
         // 順伝播
-        let x1 = Variable::new(Rc::new(RefCell::new(RawVariable::new(5.0f32))));
-        let x2 = Variable::new(Rc::new(RefCell::new(RawVariable::new(10.0f32))));
+        let x1 = Variable::new(RawVariable::new(5.0f32));
+        let x2 = Variable::new(RawVariable::new(10.0f32));
         let expected = RawVariable::new(50.0f32);
 
         let result = mul(x1, x2);
-        assert_eq!(expected.get_data(), result.raw().borrow().get_data());
+        assert_eq!(expected.get_data(), result.borrow().get_data());
     }
 
     #[test]
     /// 乗算のテスト(i32)
     fn test_mul_1() {
         // 順伝播
-        let x1 = Variable::new(Rc::new(RefCell::new(RawVariable::new(5i32))));
-        let x2 = Variable::new(Rc::new(RefCell::new(RawVariable::new(10i32))));
+        let x1 = Variable::new(RawVariable::new(5i32));
+        let x2 = Variable::new(RawVariable::new(10i32));
         let expected = RawVariable::new(50);
 
         let result = mul(x1, x2);
-        assert_eq!(expected.get_data(), result.raw().borrow().get_data());
+        assert_eq!(expected.get_data(), result.borrow().get_data());
     }
 
     /// オーバーロードのテスト
@@ -307,14 +307,14 @@ mod tests {
         // 変数を用意する。
         let mut raw_a = RawVariable::new(3.0f32);
         raw_a.set_name("val_a".to_string());
-        let a = Variable::new(Rc::new(RefCell::new(raw_a)));
+        let a = Variable::new(raw_a);
 
         let mut raw_b = RawVariable::new(2.0f32);
         raw_b.set_name("val_b".to_string());
-        let b = Variable::new(Rc::new(RefCell::new(raw_b)));
+        let b = Variable::new(raw_b);
         let mut raw_c = RawVariable::new(1.0f32);
         raw_c.set_name("val_c".to_string());
-        let c = Variable::new(Rc::new(RefCell::new(raw_c)));
+        let c = Variable::new(raw_c);
 
         // 計算する。a * b + c
         let result = &(&a * &b) + &c;
@@ -322,28 +322,29 @@ mod tests {
         let expected = RawVariable::new(7.0f32);
 
         // 逆伝播を実行する。
-        result.raw().as_ref().clone().borrow().backward();
+        result.as_ref().clone().borrow().backward();
 
         println!(
             "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.raw().borrow().get_grad(),
-            &a.raw().borrow().get_grad(),
-            &b.raw().borrow().get_grad(),
-            &c.raw().borrow().get_grad(),
+            &result.borrow().get_grad(),
+            // &a.borrow().get_grad(),
+            &a.borrow().get_grad(),
+            &b.borrow().get_grad(),
+            &c.borrow().get_grad(),
         );
 
-        assert_eq!(expected.get_data(), result.raw().borrow().get_data());
+        assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result.raw().borrow().get_grad().expect("No grad exist.")
+            result.borrow().get_grad().expect("No grad exist.")
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            a.raw().borrow().get_grad().expect("No grad exist.")
+            a.borrow().get_grad().expect("No grad exist.")
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 3.0),
-            b.raw().borrow().get_grad().expect("No grad exist.")
+            b.borrow().get_grad().expect("No grad exist.")
         );
     }
 }
