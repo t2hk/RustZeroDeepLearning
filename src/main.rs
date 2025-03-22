@@ -21,22 +21,25 @@ fn main() {
     // バックプロパゲーションを行う設定
     Setting::set_backprop_enabled();
 
-    // 入力値を用意する。
+    ///////////// 入力値を用意する。 /////////////
     let x1 = Variable::new(RawVariable::new(2.0));
     let x2 = Variable::new(RawVariable::new(3.0));
 
-    // 計算する。
-    // let a = square(x1.clone());
+    ///////////// 計算する(順伝播)。 /////////////
+    // 入力値を clone して計算用のメソッドに渡す。
+    // 加算と乗算についてはオーバーロードに対応しており、
+    // &a + &b のように記述できる。
     let a = square(x1.clone());
     let b = square(a.clone());
     let c = square(a.clone());
     let d = add(b.clone(), c.clone());
-    //let y = add(d.clone(), x2.clone());
+    // オーバーロードで加算する。
     let y = &d + &x2;
 
     dbg!(&y);
 
     // 順伝播の結果を確認する。
+    // x1^2^2 + x1^2^2 + x2 = 35
     assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
 
     // 各変数の世代を確認する。
