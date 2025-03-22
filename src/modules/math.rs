@@ -46,7 +46,6 @@ pub fn add<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
 }
 
 /// 加算のオーバーロード
-<<<<<<< HEAD
 ///
 /// Arguments
 /// * self (Variable<V>): 左オペランド
@@ -65,18 +64,6 @@ impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
             .unwrap()
             .clone();
         result
-=======
-impl<V: MathOps> Add for Variable<V> {
-    type Output = Rc<RefCell<Variable<V>>>;
-    fn add(self, rhs: Variable<V>) -> Rc<RefCell<Variable<V>>> {
-        let x1 = Rc::new(RefCell::new(self));
-        let x2 = Rc::new(RefCell::new(rhs));
-
-        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
-        // 加算の順伝播
-        let result = add.forward(vec![x1.clone(), x2.clone()]);
-        result.get(0).unwrap().clone()
->>>>>>> main
     }
 }
 
