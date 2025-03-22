@@ -240,6 +240,7 @@ mod tests {
     #[test]
     /// 変数の型名に関するテスト。
     fn test_get_dtype() {
+<<<<<<< HEAD
         let var_i8 = RawVariable::new(10i8);
         let var_i16 = RawVariable::new(10i16);
         let var_i32 = RawVariable::new(10i32);
@@ -250,6 +251,18 @@ mod tests {
         let var_u16 = RawVariable::new(10u16);
         let var_u32 = RawVariable::new(10u32);
         let var_u64 = RawVariable::new(10u64);
+=======
+        let var_i8 = Variable::new(10i8);
+        let var_i16 = Variable::new(10i16);
+        let var_i32 = Variable::new(10i32);
+        let var_i64 = Variable::new(10i64);
+        let var_f32 = Variable::new(10.0f32);
+        let var_f64 = Variable::new(10.0f64);
+        let var_u8 = Variable::new(10u8);
+        let var_u16 = Variable::new(10u16);
+        let var_u32 = Variable::new(10u32);
+        let var_u64 = Variable::new(10u64);
+>>>>>>> main
         assert_eq!("i8", var_i8.get_dtype());
         assert_eq!("i16", var_i16.get_dtype());
         assert_eq!("i32", var_i32.get_dtype());
@@ -265,20 +278,32 @@ mod tests {
     /// 変数の size, shape, ndim のテスト
     #[test]
     fn test_variable_params() {
+<<<<<<< HEAD
         let var0 = RawVariable::new(1.0);
+=======
+        let var0 = Variable::new(1.0);
+>>>>>>> main
         assert_eq!(1, var0.get_size());
         let a: [usize; 0] = [];
         assert_eq!(&a, var0.get_shape());
         assert_eq!(0, var0.get_ndim());
 
+<<<<<<< HEAD
         let var1 = RawVariable::from_shape_vec(vec![1], vec![1.0]);
+=======
+        let var1 = Variable::from_shape_vec(vec![1], vec![1.0]);
+>>>>>>> main
         assert_eq!(1, var1.get_size());
         assert_eq!([1], var1.get_shape());
         assert_eq!(1, var1.get_ndim());
 
         let sh2x2 = vec![2, 2];
         let val2x2 = vec![1., 2., 3., 4.];
+<<<<<<< HEAD
         let var2x2 = RawVariable::from_shape_vec(sh2x2, val2x2);
+=======
+        let var2x2 = Variable::from_shape_vec(sh2x2, val2x2);
+>>>>>>> main
 
         assert_eq!(4, var2x2.get_size());
         assert_eq!([2, 2], var2x2.get_shape());
@@ -288,7 +313,11 @@ mod tests {
         let sh10x20x30x40x50 = vec![10, 20, 30, 40, 50];
         let val10x20x30x40x50: Vec<f64> = (1..=12000000).map(|x| x as f64).collect();
 
+<<<<<<< HEAD
         let var10x20x30x40x50 = RawVariable::from_shape_vec(sh10x20x30x40x50, val10x20x30x40x50);
+=======
+        let var10x20x30x40x50 = Variable::from_shape_vec(sh10x20x30x40x50, val10x20x30x40x50);
+>>>>>>> main
         assert_eq!(12000000, var10x20x30x40x50.get_size());
         assert_eq!([10, 20, 30, 40, 50], var10x20x30x40x50.get_shape());
         assert_eq!(5, var10x20x30x40x50.get_ndim());
@@ -299,7 +328,11 @@ mod tests {
     fn test_dyndim_array() {
         let shape = vec![2, 2, 2];
         let values = vec![1., 2., 3., 4., 5., 6., 7., 8.];
+<<<<<<< HEAD
         let var = RawVariable::from_shape_vec(shape, values);
+=======
+        let var = Variable::from_shape_vec(shape, values);
+>>>>>>> main
         // dbg!(&var);
         assert_eq!(&[2, 2, 2], var.get_data().shape());
     }
@@ -307,7 +340,11 @@ mod tests {
     /// 変数の名前のテスト。
     #[test]
     fn test_variable_name() {
+<<<<<<< HEAD
         let mut val = RawVariable::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+=======
+        let mut val = Variable::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+>>>>>>> main
 
         assert_eq!(None, val.get_name());
 
