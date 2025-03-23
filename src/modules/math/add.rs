@@ -1,8 +1,6 @@
-use crate::modules::functions::*;
-use crate::modules::math::exp::*;
-use crate::modules::math::sub::*;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::math::*;
+
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -33,15 +31,15 @@ impl<V: MathOps> Function<V> for AddFunction {
 /// 加算関数
 ///
 /// Arguments
+/// * x0 (Variable<V>): 加算する変数
 /// * x1 (Variable<V>): 加算する変数
-/// * x2 (Variable<V>): 加算する変数
 ///
 /// Return
 /// * Rc<RefCell<RawVariable>>: 加算結果
-pub fn add<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
+pub fn add<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
     // 加算の順伝播
-    add.forward(vec![x1.clone(), x2.clone()])
+    add.forward(vec![x0.clone(), x1.clone()])
         .get(0)
         .unwrap()
         .clone()

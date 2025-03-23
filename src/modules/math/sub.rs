@@ -34,15 +34,15 @@ impl<V: MathOps> Function<V> for SubFunction {
 /// 減算関数
 ///
 /// Arguments
+/// * x0 (Variable<V>): 減算する変数
 /// * x1 (Variable<V>): 減算する変数
-/// * x2 (Variable<V>): 減算する変数
 ///
 /// Return
 /// * Rc<RefCell<RawVariable>>: 減算結果
-pub fn sub<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
+pub fn sub<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut sub = FunctionExecutor::new(Rc::new(RefCell::new(SubFunction)));
     // 減算の順伝播
-    sub.forward(vec![x1.clone(), x2.clone()])
+    sub.forward(vec![x0.clone(), x1.clone()])
         .get(0)
         .unwrap()
         .clone()

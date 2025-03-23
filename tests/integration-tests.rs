@@ -1,15 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use rust_zero_deeplearning::modules::functions::*;
-    use rust_zero_deeplearning::modules::math::add::*;
-    use rust_zero_deeplearning::modules::math::exp::*;
-    use rust_zero_deeplearning::modules::math::mul::*;
-    use rust_zero_deeplearning::modules::math::neg::*;
-    use rust_zero_deeplearning::modules::math::square::*;
-    use rust_zero_deeplearning::modules::math::sub::*;
-    use rust_zero_deeplearning::modules::math::sub::*;
-    use rust_zero_deeplearning::modules::settings::*;
-    use rust_zero_deeplearning::modules::variable::*;
+    use rust_zero_deeplearning::*;
 
     // use approx::assert_abs_diff_eq;
     use core::fmt::Debug;

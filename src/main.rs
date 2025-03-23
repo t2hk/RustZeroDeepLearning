@@ -1,15 +1,8 @@
 //! ステップ20 演算子のオーバーロード(1)
 mod modules;
 
-use crate::modules::functions::*;
-use crate::modules::math::add::*;
-use crate::modules::math::exp::*;
-use crate::modules::math::mul::*;
-use crate::modules::math::neg::*;
-use crate::modules::math::square::*;
-use crate::modules::math::sub::*;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use rust_zero_deeplearning::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
