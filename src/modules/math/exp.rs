@@ -1,7 +1,6 @@
-use crate::modules::functions::*;
-use crate::modules::math::add::*;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::math::*;
+
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
