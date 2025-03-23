@@ -1,16 +1,20 @@
 #[cfg(test)]
 mod tests {
     use rust_zero_deeplearning::modules::functions::*;
-    use rust_zero_deeplearning::modules::math::*;
+    use rust_zero_deeplearning::modules::math::add::*;
+    use rust_zero_deeplearning::modules::math::exp::*;
+    use rust_zero_deeplearning::modules::math::mul::*;
+    use rust_zero_deeplearning::modules::math::neg::*;
+    use rust_zero_deeplearning::modules::math::square::*;
+    use rust_zero_deeplearning::modules::math::sub::*;
+    use rust_zero_deeplearning::modules::math::sub::*;
     use rust_zero_deeplearning::modules::settings::*;
     use rust_zero_deeplearning::modules::variable::*;
+
     // use approx::assert_abs_diff_eq;
     use core::fmt::Debug;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
-    use std::cell::RefCell;
-
-    use std::rc::Rc;
 
     #[test]
     fn test_add_mul() {

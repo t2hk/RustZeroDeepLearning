@@ -2,7 +2,12 @@
 mod modules;
 
 use crate::modules::functions::*;
-use crate::modules::math::*;
+use crate::modules::math::add::*;
+use crate::modules::math::exp::*;
+use crate::modules::math::mul::*;
+use crate::modules::math::neg::*;
+use crate::modules::math::square::*;
+use crate::modules::math::sub::*;
 use crate::modules::settings::*;
 use crate::modules::variable::*;
 
