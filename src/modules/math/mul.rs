@@ -24,12 +24,12 @@ impl<V: MathOps> Function<V> for MulFunction {
         inputs: Vec<Variable<V>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
-        let x1 = inputs[0].borrow().get_data();
-        let x2 = inputs[1].borrow().get_data();
-        let gx_x1 = &gys[0].clone() * &x2;
-        let gx_x2 = &gys[0].clone() * &x1;
+        let x0 = inputs[0].borrow().get_data();
+        let x1 = inputs[1].borrow().get_data();
+        let gx_x0 = &gys[0].clone() * &x1;
+        let gx_x1 = &gys[0].clone() * &x0;
 
-        let gxs = vec![gx_x1, gx_x2];
+        let gxs = vec![gx_x0, gx_x1];
         gxs
     }
 }
@@ -37,15 +37,15 @@ impl<V: MathOps> Function<V> for MulFunction {
 /// 乗算関数
 ///
 /// Arguments
+/// * x0 (Rc<RefCell<Variable>>): 乗算する変数
 /// * x1 (Rc<RefCell<Variable>>): 乗算する変数
-/// * x2 (Rc<RefCell<Variable>>): 乗算する変数
 ///
 /// Return
 /// * Rc<RefCell<Variable>>: 乗算結果
-pub fn mul<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
+pub fn mul<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
     // 乗算の順伝播
-    mul.forward(vec![x1.clone(), x2.clone()])
+    mul.forward(vec![x0.clone(), x1.clone()])
         .get(0)
         .unwrap()
         .clone()
@@ -107,7 +107,7 @@ macro_rules! impl_variable_mul {
             }
         }
 
-        // $scalar * ParametersWrapper
+        // $scalar * Variable<V>
         impl<V: MathOps> Mul<&Variable<V>> for $scalar {
             type Output = Variable<V>;
 
