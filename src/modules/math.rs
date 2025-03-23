@@ -53,9 +53,9 @@ pub fn add<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
 ///
 /// Returns
 /// * Variable<V>: 加算結果
-impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
+impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
     type Output = Variable<V>;
-    fn add(self, rhs: &'b Variable<V>) -> Variable<V> {
+    fn add(self, rhs: &Variable<V>) -> Variable<V> {
         // 順伝播
         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
         let result = add
@@ -67,25 +67,60 @@ impl<'a, 'b, V: MathOps> Add<&'b Variable<V>> for &'a Variable<V> {
     }
 }
 
-/// 加算のオーバーロード (Variable 以外との計算)
-impl<'a, 'b, V: MathOps> Add<&'b V> for &'a Variable<V> {
+/// 加算のオーバーロード (Variable<V> + Array)
+impl<V: MathOps> Add<&Array<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
-    fn add(self, rhs: &'b V) -> Variable<V> {
-        // 順伝播
-        let rhs_val = Variable::new(RawVariable::new(*rhs));
-        self + &rhs_val
-    }
-}
-
-/// 加算のオーバーロード (Array との計算)
-impl<'a, 'b, V: MathOps> Add<&'b Array<V, IxDyn>> for &'a Variable<V> {
-    type Output = Variable<V>;
-    fn add(self, rhs: &'b Array<V, IxDyn>) -> Variable<V> {
+    fn add(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
         // 順伝播
         let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
         self + &rhs_val
     }
 }
+
+/// 加算のオーバーロード (Array + Variable<V>)
+impl<V: MathOps> Add<&Variable<V>> for &Array<V, IxDyn> {
+    type Output = Variable<V>;
+    fn add(self, rhs: &Variable<V>) -> Variable<V> {
+        // 順伝播
+        let lhs_val = Variable::new(RawVariable::new(self.clone()));
+        &lhs_val + rhs
+    }
+}
+
+/// Variable と様々な数値とのオーバーロード用のマクロ
+macro_rules! impl_variable_add {
+    ($scalar:ty) => {
+        // Variable<V> + $scalar
+        impl<V: MathOps> Add<$scalar> for &Variable<V> {
+            type Output = Variable<V>;
+
+            fn add(self, rhs: $scalar) -> Variable<V> {
+                // 順伝播
+                let rhs_val = Variable::new(RawVariable::new(V::from(rhs).unwrap()));
+                self + &rhs_val
+            }
+        }
+
+        // $scalar + Variable<V>
+        impl<V: MathOps> Add<&Variable<V>> for $scalar {
+            type Output = Variable<V>;
+
+            fn add(self, rhs: &Variable<V>) -> Variable<V> {
+                // 順伝播
+                let lhs_val = Variable::new(RawVariable::new(V::from(self).unwrap()));
+                &lhs_val + rhs
+            }
+        }
+    };
+}
+
+// 複数の数値型に対して加算マクロの一括実装
+impl_variable_add!(i32);
+impl_variable_add!(i64);
+impl_variable_add!(f32);
+impl_variable_add!(f64);
+impl_variable_add!(u32);
+impl_variable_add!(u64);
 
 /// 乗算関数
 #[derive(Debug, Clone)]
@@ -131,7 +166,7 @@ pub fn mul<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
         .clone()
 }
 
-/// 乗算のオーバーロード
+/// 乗算のオーバーロード (Variable<V> * Variable<V>)
 ///
 /// Arguments
 /// * self (Variable<V>): 左オペランド
@@ -139,9 +174,9 @@ pub fn mul<V: MathOps>(x1: Variable<V>, x2: Variable<V>) -> Variable<V> {
 ///
 /// Returns
 /// * Variable<V>: 乗算結果
-impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
+impl<V: MathOps> Mul<&Variable<V>> for &Variable<V> {
     type Output = Variable<V>;
-    fn mul(self, rhs: &'b Variable<V>) -> Variable<V> {
+    fn mul(self, rhs: &Variable<V>) -> Variable<V> {
         // 順伝播
         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
         let result = mul
@@ -153,25 +188,60 @@ impl<'a, 'b, V: MathOps> Mul<&'b Variable<V>> for &'a Variable<V> {
     }
 }
 
-/// 乗算のオーバーロード (Variable 以外との計算)
-impl<'a, 'b, V: MathOps> Mul<&'b V> for &'a Variable<V> {
+/// 乗算のオーバーロード (Variable<V> * Array)
+impl<V: MathOps> Mul<&Array<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
-    fn mul(self, rhs: &'b V) -> Variable<V> {
-        // 順伝播
-        let rhs_val = Variable::new(RawVariable::new(*rhs));
-        self * &rhs_val
-    }
-}
-
-/// 乗算のオーバーロード (Array との計算)
-impl<'a, 'b, V: MathOps> Mul<&'b Array<V, IxDyn>> for &'a Variable<V> {
-    type Output = Variable<V>;
-    fn mul(self, rhs: &'b Array<V, IxDyn>) -> Variable<V> {
+    fn mul(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
         // 順伝播
         let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
         self * &rhs_val
     }
 }
+
+/// 乗算のオーバーロード (Array * Variable<V>)
+impl<V: MathOps> Mul<&Variable<V>> for &Array<V, IxDyn> {
+    type Output = Variable<V>;
+    fn mul(self, rhs: &Variable<V>) -> Variable<V> {
+        // 順伝播
+        let lhs_val = Variable::new(RawVariable::new(self.clone()));
+        &lhs_val * rhs
+    }
+}
+
+/// Variable と様々な数値とのオーバーロード用のマクロ
+macro_rules! impl_variable_mul {
+    ($scalar:ty) => {
+        // Variable<V> * $scalar
+        impl<V: MathOps> Mul<$scalar> for &Variable<V> {
+            type Output = Variable<V>;
+
+            fn mul(self, rhs: $scalar) -> Variable<V> {
+                // 順伝播
+                let rhs_val = Variable::new(RawVariable::new(V::from(rhs).unwrap()));
+                self * &rhs_val
+            }
+        }
+
+        // $scalar * ParametersWrapper
+        impl<V: MathOps> Mul<&Variable<V>> for $scalar {
+            type Output = Variable<V>;
+
+            fn mul(self, rhs: &Variable<V>) -> Variable<V> {
+                // 順伝播
+                let lhs_val = Variable::new(RawVariable::new(V::from(self).unwrap()));
+                &lhs_val * rhs
+            }
+        }
+    };
+}
+
+// 複数の数値型に対して一括実装
+impl_variable_mul!(i32);
+impl_variable_mul!(i64);
+impl_variable_mul!(f32);
+impl_variable_mul!(f64);
+impl_variable_mul!(u32);
+impl_variable_mul!(u64);
 
 /// 二乗関数
 #[derive(Debug, Clone)]
@@ -405,15 +475,12 @@ mod tests {
         let mut raw_b = RawVariable::new(2i32);
         raw_b.set_name("val_b".to_string());
         let b = Variable::new(raw_b);
-        // let mut raw_c = RawVariable::new(1.0f32);
-        // raw_c.set_name("val_c".to_string());
-        // let c = Variable::new(raw_c);
 
         // c は Variable ではなく i32 として計算する。
         let c = 1i32;
 
         // 計算する。a * b + c
-        let result = &(&a * &b) + &c;
+        let result = &(&a * &b) + c;
 
         let expected = RawVariable::new(7i32);
 
@@ -499,5 +566,89 @@ mod tests {
         //     Array::from_elem(IxDyn(&[]), 3),
         //     b.borrow().get_grad().expect("No grad exist.")
         // );
+    }
+
+    /// 乗算オーバーロードのテスト
+    /// 様々な型、および、左右オペランドを入れ替えたテスト
+    #[test]
+    fn test_mul_overload_macro() {
+        let overload_val_i32 = Variable::new(RawVariable::new(2i32));
+        let overload_val_f32 = Variable::new(RawVariable::new(2.0f32));
+        let overload_val_f64 = Variable::new(RawVariable::new(2.0f64));
+        let overload_val_u32 = Variable::new(RawVariable::new(2u32));
+        let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
+
+        let result_val_i32_mul_val_i32 = &overload_val_i32 * &overload_val_i32;
+        let result_val_u32_mul_scalar_u32 = &overload_val_u32 * 10u32;
+        let result_scalar_f64_mul_val_f64 = 10.0f64 * &overload_val_f64;
+        let result_val_f32_mul_array_f32 = &overload_val_f32 * &overload_array_f32;
+        let result_array_f32_mul_val_f32 = &overload_array_f32 * &overload_val_f32;
+
+        assert_eq!(
+            RawVariable::new(4i32).get_data(),
+            result_val_i32_mul_val_i32.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(20u32).get_data(),
+            result_val_u32_mul_scalar_u32.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(20.0f64).get_data(),
+            result_scalar_f64_mul_val_f64.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(4.0f32).get_data(),
+            result_val_f32_mul_array_f32.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(4.0f32).get_data(),
+            result_array_f32_mul_val_f32.borrow().get_data()
+        );
+    }
+
+    /// 加算オーバーロードのテスト
+    /// 様々な型、および、左右オペランドを入れ替えたテスト
+    #[test]
+    fn test_add_overload_macro() {
+        let overload_val_i64 = Variable::new(RawVariable::new(2i64));
+        let overload_val_f32 = Variable::new(RawVariable::new(2.0f32));
+        let overload_val_f64 = Variable::new(RawVariable::new(2.0f64));
+        let overload_val_u64 = Variable::new(RawVariable::new(2u64));
+        let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
+
+        let result_val_i64_add_val_i64 = &overload_val_i64 + &overload_val_i64;
+        let result_val_u64_add_scalar_u64 = &overload_val_u64 + 10u64;
+        let result_scalar_f64_add_val_f64 = 10.0f64 + &overload_val_f64;
+        let result_val_f32_add_array_f32 = &overload_val_f32 + &overload_array_f32;
+        let result_array_f32_add_val_f32 = &overload_array_f32 + &overload_val_f32;
+
+        assert_eq!(
+            RawVariable::new(4i64).get_data(),
+            result_val_i64_add_val_i64.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(12u64).get_data(),
+            result_val_u64_add_scalar_u64.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(12.0f64).get_data(),
+            result_scalar_f64_add_val_f64.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(4.0f32).get_data(),
+            result_val_f32_add_array_f32.borrow().get_data()
+        );
+
+        assert_eq!(
+            RawVariable::new(4.0f32).get_data(),
+            result_array_f32_add_val_f32.borrow().get_data()
+        );
     }
 }
