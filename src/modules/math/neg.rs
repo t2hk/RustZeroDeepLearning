@@ -1,0 +1,105 @@
+use crate::modules::functions::*;
+use crate::modules::math::mul;
+use crate::modules::settings::*;
+use crate::modules::variable::*;
+use core::fmt::Debug;
+use ndarray::{Array, IxDyn};
+use std::cell::RefCell;
+use std::ops::{Mul, Neg, Sub};
+use std::rc::Rc;
+
+/// 負数 Neg 関数
+#[derive(Debug, Clone)]
+pub struct NegFunction;
+impl<V: MathOps> Function<V> for NegFunction {
+    // Neg (y=-x) の順伝播
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        let result = vec![xs[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())];
+
+        result
+    }
+
+    /// 逆伝播
+    /// y=-x の微分 dy/dx=-1 である。
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        gys: Vec<Array<V, IxDyn>>,
+    ) -> Vec<Array<V, IxDyn>> {
+        let x = inputs[0].borrow().get_data();
+        let gys_val = gys[0].clone();
+        let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];
+        let gxs = x_exp
+            .iter()
+            .map(|x_exp| gys_val.mapv(|v| V::from(-1).unwrap() * v))
+            .collect();
+        gxs
+    }
+}
+
+/// 負数 Neg 関数
+///
+/// Arguments
+/// * input (Rc<RefCell<RawVariable>>): 入力値
+///
+/// Return
+/// * Rc<RefCell<RawVariable>>: 結果
+pub fn neg<V: MathOps>(input: Variable<V>) -> Variable<V> {
+    let mut neg = FunctionExecutor::new(Rc::new(RefCell::new(NegFunction)));
+    // NEG の順伝播
+    neg.forward(vec![input.clone()]).get(0).unwrap().clone()
+}
+
+/// 負数 Neg のオーバーロード (-Variable<V>)
+///
+/// Arguments
+/// * self (Variable<V>): 左オペランド
+/// * rhs (Variable<V>): 右オペランド
+///
+/// Returns
+/// * Variable<V>: 乗算結果
+impl<V: MathOps> Neg for Variable<V> {
+    type Output = Variable<V>;
+    fn neg(self) -> Variable<V> {
+        // 順伝播
+        let mut neg = FunctionExecutor::new(Rc::new(RefCell::new(NegFunction)));
+        let result = neg.forward(vec![self.clone()]).get(0).unwrap().clone();
+        result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::prelude::*;
+
+    /// 負数 Neg に関するテスト
+    #[test]
+    fn test_neg_overload() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let pos_val_i32_1 = Variable::new(RawVariable::new(2i32));
+        let pos_val_i32_2 = Variable::new(RawVariable::new(3i32));
+        let pos_val_i32_3 = Variable::new(RawVariable::new(4i32));
+        let neg_val_i32 = &(&pos_val_i32_1 + &-pos_val_i32_2.clone()) + &-pos_val_i32_3.clone();
+
+        assert_eq!(
+            RawVariable::new(-5).get_data(),
+            &neg_val_i32.borrow().get_data()
+        );
+
+        let pos_val_f64_1 = Variable::new(RawVariable::new(2f64));
+        let pos_val_f64_2 = Variable::new(RawVariable::new(3f64));
+        let pos_val_f64_3 = Variable::new(RawVariable::new(4f64));
+        let neg_val_f64 = &(&pos_val_f64_1 + &-pos_val_f64_2) + &-pos_val_f64_3;
+
+        assert_eq!(
+            RawVariable::new(-5f64).get_data(),
+            &neg_val_f64.borrow().get_data()
+        );
+    }
+}
