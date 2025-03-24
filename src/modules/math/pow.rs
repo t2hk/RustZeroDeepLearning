@@ -39,7 +39,7 @@ impl<V: MathOps> Function<V> for PowFunction {
         let x = inputs[0].borrow().get_data();
 
         let x_diff_exp = x.mapv(|x| {
-            num_traits::pow(V::from(x).unwrap(), (self.exp - 1)) * V::from(self.exp).unwrap()
+            num_traits::pow(V::from(x).unwrap(), self.exp - 1) * V::from(self.exp).unwrap()
         });
 
         let gxs = &gys[0].clone() * &x_diff_exp;
