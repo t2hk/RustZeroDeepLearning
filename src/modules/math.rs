@@ -7,6 +7,7 @@ pub mod pow;
 pub mod square;
 pub mod sub;
 
+pub use crate::modules::function_libs::*;
 pub use crate::modules::functions::*;
 pub use crate::modules::math::add::*;
 pub use crate::modules::math::div::*;
