@@ -140,16 +140,6 @@ mod tests {
         let y = Variable::new(RawVariable::new(1));
         let z = goldstein(x.clone(), y.clone());
 
-        let creators = FunctionExecutor::extract_creators(vec![z.clone()]);
-        creators.iter().for_each(|creator| {
-            println!(
-                "{:?},  {:?}, gen: {:?}",
-                creator.0,
-                type_of(&creator.1),
-                &creator.1.borrow().get_generation()
-            );
-        });
-
         z.backward();
 
         let expected = Array::from_elem(IxDyn(&[]), 1876);

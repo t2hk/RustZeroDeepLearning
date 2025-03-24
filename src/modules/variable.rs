@@ -223,11 +223,6 @@ impl<V: MathOps> RawVariable<V> {
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
         while let Some(creator) = creators.pop() {
-            println!(
-                "{:?},  gen: {:?}",
-                creator.0,
-                &creator.1.borrow().get_generation()
-            );
             creator.1.borrow().backward();
         }
     }
