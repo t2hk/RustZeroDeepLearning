@@ -4,7 +4,6 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::ops::{Mul, Neg};
 use std::rc::Rc;
 
 /// 二乗関数
@@ -44,6 +43,7 @@ pub fn square<V: MathOps>(input: Variable<V>) -> Variable<V> {
     // 二乗の順伝播
     square.forward(vec![input]).get(0).unwrap().clone()
 }
+
 #[cfg(test)]
 mod tests {
     use super::*;
