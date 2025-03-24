@@ -3,8 +3,8 @@ use crate::modules::math::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use num_traits::{Num, NumCast, Pow};
 use std::cell::RefCell;
+use std::ops::BitXor;
 use std::rc::Rc;
 
 /// 累乗関数
@@ -62,15 +62,25 @@ pub fn pow<V: MathOps>(input: Variable<V>, exp: usize) -> Variable<V> {
     pow.forward(vec![input]).get(0).unwrap().clone()
 }
 
+impl<V: MathOps> BitXor<usize> for &Variable<V> {
+    type Output = Variable<V>;
+    fn bitxor(self, exp: usize) -> Variable<V> {
+        // 順伝播
+        let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
+        let result = pow.forward(vec![self.clone()]).get(0).unwrap().clone();
+        result
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use rand::prelude::*;
 
-    /// 累乗のテスト(f32)
+    /// 累乗のテスト(f64)
     /// [[1.0,2.0],[3.0,4.0]] の3乗
     #[test]
-    fn test_pow_1() {
+    fn test_pow_f64() {
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
 
@@ -91,6 +101,63 @@ mod tests {
         dbg!(&result);
         dbg!(&x);
         let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
+        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+    }
+
+    /// 累乗のテスト(i32)
+    /// [[1.0,2.0],[3.0,4.0]] の3乗
+    #[test]
+    fn test_pow_i32() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1i32, 2i32, 3i32, 4i32],
+        ));
+        let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
+        let result = pow(x.clone(), 3);
+        assert_eq!(expect, result.borrow().get_data());
+
+        // 微分
+        // [[3, 12], [27, 48]]
+        result.backward();
+        dbg!(&result);
+        dbg!(&x);
+        let expect_grad =
+            Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
+        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+    }
+
+    /// オーバーロードした累乗のテスト(i32)
+    /// [[1.0,2.0],[3.0,4.0]] の3乗
+    #[test]
+    fn test_pow_i32_overload() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1i32, 2i32, 3i32, 4i32],
+        ));
+        let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
+
+        let result = &x ^ 3;
+        assert_eq!(expect, result.borrow().get_data());
+
+        // 微分
+        // [[3, 12], [27, 48]]
+        result.backward();
+        dbg!(&result);
+        dbg!(&x);
+        let expect_grad =
+            Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
         assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
     }
 }
