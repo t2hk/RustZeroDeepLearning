@@ -216,9 +216,19 @@ impl<V: MathOps> RawVariable<V> {
 
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
-        let creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
-        for (_gen, creator) in creators.iter() {
-            creator.borrow().backward();
+        let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
+        // for (_gen, creator) in creators.iter() {
+        //     creator.borrow().backward();
+        // }
+
+        // 優先度の高い順に関数を取得し、逆伝播を実行する。
+        while let Some(creator) = creators.pop() {
+            println!(
+                "{:?},  gen: {:?}",
+                creator.0,
+                &creator.1.borrow().get_generation()
+            );
+            creator.1.borrow().backward();
         }
     }
 }
