@@ -1,11 +1,9 @@
-use crate::modules::functions::*;
-use crate::modules::math::mul;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::math::*;
+
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::ops::{Mul, Neg, Sub};
 use std::rc::Rc;
 
 /// 負数 Neg 関数
