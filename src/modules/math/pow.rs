@@ -3,45 +3,62 @@ use crate::modules::math::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use num_traits::Pow;
+use num_traits::{Num, NumCast, Pow};
 use std::cell::RefCell;
 use std::rc::Rc;
 
 /// 累乗関数
 #[derive(Debug, Clone)]
-pub struct PowFunction;
+pub struct PowFunction {
+    exp: usize, // 指数
+}
+
 impl<V: MathOps> Function<V> for PowFunction {
     /// 順伝播
+    /// 関数のインスタンス作成時に指数 exp: usize を設定しておくこと。
+    ///
+    /// Arguments
+    /// * xs (Vec<Array<V,IxDyn>>): 基数
+    ///
+    /// Returns
+    /// * Vec<Array<V, IxDyn>>: 累乗の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        let result = vec![xs[0].mapv(|x| x * x)];
+        let x0 = &xs[0];
 
-        result
+        let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), self.exp));
+        vec![result]
     }
 
     /// 逆伝播
-    /// y=x^2 の微分であるため、dy/dx=2x である。
+    /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
     fn backward(
         &self,
         inputs: Vec<Variable<V>>,
         gys: Vec<Array<V, IxDyn>>,
     ) -> Vec<Array<V, IxDyn>> {
         let x = inputs[0].borrow().get_data();
-        let x_gys = &gys[0].clone() * &x;
-        let gxs = vec![x_gys.mapv(|x| x * V::from(2).unwrap())];
-        gxs
+
+        let x_diff_exp = x.mapv(|x| {
+            num_traits::pow(V::from(x).unwrap(), (self.exp - 1)) * V::from(self.exp).unwrap()
+        });
+
+        let gxs = &gys[0].clone() * &x_diff_exp;
+        vec![gxs]
     }
 }
 
 /// 累乗関数
 ///
 /// Arguments
-/// * input (Variable<V>): 加算する変数
+/// * input (Variable<V>): 基数
+/// * exp (usize): 指数
 ///
 /// Return
 /// * Variable<V>: 累乗の結果
-pub fn pow<V: MathOps>(input: Variable<V>) -> Variable<V> {
-    let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction)));
-    // 二乗の順伝播
+pub fn pow<V: MathOps>(input: Variable<V>, exp: usize) -> Variable<V> {
+    let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
+
+    // 順伝播
     pow.forward(vec![input]).get(0).unwrap().clone()
 }
 
@@ -49,7 +66,31 @@ pub fn pow<V: MathOps>(input: Variable<V>) -> Variable<V> {
 mod tests {
     use super::*;
     use rand::prelude::*;
-    #[test]
+
     /// 累乗のテスト(f32)
-    fn test_pow_1() {}
+    /// [[1.0,2.0],[3.0,4.0]] の3乗
+    #[test]
+    fn test_pow_1() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
+        ));
+        let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 8.0, 27.0, 64.0]).unwrap();
+        let result = pow(x.clone(), 3);
+        assert_eq!(expect, result.borrow().get_data());
+
+        // 微分
+        // [[3., 12.], [27., 48.]]
+        result.backward();
+        dbg!(&result);
+        dbg!(&x);
+        let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
+        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+    }
 }
