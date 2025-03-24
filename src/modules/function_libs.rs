@@ -10,7 +10,7 @@ use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
 /// Sphere 関数
-/// x^2 + y^2 を計算する。
+/// z = x^2 + y^2 を計算する。
 ///
 /// Arguments:
 /// * x (Variable<V>)
@@ -19,6 +19,19 @@ use std::rc::{Rc, Weak};
 /// * Variable<V>: Sphere 関数の計算結果
 pub fn sphere<V: MathOps>(x: Variable<V>, y: Variable<V>) -> Variable<V> {
     let z = &(&x ^ 2) + &(&y ^ 2);
+    z
+}
+
+/// matyas 関数
+/// z = 0.26 * (x^2 + y^2) - 0.48 * x * y を計算する。
+///
+/// Arguments:
+/// * x (Variable<V>)
+/// * y (Variable<V>)
+/// Returns:
+/// * Variable<V>: matyas 関数の計算結果
+pub fn matyas<V: MathOps>(x: Variable<V>, y: Variable<V>) -> Variable<V> {
+    let z = &(0.26 * &(&(&x ^ 2) + &(&y ^ 2))) - &(0.48 * &(&x * &y));
     z
 }
 
@@ -36,8 +49,33 @@ mod tests {
 
         z.backward();
 
+        let expected = Array::from_elem(IxDyn(&[]), 2);
         let expect_x_grad = Array::from_elem(IxDyn(&[]), 2);
         let expect_y_grad = Array::from_elem(IxDyn(&[]), 2);
+        assert_eq!(expected, z.borrow().get_data());
+        assert_eq!(
+            expect_x_grad,
+            x.borrow().get_grad().expect("No grad exist.")
+        );
+        assert_eq!(
+            expect_y_grad,
+            y.borrow().get_grad().expect("No grad exist.")
+        );
+    }
+
+    /// matyas 関数のテスト
+    #[test]
+    fn test_matyas_1() {
+        let x = Variable::new(RawVariable::new(1.0));
+        let y = Variable::new(RawVariable::new(1.0));
+        let z = matyas(x.clone(), y.clone());
+
+        z.backward();
+
+        let expected = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
+        let expect_x_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
+        let expect_y_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
+        assert_eq!(expected, z.borrow().get_data());
         assert_eq!(
             expect_x_grad,
             x.borrow().get_grad().expect("No grad exist.")
