@@ -2,6 +2,7 @@
 use crate::modules::*;
 
 use ndarray::{Array, IxDyn};
+use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -34,7 +35,7 @@ macro_rules! dot_var {
         }
         let v_id = &$variable as *const _ as usize;
         let result = format!(
-            "{} [label=\"{}\", color=orange, style=filled]¥n",
+            "{} [label=\"{}\", color=orange, style=filled]\n",
             v_id,
             v_name.to_string()
         );
@@ -42,9 +43,77 @@ macro_rules! dot_var {
     }};
 }
 
+/// 関数の入出力関係を graphviz の DOT 言語で出力する。
+///
+/// Arguments:
+/// * fe (Rc<RefCell<FunctionExecutor<V>>>): 出力対象の関数
+///
+/// Return:
+/// * String: 関数の DOT 言語表記
+fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
+    let inputs = fe.borrow().get_inputs();
+    let outputs = fe.borrow().get_outputs();
+
+    // この関数のポインタを ID として使用する。
+    let f_id = &fe.borrow().get_creator().as_ptr();
+    let f_name = &fe.borrow().get_creator().borrow().get_name();
+
+    // 関数の情報を DOT 表記する。
+    let mut txt = format!(
+        "{:?} [label={:?}, color=lightblue, style=filled, shape=box]\n",
+        &f_id, &f_name
+    );
+
+    // 入力値と関数の関係を DOT 表記する。
+    // input のポインタを入力値の ID とする。
+    for input in inputs {
+        let input_id = &input.as_ref().as_ptr();
+        let local_txt = format!("{:?} -> {:?}\n", &input_id, &f_id);
+        txt = format!("{}{}", txt, local_txt);
+    }
+
+    // 出力値と関数の関係を DOT 表記する。
+    // output のポインタを出力値の ID とする。
+    for output in outputs {
+        let output_id = &output.upgrade().unwrap().as_ptr();
+        let local_txt = format!("{:?} -> {:?}\n", &f_id, &output_id);
+        txt = format!("{}{}", txt, local_txt);
+    }
+
+    txt.to_string()
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    /// dot_func のテスト
+    /// 掛け算１つのみ。
+    #[test]
+    fn test_dot_func_1() {
+        let x1 = Variable::new(RawVariable::new(5.0f32));
+        let x2 = Variable::new(RawVariable::new(10.0f32));
+
+        let result = &x1 * &x2;
+        let txt = dot_func(result.borrow().get_creator().unwrap());
+        println!("{}", txt);
+    }
+
+    /// dot_func のテスト
+    /// 掛け算と足し算
+    #[test]
+    fn test_dot_func_2() {
+        let x1 = Variable::new(RawVariable::new(5.0f32));
+        let x2 = Variable::new(RawVariable::new(10.0f32));
+        let x3 = Variable::new(RawVariable::new(15.0f32));
+
+        let result = &(&x1 * &x2) + &x3;
+        let mut creators = FunctionExecutor::extract_creators(vec![result.clone()]);
+        while let Some(creator) = creators.pop() {
+            let txt = dot_func(creator.1.clone());
+            println!("{}", txt);
+        }
+    }
 
     /// dot_var のテスト
     /// スカラ値、詳細情報を出力
