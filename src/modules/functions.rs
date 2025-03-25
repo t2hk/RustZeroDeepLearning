@@ -1,5 +1,5 @@
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::*;
 
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
