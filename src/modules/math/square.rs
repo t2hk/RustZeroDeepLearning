@@ -10,6 +10,14 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct SquareFunction;
 impl<V: MathOps> Function<V> for SquareFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Square".to_string()
+    }
+
     /// 順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![xs[0].mapv(|x| x * x)];

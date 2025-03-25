@@ -11,6 +11,14 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct NegFunction;
 impl<V: MathOps> Function<V> for NegFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Neg".to_string()
+    }
+
     // Neg (y=-x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![xs[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())];

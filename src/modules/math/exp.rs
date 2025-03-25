@@ -10,6 +10,14 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct ExpFunction;
 impl<V: MathOps> Function<V> for ExpFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Exp".to_string()
+    }
+
     // Exp (y=e^x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let e = std::f64::consts::E;
