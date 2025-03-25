@@ -2,11 +2,15 @@
 use crate::modules::*;
 
 use ndarray::{Array, IxDyn};
-use std::any::Any;
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::{Result, Write};
+use std::path::Path;
+use std::process::{Command, Stdio};
 use std::rc::{Rc, Weak};
+use std::{env, fs};
 
 /// Variable を graphviz の DOT 言語で出力する。
 ///
@@ -22,7 +26,7 @@ macro_rules! dot_var {
         dot_var!($variable, false)
     }};
     // verbose の指定がある場合の実行
-    ($variable:ident, $verbose:ident) => {{
+    ($variable:ident, $verbose:literal) => {{
         let mut v_name = "".to_string();
         let temp_raw_v = $variable.raw().borrow().clone();
         if $verbose {
@@ -33,9 +37,12 @@ macro_rules! dot_var {
             let v_dtype = &temp_raw_v.get_dtype();
             v_name = format!("{}{:?} {}", v_name, &v_shape, &v_dtype);
         }
-        let v_id = &$variable as *const _ as usize;
+        let v_id = format!("{:p}", $variable.as_ref().as_ptr())
+            .trim_start_matches("0x")
+            .to_string();
+
         let result = format!(
-            "{} [label=\"{}\", color=orange, style=filled]\n",
+            "{:?} [label=\"{}\", color=orange, style=filled]\n",
             v_id,
             v_name.to_string()
         );
@@ -55,7 +62,11 @@ fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
     let outputs = fe.borrow().get_outputs();
 
     // この関数のポインタを ID として使用する。
-    let f_id = &fe.borrow().get_creator().as_ptr();
+    // let f_id = &fe.borrow().get_creator().as_ptr();
+    // let f_id = format!("{:p}", &fe.borrow().get_creator().as_ref().as_ptr())
+    let f_id = format!("{:p}", fe.borrow().get_creator().as_ptr())
+        .trim_start_matches("0x")
+        .to_string();
     let f_name = &fe.borrow().get_creator().borrow().get_name();
 
     // 関数の情報を DOT 表記する。
@@ -67,7 +78,11 @@ fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
     // 入力値と関数の関係を DOT 表記する。
     // input のポインタを入力値の ID とする。
     for input in inputs {
-        let input_id = &input.as_ref().as_ptr();
+        //let input_id = &input.as_ref().as_ptr();
+        let input_id = format!("{:p}", input.as_ref().as_ptr())
+            .trim_start_matches("0x")
+            .to_string();
+
         let local_txt = format!("{:?} -> {:?}\n", &input_id, &f_id);
         txt = format!("{}{}", txt, local_txt);
     }
@@ -75,7 +90,9 @@ fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
     // 出力値と関数の関係を DOT 表記する。
     // output のポインタを出力値の ID とする。
     for output in outputs {
-        let output_id = &output.upgrade().unwrap().as_ptr();
+        let output_id = format!("{:p}", output.upgrade().unwrap().as_ptr())
+            .trim_start_matches("0x")
+            .to_string();
         let local_txt = format!("{:?} -> {:?}\n", &f_id, &output_id);
         txt = format!("{}{}", txt, local_txt);
     }
@@ -83,9 +100,169 @@ fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
     txt.to_string()
 }
 
+/// 計算グラフを graphviz の DOT 言語で出力する。
+///
+/// Arguments:
+/// * variable (Variable<V>): 計算グラフの出力結果
+/// * verbose (bool): 詳細を出力するかどうか(省略可能)
+///
+/// Returns:
+/// * String: 計算グラフの DOT 言語表記
+macro_rules! get_dot_graph {
+    // verbose を指定しない場合は false で実行する。
+    ($variable:ident) => {{
+        get_dot_graph!($variable, false)
+    }};
+    // verbose の指定がある場合の実行
+    ($variable:ident, $verbose:literal) => {{
+        let mut txt = "".to_string();
+
+        let mut creators = FunctionExecutor::extract_creators(vec![$variable.clone()]);
+
+        while let Some(creator) = creators.pop() {
+            let local_dot_func_txt = dot_func(creator.1.clone());
+            txt = format!("{}{}", txt, local_dot_func_txt);
+
+            let inputs = creator.1.borrow().get_inputs();
+
+            for input in inputs {
+                let local_dot_var_txt = dot_var!(input, $verbose);
+                txt = format!("{}{}", txt, local_dot_var_txt);
+            }
+        }
+        format!("digraph g {{\n{}}}", txt)
+    }};
+}
+
+/// 計算グラフを graphviz の DOT 言語と画像で出力する。
+/// graphviz がインストール済みで、dot コマンドで実行可能であること。
+/// graphviz のバージョン 2.43.0 で動作確認している。
+///
+/// 出力フォルダはカレントの .dots フォルダである。
+/// .dots フォルダが存在しない場合は作成する。
+///
+/// Arguments:
+/// * variable (Variable<V>): 計算グラフの出力結果
+/// * to_file (String): 出力する png ファイル名
+/// * verbose (bool): 詳細を出力するかどうか(省略可能)
+///
+/// Returns:
+/// * String: 計算グラフの DOT 言語表記
+macro_rules! plot_dot_graph {
+    // verbose を指定しない場合は false で実行する。
+    ($variable:ident, $to_file:ident) => {{
+        plot_dot_graph!($variable, $to_file, false)
+    }};
+    // verbose の指定がある場合の実行
+    ($variable:ident, $to_file:ident, $verbose:literal) => {{
+
+        // ファイルを保存する .dots ディレクトリが存在しない場合は作成する。
+        let output_dir = "./.dots";
+        fs::create_dir_all(output_dir).unwrap();
+
+        // graphviz の DOT ファイルを作成する。
+        // ファイル名は to_file の末尾に .dot 拡張子を追記した名前とする。
+        let dot_txt = get_dot_graph!($variable, $verbose);
+        let tmp_dot_txt_file_path = format!("{}/{}.dot", output_dir, $to_file);
+        let mut tmp_dot_txt_file = File::create(&tmp_dot_txt_file_path).unwrap();
+        tmp_dot_txt_file.write_all(&dot_txt.as_bytes()).unwrap();
+
+        // graphviz コマンドを実行し、png ファイルを作成する。
+        let dot_png_file_path = format!("{}/{}", output_dir, $to_file);
+
+        let args = [
+            &tmp_dot_txt_file_path.to_string(),
+            &"-T".to_string(),
+            &"png".to_string(),
+            &"-o".to_string(),
+            &dot_png_file_path.to_string(),
+        ];
+
+        let output = Command::new("dot")
+            .args(args)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .unwrap();
+        println!("{:?}", output);
+        println!("{}", String::from_utf8_lossy(&output.stdout));
+    }};
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_plot_dot_graph_1() {
+        let x = Variable::new(RawVariable::new(1));
+        x.borrow_mut().set_name("x".to_string());
+        let y = Variable::new(RawVariable::new(1));
+        y.borrow_mut().set_name("y".to_string());
+        let z = matyas(x.clone(), y.clone());
+
+        let file_name = "test_plot_dot_graph_1.png";
+
+        plot_dot_graph!(z, file_name, true);
+    }
+
+    /// get_dot_graph のテスト
+    /// 掛け算と足し算
+    #[test]
+    fn test_get_dot_graph_1() {
+        let x1 = Variable::new(RawVariable::new(5.0f32));
+        x1.borrow_mut().set_name("x1".to_string());
+        let x2 = Variable::new(RawVariable::new(10.0f32));
+        x2.borrow_mut().set_name("x2".to_string());
+        let x3 = Variable::new(RawVariable::new(15.0f32));
+        x3.borrow_mut().set_name("x3".to_string());
+
+        let result = &(&x1 * &x2) + &x3;
+        let dot_txt = get_dot_graph!(result, true);
+        println!("{}", dot_txt)
+    }
+
+    /// get_dot_graph のテスト
+    /// Sphere
+    #[test]
+    fn test_get_dot_graph_sphere() {
+        let x = Variable::new(RawVariable::new(1));
+        x.borrow_mut().set_name("x".to_string());
+        let y = Variable::new(RawVariable::new(1));
+        y.borrow_mut().set_name("y".to_string());
+        let z = sphere(x.clone(), y.clone());
+
+        let dot_txt = get_dot_graph!(z, true);
+        println!("{}", dot_txt)
+    }
+
+    /// get_dot_graph のテスト
+    /// matyas
+    #[test]
+    fn test_get_dot_graph_matyas() {
+        let x = Variable::new(RawVariable::new(1));
+        x.borrow_mut().set_name("x".to_string());
+        let y = Variable::new(RawVariable::new(1));
+        y.borrow_mut().set_name("y".to_string());
+        let z = matyas(x.clone(), y.clone());
+
+        let dot_txt = get_dot_graph!(z, true);
+        println!("{}", dot_txt)
+    }
+
+    /// get_dot_graph のテスト
+    /// goldstein
+    #[test]
+    fn test_get_dot_graph_goldstein() {
+        let x = Variable::new(RawVariable::new(1));
+        x.borrow_mut().set_name("x".to_string());
+        let y = Variable::new(RawVariable::new(1));
+        y.borrow_mut().set_name("y".to_string());
+        let z = goldstein(x.clone(), y.clone());
+
+        let dot_txt = get_dot_graph!(z, true);
+        println!("{}", dot_txt)
+    }
 
     /// dot_func のテスト
     /// 掛け算１つのみ。
