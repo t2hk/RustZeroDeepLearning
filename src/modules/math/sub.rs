@@ -26,9 +26,7 @@ impl<V: MathOps> Function<V> for SubFunction {
     ) -> Vec<Array<V, IxDyn>> {
         vec![
             gys[0].clone(),
-            gys[0]
-                .clone()
-                .mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap()),
+            gys[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap()),
         ]
     }
 }
