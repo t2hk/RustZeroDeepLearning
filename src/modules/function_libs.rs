@@ -1,8 +1,5 @@
 // ライブラリを一括でインポート
-use crate::modules::functions::*;
-use crate::modules::math::*;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+use crate::modules::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};

@@ -11,4 +11,5 @@ pub use crate::modules::math::pow::*;
 pub use crate::modules::math::square::*;
 pub use crate::modules::math::sub::*;
 pub use crate::modules::settings::*;
+pub use crate::modules::utils::*;
 pub use crate::modules::variable::*;

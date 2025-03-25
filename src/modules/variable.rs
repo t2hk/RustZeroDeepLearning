@@ -1,5 +1,5 @@
-use crate::modules::functions::*;
-use crate::modules::settings::*;
+// ライブラリを一括でインポート
+use crate::modules::*;
 
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
 use std::cell::{Ref, RefCell, RefMut};

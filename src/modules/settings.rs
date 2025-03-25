@@ -1,3 +1,6 @@
+// ライブラリを一括でインポート
+use crate::modules::*;
+
 use num_traits::{Num, NumCast};
 use std::cell::RefCell;
 use std::rc::Rc;

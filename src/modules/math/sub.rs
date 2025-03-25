@@ -1,6 +1,6 @@
-use crate::modules::functions::*;
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::*;
+
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -11,6 +11,14 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct SubFunction;
 impl<V: MathOps> Function<V> for SubFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Sub".to_string()
+    }
+
     // Sub (減算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let result = vec![&xs[0] - &xs[1]];

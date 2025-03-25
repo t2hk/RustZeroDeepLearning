@@ -14,6 +14,14 @@ pub struct PowFunction {
 }
 
 impl<V: MathOps> Function<V> for PowFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Pow".to_string()
+    }
+
     /// 順伝播
     /// 関数のインスタンス作成時に指数 exp: usize を設定しておくこと。
     ///

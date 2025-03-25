@@ -1,0 +1,16 @@
+digraph g {
+"7fdc1c001388" [label="Add", color=lightblue, style=filled, shape=box]
+"7fdc1c001178" -> "7fdc1c001388"
+"7fdc1c0013a8" -> "7fdc1c001388"
+"7fdc1c001388" -> "7fdc1c0016d8"
+"7fdc1c001178" [label="[] i32", color=orange, style=filled]
+"7fdc1c0013a8" [label="[] i32", color=orange, style=filled]
+"7fdc1c000c58" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fdc1c000d28" -> "7fdc1c000c58"
+"7fdc1c000c58" -> "7fdc1c001178"
+"7fdc1c000d28" [label="x: [] i32", color=orange, style=filled]
+"7fdc1c001358" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fdc1c000e98" -> "7fdc1c001358"
+"7fdc1c001358" -> "7fdc1c0013a8"
+"7fdc1c000e98" [label="y: [] i32", color=orange, style=filled]
+}

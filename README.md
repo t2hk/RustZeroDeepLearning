@@ -131,3 +131,9 @@ cargo run
 
 ### ステップ２５ 計算グラフの可視化 (1)
 * graphviz のインストールと簡易なグラフ作成
+
+### ステップ２５ 計算グラフの可視化 (2)
+* dot_var を追加した。引数の verbose をオプションとするためマクロを使用した。
+* dot_func を追加した。関数名が必要になったため、Function　に名前取得メソッドを追加した。
+* get_dot_graph を追加した。Sphere、Matyas、Goldstein-Price のそれぞれのグラフを出力してみた。
+* plot_dot_graph を追加した。graphviz がインストール済みで、dot コマンドで実行可能であることを前提とする。graphviz のバージョン 2.43.0 で動作確認している。

@@ -1,0 +1,40 @@
+digraph g {
+"7f27c4001fb8" [label="Sub", color=lightblue, style=filled, shape=box]
+"7f27c4001a48" -> "7f27c4001fb8"
+"7f27c4001fd8" -> "7f27c4001fb8"
+"7f27c4001fb8" -> "7f27c40021f8"
+"7f27c4001a48" [label="[] i32", color=orange, style=filled]
+"7f27c4001fd8" [label="[] i32", color=orange, style=filled]
+"7f27c40016b8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7f27c40018b8" -> "7f27c40016b8"
+"7f27c40016d8" -> "7f27c40016b8"
+"7f27c40016b8" -> "7f27c4001a48"
+"7f27c40018b8" [label="[] i32", color=orange, style=filled]
+"7f27c40016d8" [label="[] i32", color=orange, style=filled]
+"7f27c4001c48" [label="Mul", color=lightblue, style=filled, shape=box]
+"7f27c4001e48" -> "7f27c4001c48"
+"7f27c4001c68" -> "7f27c4001c48"
+"7f27c4001c48" -> "7f27c4001fd8"
+"7f27c4001e48" [label="[] i32", color=orange, style=filled]
+"7f27c4001c68" [label="[] i32", color=orange, style=filled]
+"7f27c4001388" [label="Add", color=lightblue, style=filled, shape=box]
+"7f27c4001178" -> "7f27c4001388"
+"7f27c40013a8" -> "7f27c4001388"
+"7f27c4001388" -> "7f27c40016d8"
+"7f27c4001178" [label="[] i32", color=orange, style=filled]
+"7f27c40013a8" [label="[] i32", color=orange, style=filled]
+"7f27c4000c58" [label="Pow", color=lightblue, style=filled, shape=box]
+"7f27c4000d28" -> "7f27c4000c58"
+"7f27c4000c58" -> "7f27c4001178"
+"7f27c4000d28" [label="x: [] i32", color=orange, style=filled]
+"7f27c4001358" [label="Pow", color=lightblue, style=filled, shape=box]
+"7f27c4000e98" -> "7f27c4001358"
+"7f27c4001358" -> "7f27c40013a8"
+"7f27c4000e98" [label="y: [] i32", color=orange, style=filled]
+"7f27c4001a28" [label="Mul", color=lightblue, style=filled, shape=box]
+"7f27c4000d28" -> "7f27c4001a28"
+"7f27c4000e98" -> "7f27c4001a28"
+"7f27c4001a28" -> "7f27c4001c68"
+"7f27c4000d28" [label="x: [] i32", color=orange, style=filled]
+"7f27c4000e98" [label="y: [] i32", color=orange, style=filled]
+}

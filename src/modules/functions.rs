@@ -1,5 +1,5 @@
-use crate::modules::settings::*;
-use crate::modules::variable::*;
+// ライブラリを一括でインポート
+use crate::modules::*;
 
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -12,6 +12,8 @@ pub trait Function<V>: std::fmt::Debug
 where
     V: MathOps,
 {
+    fn get_name(&self) -> String;
+
     /// 順伝播
     /// 通常の計算を行う順伝播。継承して実装すること。
     ///
@@ -108,6 +110,14 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// * i32: 世代
     pub fn get_generation(&self) -> i32 {
         self.generation
+    }
+
+    /// 関数のオブジェクトを取得する。
+    ///
+    /// Return
+    /// * Rc<RefCell<dyn Function<V>>>
+    pub fn get_creator(&self) -> Rc<RefCell<dyn Function<V>>> {
+        self.creator.clone()
     }
 
     /// 順伝播

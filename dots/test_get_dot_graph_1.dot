@@ -1,0 +1,14 @@
+digraph g {
+"7f9c00001378" [label="Add", color=lightblue, style=filled, shape=box]
+"7f9c00001398" -> "7f9c00001378"
+"7f9c00001008" -> "7f9c00001378"
+"7f9c00001378" -> "7f9c000015b8"
+"7f9c00001398" [label="[] f32", color=orange, style=filled]
+"7f9c00001008" [label="x3: [] f32", color=orange, style=filled]
+"7f9c00001138" [label="Mul", color=lightblue, style=filled, shape=box]
+"7f9c00000d28" -> "7f9c00001138"
+"7f9c00000e98" -> "7f9c00001138"
+"7f9c00001138" -> "7f9c00001398"
+"7f9c00000d28" [label="x1: [] f32", color=orange, style=filled]
+"7f9c00000e98" [label="x2: [] f32", color=orange, style=filled]
+}
