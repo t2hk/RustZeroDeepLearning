@@ -13,6 +13,7 @@ pub use crate::modules::math::exp::*;
 pub use crate::modules::math::mul::*;
 pub use crate::modules::math::neg::*;
 pub use crate::modules::math::pow::*;
+pub use crate::modules::math::sin::*;
 pub use crate::modules::math::square::*;
 pub use crate::modules::math::sub::*;
 pub use crate::modules::settings::*;
