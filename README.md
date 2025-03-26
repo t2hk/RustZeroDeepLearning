@@ -137,3 +137,6 @@ cargo run
 * dot_func を追加した。関数名が必要になったため、Function　に名前取得メソッドを追加した。
 * get_dot_graph を追加した。Sphere、Matyas、Goldstein-Price のそれぞれのグラフを出力してみた。
 * plot_dot_graph を追加した。graphviz がインストール済みで、dot コマンドで実行可能であることを前提とする。graphviz のバージョン 2.43.0 で動作確認している。
+
+### ステップ27 テイラー展開の微分
+* 開始
