@@ -10,6 +10,7 @@ pub use crate::modules::functions::*;
 pub use crate::modules::math::add::*;
 pub use crate::modules::math::div::*;
 pub use crate::modules::math::exp::*;
+pub use crate::modules::math::factorial::*;
 pub use crate::modules::math::mul::*;
 pub use crate::modules::math::neg::*;
 pub use crate::modules::math::pow::*;
