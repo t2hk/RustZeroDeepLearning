@@ -2,6 +2,7 @@
 use crate::modules::*;
 
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
+use num_bigint::BigInt;
 use std::cell::{Ref, RefCell, RefMut};
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
@@ -17,6 +18,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct RawVariable<V: MathOps> {
     data: Array<V, IxDyn>,
+    bigint: Option<Array<BigInt, IxDyn>>,
     name: Option<String>,
     grad: Option<Array<V, IxDyn>>,
     creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
@@ -101,6 +103,7 @@ impl<V: MathOps> RawVariable<V> {
         let array = ArrayD::from_shape_vec(dim, values).expect("Shape error while creating array");
         Self {
             data: array,
+            bigint: None,
             name: None,
             grad: None,
             creator: None,
@@ -214,6 +217,14 @@ impl<V: MathOps> RawVariable<V> {
         format!("{}", std::any::type_name::<V>())
     }
 
+    pub fn set_bigint(&mut self, bigint: Array<BigInt, IxDyn>) {
+        self.bigint = Some(bigint);
+    }
+
+    pub fn get_bigint(&self) -> Array<BigInt, IxDyn> {
+        self.bigint.clone().unwrap()
+    }
+
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
         let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
@@ -239,6 +250,7 @@ impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
     fn create_variable(&self) -> RawVariable<V> {
         RawVariable {
             data: self.clone(),
+            bigint: None,
             name: None,
             grad: None,
             creator: None,
@@ -252,6 +264,7 @@ impl<V: MathOps> CreateVariable<V> for V {
     fn create_variable(&self) -> RawVariable<V> {
         RawVariable {
             data: Array::from_elem(IxDyn(&[]), *self),
+            bigint: None,
             name: None,
             grad: None,
             creator: None,
