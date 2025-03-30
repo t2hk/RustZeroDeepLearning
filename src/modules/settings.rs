@@ -1,12 +1,13 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
-use num_traits::{Num, NumCast};
+use num_traits::{Num, NumCast, NumOps};
 use std::cell::RefCell;
+use std::ops::Deref;
 use std::rc::Rc;
 
-pub trait MathOps: Num + NumCast + Copy + std::fmt::Debug {}
-impl<V> MathOps for V where V: Num + NumCast + Copy + Clone + std::fmt::Debug {}
+pub trait MathOps: Num + NumCast + Clone + Copy + std::fmt::Debug {}
+impl<V> MathOps for V where V: Num + NumCast + Clone + Copy + std::fmt::Debug {}
 
 thread_local!(
   static SETTING: Rc<RefCell<Setting>> = {

@@ -102,6 +102,36 @@ pub fn factorial(n: u64) -> BigInt {
     return odd_part << two_exponent;
 }
 
+// pub fn my_sin<V: MathOps + Signed + PartialEq + PartialOrd>(x: Variable<V>) -> Variable<V> {
+//     let threshold = 0.0001;
+//     println!("############");
+
+//     let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
+
+//     for i in 1..=100000 {
+//         // dbg!(i);
+//         println!("i: {}", i);
+//         let num_2mul_i_1 = 2 * i + 1;
+//         let fact = factorial(num_2mul_i_1);
+//         let mut fact_raw_var = RawVariable::new(V::from(0).unwrap());
+//         fact_raw_var.set_bigint(Array::from_elem(IxDyn(&[]), fact));
+//         let fact_var = Variable::new(fact_raw_var);
+
+//         let minus1powi = (-1i64).pow((i as u64).try_into().unwrap());
+//         let c = minus1powi / &fact_var;
+//         let t = &c * &(&x ^ minus1powi as usize);
+//         //dbg!(&t);
+
+//         y = &y + &t;
+//         let th = t.borrow().get_data()[[]];
+//         if abs(th) < V::from(threshold).unwrap() {
+//             break;
+//         }
+//     }
+
+//     return y;
+// }
+
 #[cfg(test)]
 mod tests {
     use std::{f64::consts::PI, time::Instant};
@@ -109,6 +139,13 @@ mod tests {
     use super::*;
     use num_bigint::ToBigInt;
     use rand::prelude::*;
+
+    // #[test]
+    // fn test_my_sin() {
+    //     let x = Variable::new(RawVariable::new(PI / 4.0));
+    //     let result = my_sin(x);
+    //     dbg!(&result);
+    // }
 
     #[test]
     fn test_factoria_0() {
