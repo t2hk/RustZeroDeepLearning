@@ -3,96 +3,150 @@ use crate::modules::math::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use num_bigint::{BigInt, BigUint};
-use num_traits::{abs, Num, NumCast, One, Signed};
-use std::cell::RefCell;
-use std::ops::Div;
-use std::rc::Rc;
+use num_bigint::{BigInt, ToBigInt};
+use num_traits::{abs, FromPrimitive, Num, NumCast, One, Signed};
 
-/// 階乗関数
-pub fn factorial(n: u64) -> BigInt {
-    if n == 0 {
+/// 20 までの階乗計算はテーブルで処理する。
+fn small_factorial(n: u64) -> BigInt {
+    match n {
+        0 | 1 => BigInt::one(),
+        2 => BigInt::from(2u64),
+        3 => BigInt::from(6u64),
+        4 => BigInt::from(24u64),
+        5 => BigInt::from(120u64),
+        6 => BigInt::from(720u64),
+        7 => BigInt::from(5040u64),
+        8 => BigInt::from(40320u64),
+        9 => BigInt::from(362880u64),
+        10 => BigInt::from(3628800u64),
+        11 => BigInt::from(39916800u64),
+        12 => BigInt::from(479001600u64),
+        20 => BigInt::from(2432902008176640000u64),
+        // 上記以外は計算する
+        _ => {
+            let mut result = BigInt::one();
+            for i in 1..=n {
+                result *= i;
+            }
+            result
+        }
+    }
+}
+
+/// 分割演算
+fn product_range(l: BigInt, u: BigInt) -> BigInt {
+    if &l >= &u {
         return BigInt::one();
     }
+    let max_bits = (&u - 2.to_bigint().unwrap()).bits(); //掛けられる最大の奇数のビット長
+    let num_operands: BigInt = (&u - &l) / 2; // 掛けられる奇数の個数
 
-    let mut result: BigInt = One::one();
-    for i in 1..=n {
-        result *= i;
+    // [L, U) の奇数の総積のビット長は　max_bits * num_operands を超えない
+    // これが long に収まれば多倍長演算を回避して計算できる
+    if &max_bits * &num_operands < 63.to_bigint().unwrap() {
+        let mut total = l.clone();
+        let two = 2.to_bigint().unwrap();
+        let mut i: BigInt = l + &two;
+        while i < u {
+            total = total * &i;
+            i += &two;
+        }
+        return total;
     }
+
+    // 多倍長演算を回避するために分割して計算する
+    let mut mid: BigInt = (&l + &num_operands) | BigInt::from(1);
+
+    let left = product_range(l, mid.clone());
+    let right = product_range(mid.clone(), u);
+
+    let result = left * right;
+
     result
 }
 
-pub fn my_sin<V: MathOps + Signed + PartialEq + PartialOrd>(x: Variable<V>) -> Variable<V> {
-    let threshold = 0.0001;
+/// 奇数部分の計算
+fn calc_odd_part(n: BigInt) -> BigInt {
+    let mut result = BigInt::one();
+    let mut l_i = 3.to_bigint().unwrap();
+    let mut tmp = BigInt::one();
+    let m = (n.bits() - 1) as i64;
+    let mut i = m - 1;
+    while -1 < i {
+        // u_i は n//(2**i) より大きい最小の奇数
+        let u_i: BigInt = ((&n >> i) + 1) | BigInt::one();
 
-    let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
+        // [1, U_i)　のうち、[1, L_i) は計算済みなので再利用し [L_i, U_i) のみ計算する
+        tmp *= product_range(l_i, u_i.clone());
 
-    for i in 1..=100000 {
-        let num_2mul_i_1 = 2 * i + 1;
-        let fact = factorial(num_2mul_i_1);
-        let mut fact_raw_var = RawVariable::new(V::from(0).unwrap());
-        fact_raw_var.set_bigint(Array::from_elem(IxDyn(&[]), fact));
-        let fact_var = Variable::new(fact_raw_var);
+        // 計算済みの範囲を更新 (L_{i} <- U_{i + 1})
+        l_i = u_i;
 
-        let minus1powi = (-1i64).pow((i as u64).try_into().unwrap());
-        let c = minus1powi / &fact_var;
-        let t = &c * &(&x ^ minus1powi as usize);
-        dbg!(&t);
-
-        y = &y + &t;
-        let th = t.borrow().get_data()[[]];
-        if abs(th) < V::from(threshold).unwrap() {
-            break;
-        }
+        result *= &tmp;
+        i -= 1;
     }
 
-    return y;
+    return result;
+}
+
+/// 階乗
+pub fn factorial(n: u64) -> BigInt {
+    if n <= 20 {
+        return small_factorial(n);
+    }
+
+    let odd_part = calc_odd_part(n.to_bigint().unwrap());
+    let popcount = format!("{:b}", n).matches('1').count();
+    let two_exponent = n - popcount as u64;
+
+    return odd_part << two_exponent;
 }
 
 #[cfg(test)]
 mod tests {
-    use std::f64::consts::PI;
+    use std::{f64::consts::PI, time::Instant};
 
     use super::*;
+    use num_bigint::ToBigInt;
     use rand::prelude::*;
 
     #[test]
-    fn test_val() {
-        let x = RawVariable::new(0i32);
-        let val = x.get_data();
-        let num = val[[]];
-
-        dbg!(&num);
+    fn test_factoria_0() {
+        let num = 0;
+        let result = factorial(num);
+        let result_naive = factorial(num);
+        assert_eq!(result_naive, result);
     }
 
     #[test]
-    fn test_my_sin() {
-        let x = Variable::new(RawVariable::new(PI / 4.0));
-        let result = my_sin(x);
-        dbg!(&result);
+    fn test_factoria_1() {
+        let num = 1;
+        let result = factorial(num);
+        let result_naive = factorial(num);
+        assert_eq!(result_naive, result);
     }
 
     #[test]
-    /// 除算のテスト(f32)
-    fn test_div_1() {
-        // 順伝播
-        // let x1 = Variable::new(RawVariable::new(10.0f32));
-        // let x2 = Variable::new(RawVariable::new(2.0f32));
-        // let expected = RawVariable::new(5.0f32);
+    fn test_factoria_20() {
+        let num = 20;
+        let result = factorial(num);
+        let result_naive = factorial(num);
+        assert_eq!(result_naive, result);
+    }
 
-        // let result = div(x1, x2);
-        // assert_eq!(expected.get_data(), result.borrow().get_data());
+    #[test]
+    fn test_factoria_100() {
+        let num = 100;
+        let result = factorial(num);
+        let result_naive = factorial(num);
+        assert_eq!(result_naive, result);
+    }
 
-        let value = "200001";
-        match value.parse::<u64>() {
-            Ok(n) => {
-                let fact = factorial(n);
-                println!("{}の階乗: {}", n, fact);
-                println!("桁数: {}", fact.to_string().len());
-            }
-            _ => {
-                println!("エラー");
-            }
-        }
+    #[test]
+    fn test_factoria_10000() {
+        let num = 10000;
+        let result = factorial(num);
+        let result_naive = factorial(num);
+        assert_eq!(result_naive, result);
     }
 }

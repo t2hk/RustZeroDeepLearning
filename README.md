@@ -139,4 +139,5 @@ cargo run
 * plot_dot_graph を追加した。graphviz がインストール済みで、dot コマンドで実行可能であることを前提とする。graphviz のバージョン 2.43.0 で動作確認している。
 
 ### ステップ27 テイラー展開の微分
-* 開始
+* BigInt に対応した階乗計算を追加した。以下の記事を参考にさせていただき、Rust で実装した。
+  https://qiita.com/AkariLuminous/items/1b2e964ebabde9419224
