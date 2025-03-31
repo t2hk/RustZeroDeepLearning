@@ -6,8 +6,8 @@ use std::cell::RefCell;
 use std::ops::Deref;
 use std::rc::Rc;
 
-pub trait MathOps: Num + NumCast + Clone + Copy + std::fmt::Debug {}
-impl<V> MathOps for V where V: Num + NumCast + Clone + Copy + std::fmt::Debug {}
+pub trait MathOps: Num + NumCast + Clone + std::fmt::Debug {}
+impl<V> MathOps for V where V: Num + NumCast + Clone + std::fmt::Debug {}
 
 thread_local!(
   static SETTING: Rc<RefCell<Setting>> = {

@@ -11,7 +11,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 
 /// BigInt のラッパー構造体
-#[derive(Clone, PartialEq, Eq, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BigIntWrapper(pub Rc<BigInt>);
 
 impl BigIntWrapper {

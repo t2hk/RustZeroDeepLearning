@@ -262,8 +262,10 @@ impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
 /// CreateVariable トレイトの 数値用の実装
 impl<V: MathOps> CreateVariable<V> for V {
     fn create_variable(&self) -> RawVariable<V> {
+        dbg!(&self);
         RawVariable {
-            data: Array::from_elem(IxDyn(&[]), *self),
+            // data: Array::from_elem(IxDyn(&[]), *self),
+            data: Array::from_elem(IxDyn(&[]), self.clone()),
             bigint: None,
             name: None,
             grad: None,

@@ -9,11 +9,15 @@ mod tests {
     use rand::prelude::*;
     use std::rc::Rc;
 
+    /// BigInt 型を Variable に設定するテスト
     #[test]
-    fn test_bigint_varialbe() {
-        let a = Variable::new(RawVariable::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
+    fn test_bigint_variable() {
+        let big_int_variable =
+            Variable::new(RawVariable::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
 
-        //dbg!(&a);
+        let expect = Array::from_elem(IxDyn(&[]), BigIntWrapper(Rc::new(BigInt::from(10))));
+
+        assert_eq!(expect, big_int_variable.borrow().get_data());
     }
 
     #[test]
