@@ -1,10 +1,12 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
+use crate::modules::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use num_bigint::{BigInt, ToBigInt};
 use num_traits::{abs, FromPrimitive, Num, NumCast, One, Signed};
+use std::rc::Rc;
 
 /// 20 までの階乗計算はテーブルで処理する。
 fn small_factorial(n: u64) -> BigInt {
@@ -102,50 +104,64 @@ pub fn factorial(n: u64) -> BigInt {
     return odd_part << two_exponent;
 }
 
-// pub fn my_sin<V: MathOps + Signed + PartialEq + PartialOrd>(x: Variable<V>) -> Variable<V> {
-//     let threshold = 0.0001;
-//     println!("############");
+/// テイラー展開による Sin 関数の近似計算
+pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
+    let threshold = 0.0001;
 
-//     let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
+    let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
+    y.borrow_mut().set_name("y".to_string());
 
-//     for i in 1..=100000 {
-//         // dbg!(i);
-//         println!("i: {}", i);
-//         let num_2mul_i_1 = 2 * i + 1;
-//         let fact = factorial(num_2mul_i_1);
-//         let mut fact_raw_var = RawVariable::new(V::from(0).unwrap());
-//         fact_raw_var.set_bigint(Array::from_elem(IxDyn(&[]), fact));
-//         let fact_var = Variable::new(fact_raw_var);
+    for i in 0..100000 {
+        let factrial_value = factorial(2 * i + 1);
+        println!("factrial_value: {:?}", factrial_value.clone());
+        let factrial_variable = Variable::new(RawVariable::new(
+            V::from(BigIntWrapper(Rc::new(factrial_value))).unwrap(),
+        ));
 
-//         let minus1powi = (-1i64).pow((i as u64).try_into().unwrap());
-//         let c = minus1powi / &fact_var;
-//         let t = &c * &(&x ^ minus1powi as usize);
-//         //dbg!(&t);
+        let c = ((-1i64).pow((i as u64).try_into().unwrap())) / &factrial_variable;
+        let t = &c * &(&x ^ (2 * i + 1) as usize);
+        y = &y + &t;
 
-//         y = &y + &t;
-//         let th = t.borrow().get_data()[[]];
-//         if abs(th) < V::from(threshold).unwrap() {
-//             break;
-//         }
-//     }
+        let th = t.borrow().get_data()[[]].clone();
+        if V::to_f64(&abs(th)).unwrap() < threshold {
+            break;
+        }
+    }
 
-//     return y;
-// }
+    return y;
+}
 
 #[cfg(test)]
 mod tests {
     use std::{f64::consts::PI, time::Instant};
 
+    use crate::plot_dot_graph;
+
     use super::*;
     use num_bigint::ToBigInt;
     use rand::prelude::*;
 
-    // #[test]
-    // fn test_my_sin() {
-    //     let x = Variable::new(RawVariable::new(PI / 4.0));
-    //     let result = my_sin(x);
-    //     dbg!(&result);
-    // }
+    /// テイラー展開による Sin 関数の近似テスト
+    #[test]
+    fn test_my_sin() {
+        let mut x = Variable::new(RawVariable::new(PI / 4.0));
+        x.borrow_mut().set_name("x".to_string());
+
+        let result = my_sin(x.clone());
+        result.backward();
+        let y_data = result.borrow().get_data();
+        let x_grad = x.borrow().get_grad();
+        println!("y data: {:?}", y_data);
+        println!("x grad: {:?}", x_grad);
+
+        let file_name = "test_my_sin_graph.png";
+
+        plot_dot_graph!(result, file_name, true);
+
+        // 書籍の結果と一致することを確認する。
+        assert_eq!(0.7071064695751781, y_data[[]]);
+        assert_eq!(0.7071032148228457, x_grad.unwrap()[[]]);
+    }
 
     #[test]
     fn test_factoria_0() {

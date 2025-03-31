@@ -1,9 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
-use num_traits::{Num, NumCast, NumOps};
+use num_traits::{Num, NumCast};
 use std::cell::RefCell;
-use std::ops::Deref;
 use std::rc::Rc;
 
 pub trait MathOps: Num + NumCast + Clone + std::fmt::Debug {}
