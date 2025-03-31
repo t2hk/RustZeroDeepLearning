@@ -143,3 +143,6 @@ cargo run
   https://qiita.com/AkariLuminous/items/1b2e964ebabde9419224
 * BigInt のラッパー BigIntWrapper を追加し Num や NumCast に対応させ、他の数値型と近い形で扱えるように対応してみた。
 * ステップ26 で導入した graphviz のマクロに #[macro_export] を記載し、クレート内で使用できるように修正した。
+
+### ステップ28 関数の最適化
+* 開始
