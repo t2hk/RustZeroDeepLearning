@@ -1,3 +1,6 @@
+///! 階乗計算
+///! 以下の記事を参考にさせていただいた。
+///! https://qiita.com/AkariLuminous/items/1b2e964ebabde9419224
 // ライブラリを一括でインポート
 use crate::modules::*;
 
