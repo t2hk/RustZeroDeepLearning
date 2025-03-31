@@ -4,7 +4,7 @@ use crate::modules::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::ops::{Neg, Sub};
+use std::ops::Sub;
 use std::rc::Rc;
 
 /// 減算関数

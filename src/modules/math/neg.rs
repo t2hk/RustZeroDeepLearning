@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::ops::{Mul, Neg, Sub};
+use std::ops::Neg;
 use std::rc::Rc;
 
 /// 負数 Neg 関数
@@ -38,7 +38,7 @@ impl<V: MathOps> Function<V> for NegFunction {
         let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];
         let gxs = x_exp
             .iter()
-            .map(|x_exp| gys_val.mapv(|v| V::from(-1).unwrap() * v))
+            .map(|_x_exp| gys_val.mapv(|v| V::from(-1).unwrap() * v))
             .collect();
         gxs
     }
@@ -78,7 +78,6 @@ impl<V: MathOps> Neg for Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
 
     /// 負数 Neg に関するテスト
     #[test]

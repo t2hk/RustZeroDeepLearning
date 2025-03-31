@@ -2,9 +2,6 @@
 use crate::modules::*;
 
 use core::fmt::Debug;
-use ndarray::{Array, IxDyn};
-use std::cell::RefCell;
-use std::rc::{Rc, Weak};
 
 /// Sphere 関数
 /// z = x^2 + y^2 を計算する。
@@ -82,6 +79,7 @@ fn type_of<T>(_: T) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::{Array, IxDyn};
     use rand::prelude::*;
 
     /// Sphere 関数のテスト

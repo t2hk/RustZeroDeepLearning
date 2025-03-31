@@ -5,8 +5,6 @@ use rust_zero_deeplearning::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use std::cell::RefCell;
-use std::rc::Rc;
 
 fn main() {
     println!("Rust Zero Deep Learning");

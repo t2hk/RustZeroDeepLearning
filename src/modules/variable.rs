@@ -2,10 +2,7 @@
 use crate::modules::*;
 
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
-use num_bigint::BigInt;
 use std::cell::{Ref, RefCell, RefMut};
-use std::cmp::Ordering;
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 /// RawVariable 構造体
@@ -146,7 +143,8 @@ impl<V: MathOps> RawVariable<V> {
     /// * Option<Rc<RefCell<FunctionExecutor<V>>>>: 関数
     pub fn get_creator(&self) -> Option<Rc<RefCell<FunctionExecutor<V>>>> {
         if let Some(creator) = self.creator.clone() {
-            Some(Rc::clone(&self.creator.clone().unwrap()))
+            // Some(Rc::clone(&self.creator.clone().unwrap()))
+            Some(Rc::clone(&creator.clone()))
         } else {
             None
         }

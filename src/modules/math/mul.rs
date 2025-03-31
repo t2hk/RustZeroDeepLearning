@@ -3,9 +3,8 @@ use crate::modules::math::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
-use num_bigint::BigInt;
 use std::cell::RefCell;
-use std::ops::{Mul, Neg};
+use std::ops::Mul;
 use std::rc::Rc;
 
 /// 乗算関数

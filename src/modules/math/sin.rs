@@ -65,10 +65,9 @@ pub fn sin<V: MathOps>(input: Variable<V>) -> Variable<V> {
 
 #[cfg(test)]
 mod tests {
-    use std::{f32::consts::PI as PIf32, f64::consts::PI as PIf64};
+    use std::f32::consts::PI as PIf32;
 
     use super::*;
-    use rand::prelude::*;
 
     /// Sin 関数のテスト。
     #[test]

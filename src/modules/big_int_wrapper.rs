@@ -2,11 +2,10 @@
 use crate::modules::*;
 
 use core::ops::{Add, Div, Mul, Rem, Sub};
-use num_bigint::{BigInt, ParseBigIntError, ToBigInt};
-use num_traits::{Bounded, Num, NumCast, NumOps, One, Zero};
+use num_bigint::BigInt;
+use num_traits::{Bounded, Num, NumCast, One, Zero};
 use std::fmt;
-use std::num::ParseIntError;
-use std::ops::{AddAssign, Deref, DivAssign, MulAssign, SubAssign};
+use std::ops::{AddAssign, DivAssign, MulAssign, SubAssign};
 use std::rc::Rc;
 use std::str::FromStr;
 
@@ -23,20 +22,6 @@ impl BigIntWrapper {
         &self.0
     }
 }
-// /// BigInt のデリファレンス
-// impl Deref for BigIntWrapper {
-//     type Target = BigInt;
-//     fn deref(&self) -> &Self::Target {
-//         &self.0
-//     }
-// }
-
-// impl Clone for BigIntWrapper {
-//     fn clone(&self) -> Self {
-//         // Copyトレイトが実装されている場合は、単純に `*self` を返すようにする
-//         *self
-//     }
-// }
 
 /// 加算
 impl Add for BigIntWrapper {
@@ -241,27 +226,8 @@ impl Bounded for BigIntWrapper {
 
 #[cfg(test)]
 mod tests {
-    use num_bigint::ToBigInt;
-
     use super::*;
-
-    // #[test]
-    // fn test_from_str_radix() {
-    //     let s: &str = "100";
-    //     assert_eq!(
-    //         BigIntWrapper::from_str_radix(s, 2).unwrap(),
-    //         BigIntWrapper::from_str("4").expect("error")
-    //     );
-    //     assert_eq!(
-    //         BigIntWrapper::from_str_radix(s, 8).unwrap(),
-    //         BigIntWrapper::from_str("64").expect("error")
-    //     );
-
-    //     assert_eq!(
-    //         BigIntWrapper::from_str_radix(s, 16).unwrap(),
-    //         BigIntWrapper::from_str("256").expect("error")
-    //     );
-    // }
+    use num_bigint::ToBigInt;
 
     /// from_str のテスト
     #[test]

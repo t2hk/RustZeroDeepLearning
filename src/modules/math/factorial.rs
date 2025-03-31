@@ -1,11 +1,9 @@
 // ライブラリを一括でインポート
-use crate::modules::math::*;
 use crate::modules::*;
 
 use core::fmt::Debug;
-use ndarray::{Array, IxDyn};
 use num_bigint::{BigInt, ToBigInt};
-use num_traits::{abs, FromPrimitive, Num, NumCast, One, Signed};
+use num_traits::{abs, One, Signed};
 use std::rc::Rc;
 
 /// 20 までの階乗計算はテーブルで処理する。
@@ -57,7 +55,7 @@ fn product_range(l: BigInt, u: BigInt) -> BigInt {
     }
 
     // 多倍長演算を回避するために分割して計算する
-    let mut mid: BigInt = (&l + &num_operands) | BigInt::from(1);
+    let mid: BigInt = (&l + &num_operands) | BigInt::from(1);
 
     let left = product_range(l, mid.clone());
     let right = product_range(mid.clone(), u);
@@ -133,18 +131,16 @@ pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
 
 #[cfg(test)]
 mod tests {
-    use std::{f64::consts::PI, time::Instant};
+    use std::f64::consts::PI;
 
     use crate::plot_dot_graph;
 
     use super::*;
-    use num_bigint::ToBigInt;
-    use rand::prelude::*;
 
     /// テイラー展開による Sin 関数の近似テスト
     #[test]
     fn test_my_sin() {
-        let mut x = Variable::new(RawVariable::new(PI / 4.0));
+        let x = Variable::new(RawVariable::new(PI / 4.0));
         x.borrow_mut().set_name("x".to_string());
 
         let result = my_sin(x.clone());
