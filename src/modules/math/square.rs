@@ -20,7 +20,7 @@ impl<V: MathOps> Function<V> for SquareFunction {
 
     /// 順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        let result = vec![xs[0].mapv(|x| x * x)];
+        let result = vec![xs[0].mapv(|x| x.clone() * x.clone())];
 
         result
     }

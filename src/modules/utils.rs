@@ -1,16 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
-use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::collections::BinaryHeap;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io::{Result, Write};
-use std::path::Path;
-use std::process::{Command, Stdio};
-use std::rc::{Rc, Weak};
-use std::{env, fs};
+use std::rc::Rc;
 
 /// Variable を graphviz の DOT 言語で出力する。
 ///
@@ -20,6 +12,7 @@ use std::{env, fs};
 ///
 /// Returns:
 /// * String: 変数の DOT 言語表記
+#[macro_export]
 macro_rules! dot_var {
     // verbose を指定しない場合は false で実行する。
     ($variable:ident) => {{
@@ -57,13 +50,11 @@ macro_rules! dot_var {
 ///
 /// Return:
 /// * String: 関数の DOT 言語表記
-fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
+pub fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
     let inputs = fe.borrow().get_inputs();
     let outputs = fe.borrow().get_outputs();
 
     // この関数のポインタを ID として使用する。
-    // let f_id = &fe.borrow().get_creator().as_ptr();
-    // let f_id = format!("{:p}", &fe.borrow().get_creator().as_ref().as_ptr())
     let f_id = format!("{:p}", fe.borrow().get_creator().as_ptr())
         .trim_start_matches("0x")
         .to_string();
@@ -108,6 +99,7 @@ fn dot_func<V: MathOps>(fe: Rc<RefCell<FunctionExecutor<V>>>) -> String {
 ///
 /// Returns:
 /// * String: 計算グラフの DOT 言語表記
+#[macro_export]
 macro_rules! get_dot_graph {
     // verbose を指定しない場合は false で実行する。
     ($variable:ident) => {{
@@ -126,7 +118,7 @@ macro_rules! get_dot_graph {
             let inputs = creator.1.borrow().get_inputs();
 
             for input in inputs {
-                let local_dot_var_txt = dot_var!(input, $verbose);
+                let local_dot_var_txt = crate::dot_var!(input, $verbose);
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
         }
@@ -148,21 +140,26 @@ macro_rules! get_dot_graph {
 ///
 /// Returns:
 /// * String: 計算グラフの DOT 言語表記
+#[macro_export]
 macro_rules! plot_dot_graph {
+
     // verbose を指定しない場合は false で実行する。
     ($variable:ident, $to_file:ident) => {{
         plot_dot_graph!($variable, $to_file, false)
     }};
     // verbose の指定がある場合の実行
     ($variable:ident, $to_file:ident, $verbose:literal) => {{
+        use std::fs::File;
+        use std::io::Write;
+        use std::process::{Stdio, Command};
 
         // ファイルを保存する .dots ディレクトリが存在しない場合は作成する。
         let output_dir = "./.dots";
-        fs::create_dir_all(output_dir).unwrap();
+        std::fs::create_dir_all(output_dir).unwrap();
 
         // graphviz の DOT ファイルを作成する。
         // ファイル名は to_file の末尾に .dot 拡張子を追記した名前とする。
-        let dot_txt = get_dot_graph!($variable, $verbose);
+        let dot_txt = crate::get_dot_graph!($variable, $verbose);
         let tmp_dot_txt_file_path = format!("{}/{}.dot", output_dir, $to_file);
         let mut tmp_dot_txt_file = File::create(&tmp_dot_txt_file_path).unwrap();
         tmp_dot_txt_file.write_all(&dot_txt.as_bytes()).unwrap();
@@ -178,7 +175,7 @@ macro_rules! plot_dot_graph {
             &dot_png_file_path.to_string(),
         ];
 
-        let output = Command::new("dot")
+        let output =Command::new("dot")
             .args(args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())

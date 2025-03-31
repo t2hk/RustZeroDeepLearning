@@ -2,7 +2,9 @@
 use crate::modules::*;
 
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
+use num_bigint::BigInt;
 use std::cell::{Ref, RefCell, RefMut};
+use std::cmp::Ordering;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
@@ -14,7 +16,7 @@ use std::rc::Rc;
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawVariable<V: MathOps> {
     data: Array<V, IxDyn>,
     name: Option<String>,
@@ -22,6 +24,27 @@ pub struct RawVariable<V: MathOps> {
     creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
     generation: i32,
 }
+
+// impl<V: MathOps> PartialOrd for RawVariable<V> {
+//     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+//         let lhs_data = &self.data[[]];
+//         let rhs_data = &other.data[[]];
+
+//         if lhs_data == rhs_data {
+//             Some(Ordering::Equal)
+//         } else if lhs_data > rhs_data {
+//             Some(Ordering::Greater)
+//         } else {
+//             Some(Ordering::Less)
+//         }
+//     }
+// }
+
+// impl<V: MathOps> Ord for RawVariable<V> {
+//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+//         self.data[[]].cmp(&other.data[[]])
+//     }
+// }
 
 /// Variable 構造体
 /// RawVariable 構造体のラッパーである。
@@ -250,8 +273,10 @@ impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
 /// CreateVariable トレイトの 数値用の実装
 impl<V: MathOps> CreateVariable<V> for V {
     fn create_variable(&self) -> RawVariable<V> {
+        dbg!(&self);
         RawVariable {
-            data: Array::from_elem(IxDyn(&[]), *self),
+            // data: Array::from_elem(IxDyn(&[]), *self),
+            data: Array::from_elem(IxDyn(&[]), self.clone()),
             name: None,
             grad: None,
             creator: None,

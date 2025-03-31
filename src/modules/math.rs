@@ -2,6 +2,7 @@ pub mod add;
 pub mod div;
 pub mod exp;
 pub mod mul;
+pub mod factorial;
 pub mod neg;
 pub mod pow;
 pub mod sin;

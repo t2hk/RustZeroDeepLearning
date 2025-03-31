@@ -3,6 +3,7 @@ use crate::modules::math::*;
 
 use core::fmt::Debug;
 use ndarray::{Array, IxDyn};
+use num_bigint::BigInt;
 use std::cell::RefCell;
 use std::ops::{Mul, Neg};
 use std::rc::Rc;

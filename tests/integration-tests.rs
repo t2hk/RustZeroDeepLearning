@@ -1,11 +1,24 @@
 #[cfg(test)]
 mod tests {
-    use rust_zero_deeplearning::*;
 
+    use num_bigint::{BigInt, ToBigInt};
+    use rust_zero_deeplearning::*;
     // use approx::assert_abs_diff_eq;
     use core::fmt::Debug;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+    use std::rc::Rc;
+
+    /// BigInt 型を Variable に設定するテスト
+    #[test]
+    fn test_bigint_variable() {
+        let big_int_variable =
+            Variable::new(RawVariable::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
+
+        let expect = Array::from_elem(IxDyn(&[]), BigIntWrapper(Rc::new(BigInt::from(10))));
+
+        assert_eq!(expect, big_int_variable.borrow().get_data());
+    }
 
     #[test]
     fn test_add_mul() {

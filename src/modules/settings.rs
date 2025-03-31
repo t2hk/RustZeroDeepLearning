@@ -5,8 +5,8 @@ use num_traits::{Num, NumCast};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-pub trait MathOps: Num + NumCast + Copy + std::fmt::Debug {}
-impl<V> MathOps for V where V: Num + NumCast + Copy + Clone + std::fmt::Debug {}
+pub trait MathOps: Num + NumCast + Clone + std::fmt::Debug {}
+impl<V> MathOps for V where V: Num + NumCast + Clone + std::fmt::Debug {}
 
 thread_local!(
   static SETTING: Rc<RefCell<Setting>> = {
