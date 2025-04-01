@@ -86,6 +86,14 @@ impl<V: MathOps> Variable<V> {
         self.raw.as_ref()
     }
 
+    /// 変数を設定する。
+    ///
+    /// Arguments:
+    /// * data (Array<V, IxDyn>): 変数
+    pub fn set_data(&mut self, data: Array<V, IxDyn>) {
+        self.raw().borrow_mut().data = data;
+    }
+
     /// 逆伝播を実行する。
     pub fn backward(&self) {
         self.raw.as_ref().clone().borrow().backward();
