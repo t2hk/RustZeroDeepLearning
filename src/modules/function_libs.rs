@@ -1,4 +1,5 @@
 // ライブラリを一括でインポート
+use crate::modules::math::*;
 use crate::modules::*;
 
 use core::fmt::Debug;
@@ -71,6 +72,14 @@ pub fn goldstein<V: MathOps>(x: Variable<V>, y: Variable<V>) -> Variable<V> {
     z
 }
 
+/// ローゼンブロック関数
+pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
+    let lhs = 100 * &(&(&x1 - &(&x0 ^ 2)) ^ 2);
+    let rhs = &(&x0 - 1) ^ 2usize;
+
+    &lhs + &rhs
+}
+
 fn type_of<T>(_: T) -> String {
     let a = std::any::type_name::<T>();
     return a.to_string();
@@ -81,6 +90,52 @@ mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+
+    #[test]
+    /// ローゼンブロック関数のテスト
+    fn test_rosenblock() {
+        let x0 = Variable::new(RawVariable::new(0.0));
+        let x1 = Variable::new(RawVariable::new(2.0));
+
+        let y = rosenblock(x0.clone(), x1.clone());
+        y.backward();
+
+        let expected_x0_grad = Array::from_elem(IxDyn(&[]), -2.0);
+        let expected_x1_grad = Array::from_elem(IxDyn(&[]), 400.0);
+
+        assert_eq!(expected_x0_grad, x0.borrow().get_grad().unwrap());
+        assert_eq!(expected_x1_grad, x1.borrow().get_grad().unwrap());
+    }
+
+    /// ローゼンブロック関数の勾配降下法
+    #[test]
+    fn test_step28() {
+        let mut x0 = Variable::new(RawVariable::new(0.0));
+        let mut x1 = Variable::new(RawVariable::new(2.0));
+        let lr = 0.001;
+        let iters = 10000;
+
+        for _i in 0..iters {
+            println!(
+                "x0: {:?} x1: {:?}",
+                x0.borrow().get_data(),
+                x1.borrow().get_data()
+            );
+
+            let y = rosenblock(x0.clone(), x1.clone());
+            x0.borrow_mut().clear_grad();
+            x1.borrow_mut().clear_grad();
+            y.backward();
+
+            let x0_data = x0.borrow().get_data();
+            let x1_data = x1.borrow().get_data();
+            let x0_grad = x0.borrow().get_grad().unwrap()[[]];
+            let x1_grad = x1.borrow().get_grad().unwrap()[[]];
+
+            x0.set_data(x0_data - lr * x0_grad);
+            x1.set_data(x1_data - lr * x1_grad);
+        }
+    }
 
     /// Sphere 関数のテスト
     #[test]

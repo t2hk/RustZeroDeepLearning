@@ -86,6 +86,14 @@ impl<V: MathOps> Variable<V> {
         self.raw.as_ref()
     }
 
+    /// 変数を設定する。
+    ///
+    /// Arguments:
+    /// * data (Array<V, IxDyn>): 変数
+    pub fn set_data(&mut self, data: Array<V, IxDyn>) {
+        self.raw().borrow_mut().data = data;
+    }
+
     /// 逆伝播を実行する。
     pub fn backward(&self) {
         self.raw.as_ref().clone().borrow().backward();
@@ -271,7 +279,6 @@ impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
 /// CreateVariable トレイトの 数値用の実装
 impl<V: MathOps> CreateVariable<V> for V {
     fn create_variable(&self) -> RawVariable<V> {
-        dbg!(&self);
         RawVariable {
             // data: Array::from_elem(IxDyn(&[]), *self),
             data: Array::from_elem(IxDyn(&[]), self.clone()),
