@@ -71,6 +71,11 @@ pub fn goldstein<V: MathOps>(x: Variable<V>, y: Variable<V>) -> Variable<V> {
     z
 }
 
+pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) {
+    let tmp = &x1 - &(&x0 ^ 2);
+    let y = &(&(100 * &tmp) ^ 2.0) + &(&(&x0 - 1.0) ^ 2.0);
+}
+
 fn type_of<T>(_: T) -> String {
     let a = std::any::type_name::<T>();
     return a.to_string();
