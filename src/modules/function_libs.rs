@@ -1,4 +1,5 @@
 // ライブラリを一括でインポート
+use crate::modules::math::*;
 use crate::modules::*;
 
 use core::fmt::Debug;
@@ -71,9 +72,12 @@ pub fn goldstein<V: MathOps>(x: Variable<V>, y: Variable<V>) -> Variable<V> {
     z
 }
 
-pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) {
-    let tmp = &x1 - &(&x0 ^ 2);
-    let y = &(&(100 * &tmp) ^ 2.0) + &(&(&x0 - 1.0) ^ 2.0);
+/// ローゼンブロック関数
+pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
+    let lhs = 100 * &(&(&x1 - &(&x0 ^ 2)) ^ 2);
+    let rhs = &(&x0 - 1) ^ 2usize;
+
+    &lhs + &rhs
 }
 
 fn type_of<T>(_: T) -> String {
@@ -86,6 +90,22 @@ mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+
+    #[test]
+    /// ローゼンブロック関数のテスト
+    fn test_rosenblock() {
+        let x0 = Variable::new(RawVariable::new(0.0));
+        let x1 = Variable::new(RawVariable::new(2.0));
+
+        let y = rosenblock(x0.clone(), x1.clone());
+        y.backward();
+
+        let expected_x0_grad = Array::from_elem(IxDyn(&[]), -2.0);
+        let expected_x1_grad = Array::from_elem(IxDyn(&[]), 400.0);
+
+        assert_eq!(expected_x0_grad, x0.borrow().get_grad().unwrap());
+        assert_eq!(expected_x1_grad, x1.borrow().get_grad().unwrap());
+    }
 
     /// Sphere 関数のテスト
     #[test]
