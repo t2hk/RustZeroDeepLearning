@@ -91,6 +91,54 @@ mod tests {
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
 
+    /// ステップ29 ニュートン法による最適化の実装
+    #[test]
+    fn test_step29_newton_method() {
+        /// y = f(x)
+        fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
+            let y = &(&x ^ 4) - &(2 * &(&x ^ 2));
+            return y;
+        }
+
+        /// y = f(x) の２階微分
+        fn gx2<V: MathOps>(x: Variable<V>) -> Variable<V> {
+            let y = &(12 * &(&x ^ 2)) - 4;
+            return y;
+        }
+
+        let mut x = Variable::new(RawVariable::new(2.0));
+        let iters = 10;
+
+        for i in 0..iters {
+            println!("i: {} x: {:?}", i, x.borrow().get_data());
+            // 書籍と同じ値になるかテストする。
+            match i {
+                0 => assert_eq!(2.0, x.borrow().get_data()[[]]),
+                1 => assert_eq!(1.4545454545454546, x.borrow().get_data()[[]]),
+                2 => assert_eq!(1.1510467893775467, x.borrow().get_data()[[]]),
+                3 => assert_eq!(1.0253259289766978, x.borrow().get_data()[[]]),
+                4 => assert_eq!(1.0009084519430513, x.borrow().get_data()[[]]),
+                5 => assert_eq!(1.0000012353089454, x.borrow().get_data()[[]]),
+                6 => assert_eq!(1.000000000002289, x.borrow().get_data()[[]]),
+                7 => assert_eq!(1.0, x.borrow().get_data()[[]]),
+                8 => assert_eq!(1.0, x.borrow().get_data()[[]]),
+                9 => assert_eq!(1.0, x.borrow().get_data()[[]]),
+                _ => {}
+            }
+
+            let y = f(x.clone());
+            x.borrow_mut().clear_grad();
+
+            y.backward();
+            let x_data = Variable::new(RawVariable::new(x.borrow().get_data()));
+            let x_grad = x.borrow().get_grad().unwrap()[[]];
+
+            let new_data: Variable<f64> = &x_data - &(x_grad / &gx2(x_data.clone()));
+
+            x.set_data(new_data.borrow().get_data());
+        }
+    }
+
     #[test]
     /// ローゼンブロック関数のテスト
     fn test_rosenblock() {
