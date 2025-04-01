@@ -107,6 +107,36 @@ mod tests {
         assert_eq!(expected_x1_grad, x1.borrow().get_grad().unwrap());
     }
 
+    /// ローゼンブロック関数の勾配降下法
+    #[test]
+    fn test_step28() {
+        let mut x0 = Variable::new(RawVariable::new(0.0));
+        let mut x1 = Variable::new(RawVariable::new(2.0));
+        let lr = 0.001;
+        let iters = 10000;
+
+        for _i in 0..iters {
+            println!(
+                "x0: {:?} x1: {:?}",
+                x0.borrow().get_data(),
+                x1.borrow().get_data()
+            );
+
+            let y = rosenblock(x0.clone(), x1.clone());
+            x0.borrow_mut().clear_grad();
+            x1.borrow_mut().clear_grad();
+            y.backward();
+
+            let x0_data = x0.borrow().get_data();
+            let x1_data = x1.borrow().get_data();
+            let x0_grad = x0.borrow().get_grad().unwrap()[[]];
+            let x1_grad = x1.borrow().get_grad().unwrap()[[]];
+
+            x0.set_data(x0_data - lr * x0_grad);
+            x1.set_data(x1_data - lr * x1_grad);
+        }
+    }
+
     /// Sphere 関数のテスト
     #[test]
     fn test_sphere_1() {
