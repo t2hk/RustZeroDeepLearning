@@ -190,6 +190,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             });
 
         if Setting::is_enable_backprop() {
+            println!("============ exec backward =============");
             // 逆伝播を実行する。
             let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
 

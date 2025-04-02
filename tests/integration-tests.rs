@@ -1,12 +1,16 @@
+extern crate rust_zero_deeplearning;
+
 #[cfg(test)]
 mod tests {
-
     use num_bigint::{BigInt, ToBigInt};
+    use rust_zero_deeplearning::modules::utils::*;
+    use rust_zero_deeplearning::modules::*;
     use rust_zero_deeplearning::*;
     // use approx::assert_abs_diff_eq;
     use core::fmt::Debug;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+
     use std::rc::Rc;
 
     /// BigInt 型を Variable に設定するテスト
@@ -1114,5 +1118,61 @@ mod tests {
             x.borrow().get_grad().unwrap().borrow().get_data()
         );
         assert_eq!(expected.clone(), result.borrow().get_data());
+    }
+
+    #[test]
+    fn test_step33_second_differential() {
+        /// y = x^4 - 2x^2
+        fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
+            let y = &(&x ^ 4) - &(2 * &(&x ^ 2));
+            y
+        }
+
+        let mut x = Variable::new(RawVariable::new(2.0));
+        x.borrow_mut().set_name("x".to_string());
+
+        let mut y = f(x.clone());
+        y.borrow_mut().set_name("y".to_string());
+
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+        y.backward();
+        let x_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
+        println!("x grad: {:?}", x_grad);
+
+        let gx = x.borrow_mut().get_grad().unwrap();
+
+        let gx_creators = FunctionExecutor::extract_creators(vec![gx.clone()]);
+        gx_creators.iter().for_each(|c| {
+            dbg!(&c);
+        });
+
+        x.borrow_mut().clear_grad();
+        // バックプロパゲーションを行わない。
+        Setting::set_backprop_disabled();
+
+        gx.backward();
+        // println!(
+        //     "x grad: {:?}",
+        //     x.borrow().get_grad().unwrap().borrow().get_data()
+        // );
+
+        dbg!(&gx);
+
+        // let gx_creators2 = FunctionExecutor::extract_creators(vec![gx.clone()]);
+        // gx_creators2.iter().for_each(|c| {
+        //     dbg!(&c);
+        // });
+
+        // let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
+
+        // creators.iter().map(|c| dbg!(c));
+
+        let file_name = "test_step33_second_differential.png";
+
+        plot_dot_graph!(gx, file_name, true);
+        // dbg!(&gx);
     }
 }
