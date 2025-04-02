@@ -28,11 +28,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
 
     /// 逆伝播
     /// dy/dx=e^x である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let e = std::f64::consts::E;
         let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].clone();

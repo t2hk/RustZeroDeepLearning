@@ -29,12 +29,11 @@ where
     ///
     /// Arguments
     /// * inputs (Vec<Rc<RefCell<RawVariable>>>): 順伝播の入力値
-    /// * gys (Vec<Array<f64, IxDyn>>): 出力値に対する微分値
+    /// * gys (Vec<Variable<V>>): 出力値に対する微分値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 入力値に対する微分値
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Array<V, IxDyn>>)
-        -> Vec<Array<V, IxDyn>>;
+    /// * Vec<Variable<V>>: 入力値に対する微分値
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>>;
 }
 
 /// 関数の実行用ラッパー
@@ -175,8 +174,9 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 自身で保持している出力値を使って逆伝播を実行する。
     pub fn backward(&self) {
         // 逆伝播の最初の関数の微分値として 1 を設定する。
-        let grad_one = Array::from_elem(IxDyn(&[]), V::one());
-        let mut gys: Vec<Array<V, IxDyn>> = vec![];
+        // let grad_one = Array::from_elem(IxDyn(&[]), V::one());
+        let grad_one = Variable::new(RawVariable::new(V::one()));
+        let mut gys: Vec<Variable<V>> = vec![];
 
         self.outputs
             .iter()
@@ -199,7 +199,8 @@ impl<V: MathOps> FunctionExecutor<V> {
                 input.borrow_mut().set_grad(gxs[i].clone());
             } else {
                 let input_grad = input.borrow().get_grad().clone().unwrap();
-                input.borrow_mut().set_grad(input_grad + gxs[i].clone());
+                // input.borrow_mut().set_grad(input_grad + gxs[i].clone());
+                input.borrow_mut().set_grad(&input_grad + &gxs[i].clone());
             }
         }
 

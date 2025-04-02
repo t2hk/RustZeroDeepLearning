@@ -67,36 +67,64 @@ fn main() {
     assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 64.0),
-        x1.borrow().get_grad().expect("No grad exist.")
+        x1.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        x2.borrow().get_grad().expect("No grad exist.")
+        x2.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 16.0),
-        a.borrow().get_grad().expect("No grad exist.")
+        a.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        b.borrow().get_grad().expect("No grad exist.")
+        b.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        c.borrow().get_grad().expect("No grad exist.")
+        c.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        d.borrow().get_grad().expect("No grad exist.")
+        d.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
     assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        y.borrow().get_grad().expect("No grad exist.")
+        y.borrow()
+            .get_grad()
+            .expect("No grad exist.")
+            .borrow()
+            .get_data()
     );
 }

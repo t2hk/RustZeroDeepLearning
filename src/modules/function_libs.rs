@@ -131,7 +131,7 @@ mod tests {
 
             y.backward();
             let x_data = Variable::new(RawVariable::new(x.borrow().get_data()));
-            let x_grad = x.borrow().get_grad().unwrap()[[]];
+            let x_grad = x.borrow().get_grad().unwrap().borrow().get_data()[[]];
 
             let new_data: Variable<f64> = &x_data - &(x_grad / &gx2(x_data.clone()));
 
@@ -151,8 +151,14 @@ mod tests {
         let expected_x0_grad = Array::from_elem(IxDyn(&[]), -2.0);
         let expected_x1_grad = Array::from_elem(IxDyn(&[]), 400.0);
 
-        assert_eq!(expected_x0_grad, x0.borrow().get_grad().unwrap());
-        assert_eq!(expected_x1_grad, x1.borrow().get_grad().unwrap());
+        assert_eq!(
+            expected_x0_grad,
+            x0.borrow().get_grad().unwrap().borrow().get_data()
+        );
+        assert_eq!(
+            expected_x1_grad,
+            x1.borrow().get_grad().unwrap().borrow().get_data()
+        );
     }
 
     /// ローゼンブロック関数の勾配降下法
@@ -177,8 +183,8 @@ mod tests {
 
             let x0_data = x0.borrow().get_data();
             let x1_data = x1.borrow().get_data();
-            let x0_grad = x0.borrow().get_grad().unwrap()[[]];
-            let x1_grad = x1.borrow().get_grad().unwrap()[[]];
+            let x0_grad = x0.borrow().get_grad().unwrap().borrow().get_data()[[]];
+            let x1_grad = x1.borrow().get_grad().unwrap().borrow().get_data()[[]];
 
             x0.set_data(x0_data - lr * x0_grad);
             x1.set_data(x1_data - lr * x1_grad);
@@ -200,11 +206,19 @@ mod tests {
         assert_eq!(expected, z.borrow().get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow().get_grad().expect("No grad exist.")
+            x.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow().get_grad().expect("No grad exist.")
+            y.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 
@@ -223,11 +237,19 @@ mod tests {
         assert_eq!(expected, z.borrow().get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow().get_grad().expect("No grad exist.")
+            x.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow().get_grad().expect("No grad exist.")
+            y.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 
@@ -247,11 +269,19 @@ mod tests {
         assert_eq!(expected, z.borrow().get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow().get_grad().expect("No grad exist.")
+            x.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow().get_grad().expect("No grad exist.")
+            y.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 }

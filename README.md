@@ -157,4 +157,4 @@ cargo run
 * 机上学習
 
 ### ステップ３２ 高階微分 (実装編)
-* 開始
+* Variable の grad も Variable に変更した。

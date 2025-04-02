@@ -13,35 +13,14 @@ use std::rc::Rc;
 /// * grad (Option<Array<f64, IxDyn>): 変数に対応した微分した値。逆伝播によって実際に微分が計算されたときに値を設定する。
 /// * creator (Option<Rc<RefCell<FunctionExecutor>>>): この変数を生成した関数
 /// * generation (i32): 計算グラフ上の世代
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct RawVariable<V: MathOps> {
     data: Array<V, IxDyn>,
     name: Option<String>,
-    grad: Option<Array<V, IxDyn>>,
+    grad: Option<Variable<V>>,
     creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
     generation: i32,
 }
-
-// impl<V: MathOps> PartialOrd for RawVariable<V> {
-//     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-//         let lhs_data = &self.data[[]];
-//         let rhs_data = &other.data[[]];
-
-//         if lhs_data == rhs_data {
-//             Some(Ordering::Equal)
-//         } else if lhs_data > rhs_data {
-//             Some(Ordering::Greater)
-//         } else {
-//             Some(Ordering::Less)
-//         }
-//     }
-// }
-
-// impl<V: MathOps> Ord for RawVariable<V> {
-//     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-//         self.data[[]].cmp(&other.data[[]])
-//     }
-// }
 
 /// Variable 構造体
 /// RawVariable 構造体のラッパーである。
@@ -207,8 +186,8 @@ impl<V: MathOps> RawVariable<V> {
     /// 微分値を取得する。逆伝播を実行した場合のみ値が返る。
     ///
     /// Return
-    /// * Array<f64, IxDyn>: 微分値
-    pub fn get_grad(&self) -> Option<Array<V, IxDyn>> {
+    /// * Variable<V>: 微分値
+    pub fn get_grad(&self) -> Option<Variable<V>> {
         match self.grad.as_ref() {
             Some(grad) => Some(grad.clone()),
             None => None,
@@ -218,8 +197,8 @@ impl<V: MathOps> RawVariable<V> {
     /// 微分値を設定する。
     ///
     /// Arguments
-    /// * grad (Array<V, IxDyn)): 微分値
-    pub fn set_grad(&mut self, grad: Array<V, IxDyn>) {
+    /// * grad (Variable<V>): 微分値
+    pub fn set_grad(&mut self, grad: Variable<V>) {
         self.grad = Some(grad);
     }
 
@@ -246,9 +225,6 @@ impl<V: MathOps> RawVariable<V> {
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
         let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
-        // for (_gen, creator) in creators.iter() {
-        //     creator.borrow().backward();
-        // }
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
         while let Some(creator) = creators.pop() {

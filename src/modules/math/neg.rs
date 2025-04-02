@@ -28,17 +28,15 @@ impl<V: MathOps> Function<V> for NegFunction {
 
     /// 逆伝播
     /// y=-x の微分 dy/dx=-1 である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x = inputs[0].borrow().get_data();
-        let gys_val = gys[0].clone();
+        let gys_val = gys[0].borrow().get_data();
         let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];
-        let gxs = x_exp
+        let gxs: Vec<Variable<V>> = x_exp
             .iter()
-            .map(|_x_exp| gys_val.mapv(|v| V::from(-1).unwrap() * v))
+            .map(|_x_exp| {
+                Variable::new(RawVariable::new(gys_val.mapv(|v| V::from(-1).unwrap() * v)))
+            })
             .collect();
         gxs
     }

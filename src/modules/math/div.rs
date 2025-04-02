@@ -27,15 +27,11 @@ impl<V: MathOps> Function<V> for DivFunction {
 
     /// 逆伝播
     /// y=x1 / x2 の微分であるため、dy/dx1=1/x2,* gy, dy/dx2= -x1/(x2^2) * gy である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x0 = inputs[0].borrow().get_data();
         let x1 = inputs[1].borrow().get_data();
         let gx_x0 = &gys[0].clone() / &x1;
-        let gx_x1 = &gys[0].clone() * (&x0.mapv(|v| V::from(-1).unwrap() * v) / (&x1 * &x1));
+        let gx_x1 = &gys[0].clone() * &(&x0.mapv(|v| V::from(-1).unwrap() * v) / (&x1 * &x1));
 
         let gxs = vec![gx_x0, gx_x1];
         gxs
@@ -205,19 +201,36 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result.borrow().get_grad().expect("No grad exist.")
+            result
+                .borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow().get_grad().expect("No grad exist.")
+            a.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -0.75),
-            b.borrow().get_grad().expect("No grad exist.")
+            b.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            c.borrow().get_grad().expect("No grad exist.")
+            c.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 
@@ -262,15 +275,28 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result.borrow().get_grad().expect("No grad exist.")
+            result
+                .borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow().get_grad().expect("No grad exist.")
+            a.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -1.5),
-            b.borrow().get_grad().expect("No grad exist.")
+            b.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 
@@ -319,15 +345,28 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result.borrow().get_grad().expect("No grad exist.")
+            result
+                .borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow().get_grad().expect("No grad exist.")
+            a.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            c.borrow().get_grad().expect("No grad exist.")
+            c.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         // assert_eq!(
         //     Array::from_elem(IxDyn(&[]), 3),

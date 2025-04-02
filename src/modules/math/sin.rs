@@ -31,11 +31,7 @@ impl<V: MathOps> Function<V> for SinFunction {
 
     /// 逆伝播
     /// dy/dx=cos(x) である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].clone();
 
@@ -89,6 +85,9 @@ mod tests {
         // sin 結果
         assert_eq!(expected_output_data, result.borrow().get_data());
         // 逆伝播結果
-        assert_eq!(expected_output_data, x.borrow().get_grad().unwrap());
+        assert_eq!(
+            expected_output_data,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
     }
 }
