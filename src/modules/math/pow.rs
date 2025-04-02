@@ -39,11 +39,7 @@ impl<V: MathOps> Function<V> for PowFunction {
 
     /// 逆伝播
     /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x = inputs[0].borrow().get_data();
 
         let x_diff_exp = x.mapv(|x| {
@@ -109,7 +105,10 @@ mod tests {
         dbg!(&result);
         dbg!(&x);
         let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
-        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+        assert_eq!(
+            expect_grad,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
     }
 
     /// 累乗のテスト(i32)
@@ -137,7 +136,10 @@ mod tests {
         dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
-        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+        assert_eq!(
+            expect_grad,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
     }
 
     /// オーバーロードした累乗のテスト(i32)
@@ -166,6 +168,9 @@ mod tests {
         dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
-        assert_eq!(expect_grad, x.borrow().get_grad().unwrap());
+        assert_eq!(
+            expect_grad,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
     }
 }

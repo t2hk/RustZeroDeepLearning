@@ -27,15 +27,13 @@ impl<V: MathOps> Function<V> for SubFunction {
 
     /// 逆伝播
     /// y=x0-x1 の微分であるため、dy/dx0=1, dy/dx1=-1 である。
-    fn backward(
-        &self,
-        _inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
-        vec![
-            gys[0].clone(),
-            gys[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap()),
-        ]
+    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        let neg_gys = gys[0]
+            .borrow()
+            .get_data()
+            .mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap());
+
+        vec![gys[0].clone(), Variable::new(RawVariable::new(neg_gys))]
     }
 }
 
@@ -200,20 +198,37 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result.borrow().get_grad().expect("No grad exist.")
+            result
+                .borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            a.borrow().get_grad().expect("No grad exist.")
+            a.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -2.0),
-            b.borrow().get_grad().expect("No grad exist.")
+            b.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
 
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            c.borrow().get_grad().expect("No grad exist.")
+            c.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 
@@ -257,15 +272,28 @@ mod tests {
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1),
-            result.borrow().get_grad().expect("No grad exist.")
+            result
+                .borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            a.borrow().get_grad().expect("No grad exist.")
+            a.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            c.borrow().get_grad().expect("No grad exist.")
+            c.borrow()
+                .get_grad()
+                .expect("No grad exist.")
+                .borrow()
+                .get_data()
         );
     }
 

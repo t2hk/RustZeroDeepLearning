@@ -27,14 +27,12 @@ impl<V: MathOps> Function<V> for SquareFunction {
 
     /// 逆伝播
     /// y=x^2 の微分であるため、dy/dx=2x である。
-    fn backward(
-        &self,
-        inputs: Vec<Variable<V>>,
-        gys: Vec<Array<V, IxDyn>>,
-    ) -> Vec<Array<V, IxDyn>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x = inputs[0].borrow().get_data();
         let x_gys = &gys[0].clone() * &x;
-        let gxs = vec![x_gys.mapv(|x| x * V::from(2).unwrap())];
+        let gxs = vec![Variable::new(RawVariable::new(
+            x_gys.borrow().get_data().mapv(|x| x * V::from(2).unwrap()),
+        ))];
         gxs
     }
 }

@@ -159,7 +159,7 @@ mod tests {
 
         // 書籍の結果と一致することを確認する。
         assert_eq!(0.7071064695751781, y_data[[]]);
-        assert_eq!(0.7071032148228457, x_grad.unwrap()[[]]);
+        assert_eq!(0.7071032148228457, x_grad.unwrap().borrow().get_data()[[]]);
     }
 
     #[test]
