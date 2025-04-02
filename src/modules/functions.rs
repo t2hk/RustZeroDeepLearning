@@ -189,29 +189,31 @@ impl<V: MathOps> FunctionExecutor<V> {
                 gys.push(output.borrow().get_grad().clone().unwrap());
             });
 
-        // 逆伝播を実行する。
-        let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
+        if Setting::is_enable_backprop() {
+            // 逆伝播を実行する。
+            let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
 
-        // 逆伝播の結果を入力値に設定する。
-        // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
-        for (i, input) in self.inputs.iter().enumerate() {
-            if input.borrow_mut().get_grad().is_none() {
-                input.borrow_mut().set_grad(gxs[i].clone());
-            } else {
-                let input_grad = input.borrow().get_grad().clone().unwrap();
-                // input.borrow_mut().set_grad(input_grad + gxs[i].clone());
-                input.borrow_mut().set_grad(&input_grad + &gxs[i].clone());
+            // 逆伝播の結果を入力値に設定する。
+            // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
+            for (i, input) in self.inputs.iter().enumerate() {
+                if input.borrow_mut().get_grad().is_none() {
+                    input.borrow_mut().set_grad(gxs[i].clone());
+                } else {
+                    let input_grad = input.borrow().get_grad().clone().unwrap();
+                    // input.borrow_mut().set_grad(input_grad + gxs[i].clone());
+                    input.borrow_mut().set_grad(&input_grad + &gxs[i].clone());
+                }
             }
-        }
 
-        // 微分値を保持しない場合、中間変数の微分値を削除する。
-        if !Setting::is_enable_retain_grad() {
-            self.outputs
-                .iter()
-                .map(|output| output.upgrade().unwrap())
-                .for_each(|output| {
-                    output.borrow_mut().clear_grad();
-                });
+            // 微分値を保持しない場合、中間変数の微分値を削除する。
+            if !Setting::is_enable_retain_grad() {
+                self.outputs
+                    .iter()
+                    .map(|output| output.upgrade().unwrap())
+                    .for_each(|output| {
+                        output.borrow_mut().clear_grad();
+                    });
+            }
         }
     }
 
