@@ -118,7 +118,7 @@ macro_rules! get_dot_graph {
             let inputs = creator.1.borrow().get_inputs();
 
             for input in inputs {
-                let local_dot_var_txt = crate::dot_var!(input, $verbose);
+                let local_dot_var_txt = $crate::dot_var!(input, $verbose);
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
         }
@@ -159,7 +159,7 @@ macro_rules! plot_dot_graph {
 
         // graphviz の DOT ファイルを作成する。
         // ファイル名は to_file の末尾に .dot 拡張子を追記した名前とする。
-        let dot_txt = crate::get_dot_graph!($variable, $verbose);
+        let dot_txt = $crate::get_dot_graph!($variable, $verbose);
         let tmp_dot_txt_file_path = format!("{}/{}.dot", output_dir, $to_file);
         let mut tmp_dot_txt_file = File::create(&tmp_dot_txt_file_path).unwrap();
         tmp_dot_txt_file.write_all(&dot_txt.as_bytes()).unwrap();

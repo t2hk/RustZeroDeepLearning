@@ -1,17 +1,18 @@
+#[macro_use]
 pub mod modules;
 
-pub use crate::modules::big_int_wrapper::*;
-pub use crate::modules::function_libs::*;
-pub use crate::modules::functions::*;
-pub use crate::modules::math::add::*;
-pub use crate::modules::math::div::*;
-pub use crate::modules::math::exp::*;
-pub use crate::modules::math::factorial::*;
-pub use crate::modules::math::mul::*;
-pub use crate::modules::math::neg::*;
-pub use crate::modules::math::pow::*;
-pub use crate::modules::math::square::*;
-pub use crate::modules::math::sub::*;
-pub use crate::modules::settings::*;
-pub use crate::modules::utils::*;
-pub use crate::modules::variable::*;
+pub use modules::big_int_wrapper::*;
+pub use modules::function_libs::*;
+pub use modules::functions::*;
+pub use modules::math::add::*;
+pub use modules::math::div::*;
+pub use modules::math::exp::*;
+pub use modules::math::factorial::*;
+pub use modules::math::mul::*;
+pub use modules::math::neg::*;
+pub use modules::math::pow::*;
+pub use modules::math::square::*;
+pub use modules::math::sub::*;
+pub use modules::settings::*;
+pub use modules::utils::*;
+pub use modules::variable::*;
