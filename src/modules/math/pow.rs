@@ -2,6 +2,7 @@
 use crate::modules::math::*;
 
 use core::fmt::Debug;
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::BitXor;
@@ -32,6 +33,7 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// * Vec<Array<V, IxDyn>>: 累乗の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let x0 = &xs[0];
+        debug!("pow: {:?} ^ {:?}", &x0[[]], &self.exp);
 
         let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), self.exp));
         vec![result]

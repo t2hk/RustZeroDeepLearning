@@ -5,6 +5,7 @@
 use crate::modules::*;
 
 use core::fmt::Debug;
+use log::{debug, error, info, trace, warn};
 use num_bigint::{BigInt, ToBigInt};
 use num_traits::{abs, One, Signed};
 use std::rc::Rc;

@@ -2,6 +2,7 @@
 use crate::modules::math::*;
 
 use core::fmt::Debug;
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;

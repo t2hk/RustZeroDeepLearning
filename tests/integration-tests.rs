@@ -1177,38 +1177,104 @@ fn test_step33_second_differential() {
     Setting::set_backprop_enabled();
 
     /// y = x^4 - 2x^2
-    fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
-        let y = &(&x ^ 4) - &(2 * &(&x ^ 2));
-        debug!("y: {:?}", &y);
+    fn f<V: MathOps>(x: &Variable<V>) -> Variable<V> {
+        let y = &(x ^ 4) - &(2 * &(x ^ 2));
         y
     }
 
     let mut x = Variable::new(RawVariable::new(2.0));
     x.borrow_mut().set_name("x".to_string());
 
-    let mut y = f(x.clone());
+    debug!("===== フォワード ======");
+
+    let mut y = f(&x);
     y.borrow_mut().set_name("y".to_string());
 
+    debug!("===== 1回目バックプロパゲーション======");
     y.backward();
-    let x_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
-    println!("x grad: {:?}", x_grad);
 
-    let gx = x.borrow_mut().get_grad().unwrap();
-
-    let gx_creators = FunctionExecutor::extract_creators(vec![gx.clone()]);
+    // let gx_creators = FunctionExecutor::extract_creators(vec![gx.clone()]);
     // gx_creators.iter().for_each(|c| {
     //     dbg!(&c);
     // });
 
+    fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
+        let indent = format!("{}", "  ".repeat(indent_num));
+
+        println!("{}variable", indent);
+        println!("{}  name: {:?}", indent, x.borrow().get_name());
+        println!("{}  data: {:?}", indent, x.borrow().get_data());
+        println!("{}  generation: {:?}", indent, x.borrow().get_generation());
+
+        match x.borrow().get_grad() {
+            Some(grad) => {
+                println!("{}  grad", indent);
+                debug_variable(grad.clone(), indent_num + 2usize);
+            }
+            _ => println!("{}  grad is None", indent),
+        }
+        let creator = x.borrow().get_creator();
+        match creator {
+            Some(creator) => {
+                println!(
+                    "{}  creator: {:?} gen: {:?}",
+                    indent,
+                    creator.borrow().get_creator().borrow().get_name(),
+                    creator.borrow().get_generation()
+                );
+                println!("{}  inputs", indent);
+                let inputs = creator.borrow().get_inputs();
+                for input in inputs {
+                    println!("{}    {:?}", indent, input.borrow().get_data());
+                    debug_variable(input.clone(), indent_num + 2usize);
+                }
+                println!("{}  outputs", indent);
+                let outputs = creator.borrow().get_outputs();
+                for output in outputs {
+                    let tmp_output = output.upgrade().unwrap();
+                    println!("{}    {:?}", indent, tmp_output.borrow().get_data());
+                    // debug_variable(
+                    //     Variable::new(tmp_output.borrow().clone()),
+                    //     format!("{}{}", indent, indent),
+                    // );
+                }
+            }
+            _ => println!("{}  creator is None.", indent),
+        }
+    }
+
+    // debug_variable(gx.clone(), " ".to_string());
+    // debug_variable(x.clone(), 0usize);
+
     // x.borrow_mut().clear_grad();
     // バックプロパゲーションを行わない。
     // Setting::set_backprop_disabled();
-    println!("===== 2回目バックプロパゲーション======");
+    // gx.borrow_mut().set_name("gx".to_string());
+
+    debug!("===== 2回目バックプロパゲーション======");
+    let gx = &x.borrow().get_grad().unwrap(); //.get_data(); //.clone();
     gx.backward();
-    println!(
-        "x grad: {:?}",
-        x.borrow().get_grad().unwrap().borrow().get_data()
+
+    // let gx = x.borrow_mut().get_grad().unwrap();
+    // gx.backward();
+    // x.borrow_mut().get_grad().unwrap().backward();
+    debug!(
+        "gx data: {:?}  grad: {:?}",
+        // x.borrow().get_grad().unwrap().borrow().get_data()
+        // gx.borrow().get_grad().unwrap().borrow().get_data()
+        gx.borrow().get_data(),
+        gx.borrow().get_grad().unwrap().borrow().get_data() // x.borrow_mut()
+                                                            //     .get_grad()
+                                                            //     .unwrap()
+                                                            //     .borrow()
+                                                            //     .get_grad()
+                                                            //     .unwrap()
+                                                            //     .borrow()
+                                                            //     .get_data()
     );
+
+    debug_variable(gx.clone(), 0usize);
+    //debug_variable(x, 0usize);
 
     //  dbg!(&gx);
 
@@ -1221,8 +1287,38 @@ fn test_step33_second_differential() {
 
     // creators.iter().map(|c| dbg!(c));
 
-    let file_name = "test_step33_second_differential.png";
+    // let file_name = "test_step33_second_differential.png";
 
-    plot_dot_graph!(gx, file_name, true);
+    // plot_dot_graph!(gx, file_name, true);
     // dbg!(&gx);
+}
+
+#[test]
+fn test_step33_second_differential_2() {
+    common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    /// y = x^4 - 2x^2
+    fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
+        // let y = &(&x ^ 4) - &(2 * &(&x ^ 2));
+        let y = &(4 * &(&x ^ 3)) - &(4 * &x);
+        y
+    }
+
+    let mut x = Variable::new(RawVariable::new(2.0));
+    x.borrow_mut().set_name("x".to_string());
+
+    debug!("===== フォワード ======");
+
+    let mut y = f(x.clone());
+    y.borrow_mut().set_name("y".to_string());
+
+    debug!("===== 1回目バックプロパゲーション======");
+    y.backward();
+    let x_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
+    debug!("x grad: {:?}", x_grad);
 }

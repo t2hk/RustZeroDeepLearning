@@ -1,6 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
@@ -70,6 +71,7 @@ impl<V: MathOps> Variable<V> {
     /// Arguments:
     /// * data (Array<V, IxDyn>): 変数
     pub fn set_data(&mut self, data: Array<V, IxDyn>) {
+        debug!("data: {:?}", &data);
         self.raw().borrow_mut().data = data;
     }
 
@@ -120,6 +122,12 @@ impl<V: MathOps> RawVariable<V> {
     /// Arguments
     /// * creator (Rc<RefCell<FunctionExecutor>>): 関数のラッパー
     pub fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor<V>>>) {
+        debug!(
+            "[set_creator] {:?} in:{:?}",
+            &creator.borrow().get_creator().borrow().get_name(),
+            &creator.borrow().get_inputs()[0].borrow().get_data()[[]]
+        );
+
         self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().get_generation() + 1;
     }
@@ -130,7 +138,6 @@ impl<V: MathOps> RawVariable<V> {
     /// * Option<Rc<RefCell<FunctionExecutor<V>>>>: 関数
     pub fn get_creator(&self) -> Option<Rc<RefCell<FunctionExecutor<V>>>> {
         if let Some(creator) = self.creator.clone() {
-            // Some(Rc::clone(&self.creator.clone().unwrap()))
             Some(Rc::clone(&creator.clone()))
         } else {
             None
@@ -199,6 +206,7 @@ impl<V: MathOps> RawVariable<V> {
     /// Arguments
     /// * grad (Variable<V>): 微分値
     pub fn set_grad(&mut self, grad: Variable<V>) {
+        debug!("[set_grad] grad: {:?}", grad.borrow().data);
         self.grad = Some(grad);
     }
 
@@ -224,6 +232,7 @@ impl<V: MathOps> RawVariable<V> {
 
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
+        debug!("[backward]");
         let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。

@@ -2,6 +2,7 @@
 use crate::modules::*;
 
 use core::fmt::Debug;
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Sub;
@@ -21,6 +22,7 @@ impl<V: MathOps> Function<V> for SubFunction {
 
     // Sub (減算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("sub: {:?} - {:?}", &xs[0][[]], &xs[1][[]]);
         let result = vec![&xs[0] - &xs[1]];
         result
     }

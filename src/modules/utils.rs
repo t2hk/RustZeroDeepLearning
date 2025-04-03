@@ -1,6 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
+use log::{debug, error, info, trace, warn};
 use std::cell::RefCell;
 use std::rc::Rc;
 

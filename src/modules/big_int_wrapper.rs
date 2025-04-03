@@ -2,6 +2,7 @@
 use crate::modules::*;
 
 use core::ops::{Add, Div, Mul, Rem, Sub};
+use log::{debug, error, info, trace, warn};
 use num_bigint::BigInt;
 use num_traits::{Bounded, Num, NumCast, One, Zero};
 use std::fmt;

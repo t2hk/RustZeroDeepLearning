@@ -1,6 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
-
+use env_logger;
+use log::{debug, error, info, trace, warn};
 use num_traits::{Num, NumCast};
 use std::cell::RefCell;
 use std::rc::Rc;

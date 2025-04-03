@@ -2,6 +2,7 @@
 use crate::modules::math::*;
 
 use core::fmt::Debug;
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Mul;
@@ -21,6 +22,7 @@ impl<V: MathOps> Function<V> for MulFunction {
 
     // Mul (乗算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("mul: {:?} * {:?}", &xs[0][[]], &xs[1][[]]);
         let result = vec![&xs[0] * &xs[1]];
         result
     }
@@ -34,6 +36,7 @@ impl<V: MathOps> Function<V> for MulFunction {
         let gx_x1 = &gys[0].clone() * &x0;
 
         let gxs = vec![gx_x0, gx_x1];
+        // dbg!(&gxs);
         gxs
     }
 }
