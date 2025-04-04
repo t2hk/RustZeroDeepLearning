@@ -9,64 +9,66 @@ use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Sin 関数
+/// Cos 関数
 #[derive(Debug, Clone)]
-pub struct SinFunction;
-impl<V: MathOps> Function<V> for SinFunction {
+pub struct CosFunction;
+impl<V: MathOps> Function<V> for CosFunction {
     /// 関数名を取得する。
     ///
     /// Return
     /// ＊String: 関数の名前
     fn get_name(&self) -> String {
-        "Sin".to_string()
+        "Cos".to_string()
     }
 
-    // Sin の順伝播
+    // Cos の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("sin(forward): sin({:?})", xs[0]);
+        debug!("cos(forward): cos({:?})", xs[0]);
         let result = vec![xs[0].mapv(|x| {
-            let sin_x = V::to_f64(&x).unwrap().sin();
-            V::from(sin_x).unwrap()
+            let cos_x = V::to_f64(&x).unwrap().cos();
+            V::from(cos_x).unwrap()
         })];
 
         result
     }
 
     /// 逆伝播
-    /// dy/dx=cos(x) である。
+    /// dy/dx=-sin(x) である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         debug!(
-            "sin(backward): cos({:?}) * {:?}",
+            "cos(backward): -sin({:?}) * {:?}",
             &inputs[0].borrow().get_data(),
             &gys[0].borrow().get_data()
         );
-        let gxs = vec![&cos(inputs[0].clone()) * &gys[0]];
+
+        let minus_sin_x = &sin(inputs[0].clone()) * -1;
+
+        let gxs = vec![&minus_sin_x * &gys[0]];
         gxs
     }
 }
 
-/// Sin 関数
+/// Cos 関数
 ///
 /// Arguments
 /// * input (Rc<RefCell<RawVariable>>): 入力値
 ///
 /// Return
 /// * Rc<RefCell<RawVariable>>: 結果
-pub fn sin<V: MathOps>(input: Variable<V>) -> Variable<V> {
-    let mut sin = FunctionExecutor::new(Rc::new(RefCell::new(SinFunction)));
-    // Sin の順伝播
-    sin.forward(vec![input.clone()]).get(0).unwrap().clone()
+pub fn cos<V: MathOps>(input: Variable<V>) -> Variable<V> {
+    let mut cos = FunctionExecutor::new(Rc::new(RefCell::new(CosFunction)));
+    // Cos の順伝播
+    cos.forward(vec![input.clone()]).get(0).unwrap().clone()
 }
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use std::f32::consts::PI as PIf32;
 
-    use super::*;
-
-    /// Sin 関数のテスト。
+    /// Cos 関数のテスト。
     #[test]
-    fn test_sin_1() {
+    fn test_cos_1() {
         // 逆伝播を実行する。微分値を保持する。
         Setting::set_retain_grad_enabled();
 
@@ -78,14 +80,16 @@ mod tests {
         let expected_output_data = Array::from_elem(IxDyn(&[]), 0.7071067811865475f32);
 
         // 順伝播、逆伝播を実行する。
-        let result = sin(x.clone());
+        let result = cos(x.clone());
+
+        // Cos 結果
+        assert_eq!(expected_output_data, result.borrow().get_data());
+
         result.backward();
 
-        // sin 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
         // 逆伝播結果
         assert_eq!(
-            expected_output_data,
+            expected_output_data * -1.0,
             x.borrow().get_grad().unwrap().borrow().get_data()
         );
     }
