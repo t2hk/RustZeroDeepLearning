@@ -4,6 +4,7 @@ extern crate rust_zero_deeplearning;
 mod common;
 
 use num_bigint::{BigInt, ToBigInt};
+use plotters::style::full_palette::{DEEPORANGE, YELLOW_900};
 use rust_zero_deeplearning::modules::utils::*;
 use rust_zero_deeplearning::modules::*;
 use rust_zero_deeplearning::*;
@@ -1267,10 +1268,103 @@ fn test_high_diffeential_sin() {
         let gx = &x.borrow().get_grad().unwrap();
         x.borrow_mut().clear_grad();
         gx.backward();
-        //debug!("{}", x.borrow().get_grad().unwrap().borrow().get_data()[[]]);
         results.push(x.borrow().get_grad().unwrap().borrow().get_data()[[]]);
     }
     assert_eq!(-0.8414709848078965, results[0]);
     assert_eq!(-0.5403023058681398, results[1]);
     assert_eq!(0.8414709848078965, results[2]);
+}
+
+#[test]
+fn test_step34_graph() {
+    use plotters::prelude::*;
+    common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    let mut logs: Vec<Vec<f64>> = vec![];
+
+    // y = sin(x) の x 範囲
+    let start = -7.0;
+    let end = 7.0;
+    let x = Variable::new(RawVariable::linspace(start, end, 200));
+    let y = sin(x.clone());
+    y.backward();
+    let y_data = y.borrow().get_data();
+    logs.push(y_data.flatten().to_vec());
+
+    // 3階微分まで実行
+    for _i in 0..3 {
+        logs.push(
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec(),
+        );
+        let gx = x.borrow().get_grad().unwrap();
+        x.borrow_mut().clear_grad();
+        gx.backward();
+    }
+
+    // 描画先の Backend を初期化する。
+    let root = BitMapBackend::new("graph/step34_sin.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("y=sin(x)", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(start as f32..end as f32, -1.5f32..1.5f32)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    let labels = vec!["y=sin(x)", "y'", "y''", "y'''"];
+    let colors = vec![RED, BLUE, GREEN, MAGENTA];
+
+    let mut plot_data_vec = vec![];
+
+    for log in logs {
+        let values = log.clone();
+        let plot_data: Vec<(f32, f32)> = values
+            .iter()
+            .enumerate()
+            .map(|(i, j)| {
+                (
+                    x.borrow().get_data().flatten().to_vec()[i] as f32,
+                    *j as f32,
+                )
+            })
+            .collect();
+        plot_data_vec.push(plot_data);
+    }
+
+    // データの描画。(x, y)のイテレータとしてデータ点を渡す
+    for (idx, plot_data) in plot_data_vec.iter().enumerate() {
+        let color = colors[idx];
+
+        chart
+            .draw_series(LineSeries::new(
+                //(-50..50).map(|x| x as f32 / 50.0).map(|x| (x, x * x)),
+                plot_data.clone(),
+                &color,
+            ))
+            .unwrap()
+            .label(labels[idx])
+            .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], color));
+    }
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 }

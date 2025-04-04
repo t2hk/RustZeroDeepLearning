@@ -3,6 +3,7 @@ use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
+use num_traits::Float;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
@@ -129,6 +130,30 @@ impl<V: MathOps> RawVariable<V> {
     {
         let dim = shape.into_dimension();
         let array = ArrayD::from_shape_vec(dim, values).expect("Shape error while creating array");
+        Self {
+            data: array,
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        }
+    }
+
+    /// 要素数による等差数列を生成する。
+    ///
+    /// Arguments:
+    /// * start (V): 開始値
+    /// * end (V): 終了値
+    /// * n (usize): 要素数
+    /// Return:
+    /// * Self: 指定した開始値から終了値までの要素数を持つ等差数列の RawVariable
+    pub fn linspace(start: V, end: V, n: usize) -> Self {
+        let base = Array::linspace(start.to_f64().unwrap(), end.to_f64().unwrap(), n);
+        let shape = base.shape();
+        let values = base.to_vec().iter().map(|x| V::from(*x).unwrap()).collect();
+
+        let array = Array::from_shape_vec(IxDyn(shape), values).unwrap();
+
         Self {
             data: array,
             name: None,
@@ -374,5 +399,20 @@ mod tests {
 
         val.set_name("test_val".to_string());
         assert_eq!(Some("test_val".to_string()), val.get_name());
+    }
+
+    /// linspace のテスト
+    #[test]
+    fn test_linspace() {
+        let start = -5.0;
+        let end = 5.0;
+        let n = 20usize;
+        let var = RawVariable::linspace(start, end, n);
+        assert_eq!(n, var.get_size());
+        assert_eq!(&[n], var.get_shape());
+        let max = var.get_data().mapv(|x| x).get(n - 1).unwrap().clone();
+        let min = var.get_data().mapv(|x| x).get(0).unwrap().clone();
+        assert_eq!(start, min);
+        assert_eq!(end, max);
     }
 }
