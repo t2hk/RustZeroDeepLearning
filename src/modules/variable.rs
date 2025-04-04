@@ -400,4 +400,19 @@ mod tests {
         val.set_name("test_val".to_string());
         assert_eq!(Some("test_val".to_string()), val.get_name());
     }
+
+    /// linspace のテスト
+    #[test]
+    fn test_linspace() {
+        let start = -5.0;
+        let end = 5.0;
+        let n = 20usize;
+        let var = RawVariable::linspace(start, end, n);
+        assert_eq!(n, var.get_size());
+        assert_eq!(&[n], var.get_shape());
+        let max = var.get_data().mapv(|x| x).get(n - 1).unwrap().clone();
+        let min = var.get_data().mapv(|x| x).get(0).unwrap().clone();
+        assert_eq!(start, min);
+        assert_eq!(end, max);
+    }
 }
