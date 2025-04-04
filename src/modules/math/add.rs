@@ -1,7 +1,9 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Add;
@@ -21,6 +23,7 @@ impl<V: MathOps> Function<V> for AddFunction {
 
     // Add (加算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("add(forward): {:?} + {:?}", &xs[0], &xs[1]);
         let result = vec![&xs[0] + &xs[1]];
         result
     }
@@ -28,6 +31,11 @@ impl<V: MathOps> Function<V> for AddFunction {
     /// 逆伝播
     /// y=x0+x1 の微分であるため、dy/dx0=1, dy/dx1=1 である。
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        debug!(
+            "add(backward): dy/dx0={:?}, dy/dx1={:?}",
+            &gys[0].borrow().get_data(),
+            &gys[0].borrow().get_data()
+        );
         vec![gys[0].clone(), gys[0].clone()]
     }
 }
@@ -41,6 +49,7 @@ impl<V: MathOps> Function<V> for AddFunction {
 /// Return
 /// * Rc<RefCell<RawVariable>>: 加算結果
 pub fn add<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
+    debug!("AddFunction::add");
     let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
     // 加算の順伝播
     add.forward(vec![x0.clone(), x1.clone()])
@@ -60,6 +69,7 @@ pub fn add<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
 impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
     type Output = Variable<V>;
     fn add(self, rhs: &Variable<V>) -> Variable<V> {
+        debug!("Add overload (Variable<V> + Variable<V>)");
         // 順伝播
         let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
         let result = add
@@ -75,6 +85,7 @@ impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
 impl<V: MathOps> Add<&Array<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
     fn add(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
+        debug!("Add overload (Variable<V> + Array)");
         // 順伝播
         let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
         self + &rhs_val
@@ -85,6 +96,7 @@ impl<V: MathOps> Add<&Array<V, IxDyn>> for &Variable<V> {
 impl<V: MathOps> Add<&Variable<V>> for &Array<V, IxDyn> {
     type Output = Variable<V>;
     fn add(self, rhs: &Variable<V>) -> Variable<V> {
+        debug!("Add overload (Array + Variable<V>)");
         // 順伝播
         let lhs_val = Variable::new(RawVariable::new(self.clone()));
         &lhs_val + rhs
@@ -181,15 +193,6 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
-
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
@@ -250,15 +253,6 @@ mod tests {
 
         // 逆伝播を実行する。
         result.backward();
-
-        println!(
-            "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            // &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(

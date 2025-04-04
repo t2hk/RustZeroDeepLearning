@@ -1,6 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
@@ -87,6 +89,35 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
     }
 
+    pub fn detail(&self) -> String {
+        let inputs_detail: Vec<String> = self
+            .inputs
+            .iter()
+            .map(|input| format!("{:?}", input.borrow().get_data()))
+            .collect();
+
+        let outputs_detail: Vec<String> = self
+            .outputs
+            .iter()
+            .map(|output| {
+                if let Some(output) = output.upgrade() {
+                    format!("{:?}", output.borrow().get_data())
+                } else {
+                    format!("None")
+                }
+            })
+            .collect();
+
+        let detail = format!(
+            "creator: {}, generation: {}, inputs: {:?}, outputs: {:?}",
+            self.creator.borrow().get_name(),
+            self.generation,
+            inputs_detail,
+            outputs_detail
+        );
+        detail.to_string()
+    }
+
     /// 入力値を取得する。
     ///
     /// Return
@@ -127,6 +158,8 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// Return
     /// * Vec<Variable<V>>: 関数の実行結果
     pub fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        debug!("[forward] name:{}", &self.creator.borrow().get_name());
+
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
             .iter()
@@ -173,6 +206,8 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     pub fn backward(&self) {
+        debug!("[backward] name: {:?}", &self.creator.borrow().get_name());
+
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         // let grad_one = Array::from_elem(IxDyn(&[]), V::one());
         let grad_one = Variable::new(RawVariable::new(V::one()));
@@ -189,32 +224,31 @@ impl<V: MathOps> FunctionExecutor<V> {
                 gys.push(output.borrow().get_grad().clone().unwrap());
             });
 
-        if Setting::is_enable_backprop() {
-            // 逆伝播を実行する。
-            let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
+        // if Setting::is_enable_backprop() {
+        // 逆伝播を実行する。
+        let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
 
-            // 逆伝播の結果を入力値に設定する。
-            // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
-            for (i, input) in self.inputs.iter().enumerate() {
-                if input.borrow_mut().get_grad().is_none() {
-                    input.borrow_mut().set_grad(gxs[i].clone());
-                } else {
-                    let input_grad = input.borrow().get_grad().clone().unwrap();
-                    // input.borrow_mut().set_grad(input_grad + gxs[i].clone());
-                    input.borrow_mut().set_grad(&input_grad + &gxs[i].clone());
-                }
-            }
-
-            // 微分値を保持しない場合、中間変数の微分値を削除する。
-            if !Setting::is_enable_retain_grad() {
-                self.outputs
-                    .iter()
-                    .map(|output| output.upgrade().unwrap())
-                    .for_each(|output| {
-                        output.borrow_mut().clear_grad();
-                    });
+        // 逆伝播の結果を入力値に設定する。
+        // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
+        for (i, input) in self.inputs.iter().enumerate() {
+            if input.borrow_mut().get_grad().is_none() {
+                input.borrow_mut().set_grad(gxs[i].clone());
+            } else {
+                let input_grad = input.borrow().get_grad().clone().unwrap();
+                input.borrow_mut().set_grad(&input_grad + &gxs[i]);
             }
         }
+
+        // 微分値を保持しない場合、中間変数の微分値を削除する。
+        if !Setting::is_enable_retain_grad() {
+            self.outputs
+                .iter()
+                .map(|output| output.upgrade().unwrap())
+                .for_each(|output| {
+                    output.borrow_mut().clear_grad();
+                });
+        }
+        //}
     }
 
     /// 逆伝播のために計算グラフ上の関数を取得する。

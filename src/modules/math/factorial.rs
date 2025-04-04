@@ -3,8 +3,10 @@
 ///! https://qiita.com/AkariLuminous/items/1b2e964ebabde9419224
 // ライブラリを一括でインポート
 use crate::modules::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use num_bigint::{BigInt, ToBigInt};
 use num_traits::{abs, One, Signed};
 use std::rc::Rc;
@@ -150,8 +152,8 @@ mod tests {
         result.backward();
         let y_data = result.borrow().get_data();
         let x_grad = x.borrow().get_grad();
-        println!("y data: {:?}", y_data);
-        println!("x grad: {:?}", x_grad);
+        // println!("y data: {:?}", y_data);
+        // println!("x grad: {:?}", x_grad);
 
         let file_name = "test_my_sin_graph.png";
 

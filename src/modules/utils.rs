@@ -1,6 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
-
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -118,7 +119,7 @@ macro_rules! get_dot_graph {
             let inputs = creator.1.borrow().get_inputs();
 
             for input in inputs {
-                let local_dot_var_txt = crate::dot_var!(input, $verbose);
+                let local_dot_var_txt = $crate::dot_var!(input, $verbose);
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
         }
@@ -159,7 +160,7 @@ macro_rules! plot_dot_graph {
 
         // graphviz の DOT ファイルを作成する。
         // ファイル名は to_file の末尾に .dot 拡張子を追記した名前とする。
-        let dot_txt = crate::get_dot_graph!($variable, $verbose);
+        let dot_txt = $crate::get_dot_graph!($variable, $verbose);
         let tmp_dot_txt_file_path = format!("{}/{}.dot", output_dir, $to_file);
         let mut tmp_dot_txt_file = File::create(&tmp_dot_txt_file_path).unwrap();
         tmp_dot_txt_file.write_all(&dot_txt.as_bytes()).unwrap();
@@ -186,9 +187,68 @@ macro_rules! plot_dot_graph {
     }};
 }
 
+/// Variable の詳細を出力する。
+pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
+    let indent = format!("{}", "  ".repeat(indent_num));
+
+    println!("{}variable", indent);
+    println!("{}  name: {:?}", indent, x.borrow().get_name());
+    println!("{}  data: {:?}", indent, x.borrow().get_data());
+    println!("{}  generation: {:?}", indent, x.borrow().get_generation());
+
+    match x.borrow().get_grad() {
+        Some(grad) => {
+            println!("{}  grad", indent);
+            debug_variable(grad.clone(), indent_num + 2usize);
+        }
+        _ => println!("{}  grad is None", indent),
+    }
+    let creator = x.borrow().get_creator();
+    match creator {
+        Some(creator) => {
+            println!(
+                "{}  creator: {:?} gen: {:?}",
+                indent,
+                creator.borrow().get_creator().borrow().get_name(),
+                creator.borrow().get_generation()
+            );
+            println!("{}  inputs", indent);
+            let inputs = creator.borrow().get_inputs();
+            for input in inputs {
+                println!("{}    {:?}", indent, input.borrow().get_data());
+                debug_variable(input.clone(), indent_num + 2usize);
+            }
+            println!("{}  outputs", indent);
+            let outputs = creator.borrow().get_outputs();
+            for output in outputs {
+                let tmp_output = output.upgrade().unwrap();
+                println!("{}    {:?}", indent, tmp_output.borrow().get_data());
+                // debug_variable(
+                //     Variable::new(tmp_output.borrow().clone()),
+                //     format!("{}{}", indent, indent),
+                // );
+            }
+        }
+        _ => println!("{}  creator is None.", indent),
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_debug_variable() {
+        let x1 = Variable::new(RawVariable::new(5.0f32));
+        x1.borrow_mut().set_name("x1".to_string());
+        let x2 = Variable::new(RawVariable::new(10.0f32));
+        x2.borrow_mut().set_name("x2".to_string());
+        let x3 = Variable::new(RawVariable::new(15.0f32));
+        x3.borrow_mut().set_name("x3".to_string());
+
+        let result = &(&x1 * &x2) + &x3;
+        debug_variable(result, 1);
+    }
 
     #[test]
     fn test_plot_dot_graph_1() {

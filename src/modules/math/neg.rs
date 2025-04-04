@@ -1,7 +1,10 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Neg;
@@ -21,6 +24,7 @@ impl<V: MathOps> Function<V> for NegFunction {
 
     // Neg (y=-x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("neg(forward): -{:?}", xs[0]);
         let result = vec![xs[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())];
 
         result
@@ -31,13 +35,11 @@ impl<V: MathOps> Function<V> for NegFunction {
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].borrow().get_data();
+
         let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];
-        let gxs: Vec<Variable<V>> = x_exp
-            .iter()
-            .map(|_x_exp| {
-                Variable::new(RawVariable::new(gys_val.mapv(|v| V::from(-1).unwrap() * v)))
-            })
-            .collect();
+        let gxs: Vec<Variable<V>> = x_exp.iter().map(|_x_exp| &gys[0] * -1).collect();
+        debug!("neg(backward): -1 * {:?}", &gys_val);
+
         gxs
     }
 }

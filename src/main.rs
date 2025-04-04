@@ -3,11 +3,25 @@ mod modules;
 // ライブラリを一括でインポート
 use rust_zero_deeplearning::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
+use env_logger;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
+use std::env;
 
 fn main() {
+    env::set_var("RUST_LOG", "debug");
+    env_logger::init();
     println!("Rust Zero Deep Learning");
+
+    // 各レベルのログ出力
+    trace!("トレースメッセージ");
+    debug!("デバッグメッセージ");
+    info!("情報メッセージ");
+    warn!("警告メッセージ");
+    error!("エラーメッセージ");
 
     ///////////// 実行に関する設定 /////////////
     // 逆伝播を実行する。微分値を保持する。

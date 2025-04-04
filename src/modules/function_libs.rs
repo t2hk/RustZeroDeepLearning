@@ -1,8 +1,11 @@
 // ライブラリを一括でインポート
+#[allow(unused_imports)]
 use crate::modules::math::*;
 use crate::modules::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 
 /// Sphere 関数
 /// z = x^2 + y^2 を計算する。

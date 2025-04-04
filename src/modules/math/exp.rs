@@ -1,7 +1,10 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -20,6 +23,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
 
     // Exp (y=e^x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("exp(forward): e ^ {:?}", &xs[0]);
         let e = std::f64::consts::E;
         let result = vec![xs[0].mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
 
@@ -30,10 +34,18 @@ impl<V: MathOps> Function<V> for ExpFunction {
     /// dy/dx=e^x である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let e = std::f64::consts::E;
-        let x = inputs[0].borrow().get_data();
-        let gys_val = gys[0].clone();
-        let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
-        let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
+        // let x = inputs[0].borrow().get_data();
+        // let gys_val = gys[0].clone();
+        let x_exp = exp(inputs[0].clone());
+        // let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
+        //let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
+        let gxs = vec![&x_exp * &gys[0].clone()];
+        debug!(
+            "exp(backward): (e ^ {:?}) * {:?}",
+            &inputs[0].borrow().get_data(),
+            &gys[0].borrow().get_data()
+        );
+
         gxs
     }
 }
