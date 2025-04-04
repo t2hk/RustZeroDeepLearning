@@ -170,4 +170,8 @@ cargo run
 ### ステップ34 Sin 関数の高階微分
 * Cos 関数を追加し、Sin 関数とともに高階微分に対応した。
 * ステップ33 で実装し忘れたニュートン法による最適化の自動化を追加した。
-* グラフ描画のため、plotters (0.3.3) を導入してみる。
+* 等差数列を生成する linspace を RawVariable に追加した。
+* グラフ描画のため、plotters (0.3.3) を導入してみる。以下のようにパッケージのインストールが必要である。
+  ```
+  sudo apt install pkg-config libfreetype6-dev libfontconfig1-dev -y
+  ```
