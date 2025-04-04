@@ -1175,18 +1175,27 @@ fn test_step33_second_differential() {
 
     debug!("===== フォワード ======");
 
-    let mut y = f(&x);
-    y.borrow_mut().set_name("y".to_string());
+    let y = f(&x);
+    let expected_y = Array::from_elem(IxDyn(&[]), 8.0);
+    assert_eq!(expected_y, y.borrow().get_data());
 
     debug!("===== 1回目バックプロパゲーション======");
     y.backward();
 
+    let expected_x_grad = Array::from_elem(IxDyn(&[]), 24.0);
+    assert_eq!(
+        expected_x_grad,
+        x.borrow().get_grad().unwrap().borrow().get_data()
+    );
+
     // バックプロパゲーションを行わないモードに切り替え。
     Setting::set_backprop_disabled();
     debug!("===== 2回目バックプロパゲーション======");
-    let gx = &x.borrow().get_grad().unwrap(); //.get_data(); //.clone();
+    let gx = &x.borrow().get_grad().unwrap();
+    let expected_2nd_grad = Array::from_elem(IxDyn(&[]), 44.0);
     x.borrow_mut().clear_grad();
     gx.backward();
-    let x_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
-    debug!("x grad: {:?}", x_grad);
+    let x_2nd_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
+    debug!("x 2nd grad: {:?}", x_2nd_grad);
+    assert_eq!(expected_2nd_grad, x_2nd_grad);
 }
