@@ -1,6 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -88,6 +89,35 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
     }
 
+    pub fn detail(&self) -> String {
+        let inputs_detail: Vec<String> = self
+            .inputs
+            .iter()
+            .map(|input| format!("{:?}", input.borrow().get_data()))
+            .collect();
+
+        let outputs_detail: Vec<String> = self
+            .outputs
+            .iter()
+            .map(|output| {
+                if let Some(output) = output.upgrade() {
+                    format!("{:?}", output.borrow().get_data())
+                } else {
+                    format!("None")
+                }
+            })
+            .collect();
+
+        let detail = format!(
+            "creator: {}, generation: {}, inputs: {:?}, outputs: {:?}",
+            self.creator.borrow().get_name(),
+            self.generation,
+            inputs_detail,
+            outputs_detail
+        );
+        detail.to_string()
+    }
+
     /// 入力値を取得する。
     ///
     /// Return
@@ -128,7 +158,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// Return
     /// * Vec<Variable<V>>: 関数の実行結果
     pub fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        debug!("[forward] inputs: {:?}", &inputs[0].borrow().get_data()[[]]);
+        debug!("[forward] name:{}", &self.creator.borrow().get_name());
 
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
@@ -146,15 +176,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         }
 
         // 関数を実行する。
-        debug!(
-            "[forward][start creator's forward] creator: {:?}",
-            &self.creator.borrow().get_name()
-        );
         let ys_data = self.creator.borrow().forward(xs_data);
-        debug!(
-            "[forward][end creator's forward] ys_data: {:?}",
-            &ys_data[0][[]]
-        );
 
         // 関数の結果を出力値とする。
         let outputs: Vec<Variable<V>> = ys_data
@@ -184,7 +206,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     pub fn backward(&self) {
-        debug!("[backward] START");
+        debug!("[backward] name: {:?}", &self.creator.borrow().get_name());
 
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         // let grad_one = Array::from_elem(IxDyn(&[]), V::one());
@@ -203,16 +225,13 @@ impl<V: MathOps> FunctionExecutor<V> {
             });
 
         if Setting::is_enable_backprop() {
-            debug!(
-                "[backward][start creator's backward] creator: {:?}",
-                &self.creator.borrow().get_name()
-            );
             // 逆伝播を実行する。
+            //debug!("backward creater:\n  {}", self.detail());
+            // gys.iter()
+            //     .for_each(|gy| debug!("backward in:\n  {}", gy.detail()));
             let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
-            debug!(
-                "[backward][end creator's backward] gxs: {:?}",
-                &gxs[0].borrow().get_data()[[]]
-            );
+            // gxs.iter()
+            //     .for_each(|gx| debug!("backward out:\n  {}", gx.detail()));
 
             // 逆伝播の結果を入力値に設定する。
             // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
@@ -221,13 +240,6 @@ impl<V: MathOps> FunctionExecutor<V> {
                     input.borrow_mut().set_grad(gxs[i].clone());
                 } else {
                     let input_grad = input.borrow().get_grad().clone().unwrap();
-                    // input.borrow_mut().set_grad(input_grad + gxs[i].clone());
-                    debug!(
-                        "[set_grad] input_grad: {:?} + gxs: {:?}",
-                        &input_grad.borrow().get_data()[[]],
-                        &gxs[i].borrow().get_data()[[]]
-                    );
-                    //input.borrow_mut().set_grad(&input_grad + &gxs[i].clone());
                     input.borrow_mut().set_grad(&input_grad + &gxs[i]);
                 }
             }

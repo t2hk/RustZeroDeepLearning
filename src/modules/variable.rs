@@ -1,6 +1,6 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
-
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
 use std::cell::{Ref, RefCell, RefMut};
@@ -71,13 +71,34 @@ impl<V: MathOps> Variable<V> {
     /// Arguments:
     /// * data (Array<V, IxDyn>): 変数
     pub fn set_data(&mut self, data: Array<V, IxDyn>) {
-        debug!("data: {:?}", &data);
         self.raw().borrow_mut().data = data;
     }
 
     /// 逆伝播を実行する。
     pub fn backward(&self) {
         self.raw.as_ref().clone().borrow().backward();
+    }
+
+    pub fn detail(&self) -> String {
+        let data_detail = format!("data: {:?}", self.raw().borrow().get_data());
+        let grad_detail = format!(
+            "grad: {:?}",
+            match self.raw().borrow().get_grad() {
+                Some(grad) => format!("{:?}", grad.borrow().get_data()),
+                None => "None".to_string(),
+            }
+        );
+        let detail = format!(
+            "variable name: {},generation: {}, data:{:?}, grad: {:?}",
+            match self.raw().borrow().get_name() {
+                Some(name) => name,
+                None => "None".to_string(),
+            },
+            self.raw().borrow().get_generation(),
+            data_detail,
+            grad_detail
+        );
+        detail.to_string()
     }
 }
 
@@ -122,11 +143,11 @@ impl<V: MathOps> RawVariable<V> {
     /// Arguments
     /// * creator (Rc<RefCell<FunctionExecutor>>): 関数のラッパー
     pub fn set_creator(&mut self, creator: Rc<RefCell<FunctionExecutor<V>>>) {
-        debug!(
-            "[set_creator] {:?} in:{:?}",
-            &creator.borrow().get_creator().borrow().get_name(),
-            &creator.borrow().get_inputs()[0].borrow().get_data()[[]]
-        );
+        // debug!(
+        //     "[set_creator] {:?} in:{:?}",
+        //     &creator.borrow().get_creator().borrow().get_name(),
+        //     &creator.borrow().get_inputs()[0].borrow().get_data()
+        // );
 
         self.creator = Some(Rc::clone(&creator));
         self.generation = creator.borrow().get_generation() + 1;
@@ -206,7 +227,6 @@ impl<V: MathOps> RawVariable<V> {
     /// Arguments
     /// * grad (Variable<V>): 微分値
     pub fn set_grad(&mut self, grad: Variable<V>) {
-        debug!("[set_grad] grad: {:?}", grad.borrow().data);
         self.grad = Some(grad);
     }
 
@@ -237,6 +257,8 @@ impl<V: MathOps> RawVariable<V> {
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
         while let Some(creator) = creators.pop() {
+            // debug!("{:?}", creator.1.borrow().detail());
+
             creator.1.borrow().backward();
         }
     }

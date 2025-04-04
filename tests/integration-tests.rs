@@ -10,6 +10,7 @@ use rust_zero_deeplearning::*;
 // use approx::assert_abs_diff_eq;
 use core::fmt::Debug;
 use env_logger;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use rand::prelude::*;
@@ -54,13 +55,13 @@ fn test_add_mul() {
     //result.as_ref().clone().borrow().backward();
     result.backward();
 
-    println!(
-        "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-        &result.borrow().get_grad(),
-        &a.borrow().get_grad(),
-        &b.borrow().get_grad(),
-        &c.borrow().get_grad(),
-    );
+    // println!(
+    //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+    //     &result.borrow().get_grad(),
+    //     &a.borrow().get_grad(),
+    //     &b.borrow().get_grad(),
+    //     &c.borrow().get_grad(),
+    // );
 
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
@@ -113,12 +114,12 @@ fn test_mul_2() {
     // result.as_ref().clone().borrow().backward();
     result.backward();
 
-    println!(
-        "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
-        &result.borrow().get_grad(),
-        &x1.borrow().get_grad(),
-        &x2.borrow().get_grad()
-    );
+    // println!(
+    //     "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
+    //     &result.borrow().get_grad(),
+    //     &x1.borrow().get_grad(),
+    //     &x2.borrow().get_grad()
+    // );
 
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
@@ -169,12 +170,12 @@ fn test_mul_1() {
     // 逆伝播
     result.backward();
 
-    println!(
-        "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
-        &result.borrow().get_grad().expect("No grad exist."),
-        &x1.borrow().get_grad().expect("No grad exist."),
-        &x2.borrow().get_grad().expect("No grad exist.")
-    );
+    // println!(
+    //     "result grad: {:?}, x1 grad: {:?}, x2 grad: {:?}",
+    //     &result.borrow().get_grad().expect("No grad exist."),
+    //     &x1.borrow().get_grad().expect("No grad exist."),
+    //     &x2.borrow().get_grad().expect("No grad exist.")
+    // );
 
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1),
@@ -991,10 +992,6 @@ fn test_add_square_1() {
 
     let expected = Array::from_elem(IxDyn(&[]), 25.0);
 
-    // 関数を用意する。
-    // let mut sq_exe = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-    // let mut add_exe = FunctionExecutor::new(Rc::new(RefCell::new(Add)));
-
     // 順伝播を実行する。
     // let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
     let result = square(add(x1.clone(), x2.clone()));
@@ -1122,21 +1119,12 @@ fn test_add_square_2() {
 fn test_square_exp_square() {
     common::setup();
 
-    info!("info log");
-    warn!("warn log");
-
     // テスト用の入力値
     let x_arr = Array::from_elem(IxDyn(&[]), 0.5);
     let x = Variable::new(RawVariable::new(x_arr.clone()));
 
     let e = std::f64::consts::E;
     let expected = Array::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));
-    // dbg!(expected.clone());
-
-    // 関数を用意する。
-    // let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
-    // let mut exp_exe = FunctionExecutor::new(Rc::new(RefCell::new(Exp)));
-    // let mut sq_exe_2 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
 
     // 順伝播の実行
     // let results = sq_exe_2.forward(exp_exe.forward(sq_exe_1.forward(vec![x.clone()])));
@@ -1193,132 +1181,10 @@ fn test_step33_second_differential() {
     debug!("===== 1回目バックプロパゲーション======");
     y.backward();
 
-    // let gx_creators = FunctionExecutor::extract_creators(vec![gx.clone()]);
-    // gx_creators.iter().for_each(|c| {
-    //     dbg!(&c);
-    // });
-
-    fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
-        let indent = format!("{}", "  ".repeat(indent_num));
-
-        println!("{}variable", indent);
-        println!("{}  name: {:?}", indent, x.borrow().get_name());
-        println!("{}  data: {:?}", indent, x.borrow().get_data());
-        println!("{}  generation: {:?}", indent, x.borrow().get_generation());
-
-        match x.borrow().get_grad() {
-            Some(grad) => {
-                println!("{}  grad", indent);
-                debug_variable(grad.clone(), indent_num + 2usize);
-            }
-            _ => println!("{}  grad is None", indent),
-        }
-        let creator = x.borrow().get_creator();
-        match creator {
-            Some(creator) => {
-                println!(
-                    "{}  creator: {:?} gen: {:?}",
-                    indent,
-                    creator.borrow().get_creator().borrow().get_name(),
-                    creator.borrow().get_generation()
-                );
-                println!("{}  inputs", indent);
-                let inputs = creator.borrow().get_inputs();
-                for input in inputs {
-                    println!("{}    {:?}", indent, input.borrow().get_data());
-                    debug_variable(input.clone(), indent_num + 2usize);
-                }
-                println!("{}  outputs", indent);
-                let outputs = creator.borrow().get_outputs();
-                for output in outputs {
-                    let tmp_output = output.upgrade().unwrap();
-                    println!("{}    {:?}", indent, tmp_output.borrow().get_data());
-                    // debug_variable(
-                    //     Variable::new(tmp_output.borrow().clone()),
-                    //     format!("{}{}", indent, indent),
-                    // );
-                }
-            }
-            _ => println!("{}  creator is None.", indent),
-        }
-    }
-
-    // debug_variable(gx.clone(), " ".to_string());
-    // debug_variable(x.clone(), 0usize);
-
-    // x.borrow_mut().clear_grad();
-    // バックプロパゲーションを行わない。
-    // Setting::set_backprop_disabled();
-    // gx.borrow_mut().set_name("gx".to_string());
-
     debug!("===== 2回目バックプロパゲーション======");
     let gx = &x.borrow().get_grad().unwrap(); //.get_data(); //.clone();
+    x.borrow_mut().clear_grad();
     gx.backward();
-
-    // let gx = x.borrow_mut().get_grad().unwrap();
-    // gx.backward();
-    // x.borrow_mut().get_grad().unwrap().backward();
-    debug!(
-        "gx data: {:?}  grad: {:?}",
-        // x.borrow().get_grad().unwrap().borrow().get_data()
-        // gx.borrow().get_grad().unwrap().borrow().get_data()
-        gx.borrow().get_data(),
-        gx.borrow().get_grad().unwrap().borrow().get_data() // x.borrow_mut()
-                                                            //     .get_grad()
-                                                            //     .unwrap()
-                                                            //     .borrow()
-                                                            //     .get_grad()
-                                                            //     .unwrap()
-                                                            //     .borrow()
-                                                            //     .get_data()
-    );
-
-    debug_variable(gx.clone(), 0usize);
-    //debug_variable(x, 0usize);
-
-    //  dbg!(&gx);
-
-    // let gx_creators2 = FunctionExecutor::extract_creators(vec![gx.clone()]);
-    // gx_creators2.iter().for_each(|c| {
-    //     dbg!(&c);
-    // });
-
-    // let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
-
-    // creators.iter().map(|c| dbg!(c));
-
-    // let file_name = "test_step33_second_differential.png";
-
-    // plot_dot_graph!(gx, file_name, true);
-    // dbg!(&gx);
-}
-
-#[test]
-fn test_step33_second_differential_2() {
-    common::setup();
-
-    // 逆伝播を実行する。微分値を保持する。
-    Setting::set_retain_grad_enabled();
-    // バックプロパゲーションを行う。
-    Setting::set_backprop_enabled();
-
-    /// y = x^4 - 2x^2
-    fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
-        // let y = &(&x ^ 4) - &(2 * &(&x ^ 2));
-        let y = &(4 * &(&x ^ 3)) - &(4 * &x);
-        y
-    }
-
-    let mut x = Variable::new(RawVariable::new(2.0));
-    x.borrow_mut().set_name("x".to_string());
-
-    debug!("===== フォワード ======");
-
-    let mut y = f(x.clone());
-    y.borrow_mut().set_name("y".to_string());
-
-    debug!("===== 1回目バックプロパゲーション======");
-    y.backward();
     let x_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
     debug!("x grad: {:?}", x_grad);
 }
