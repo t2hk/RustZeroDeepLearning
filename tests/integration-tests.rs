@@ -1181,6 +1181,8 @@ fn test_step33_second_differential() {
     debug!("===== 1回目バックプロパゲーション======");
     y.backward();
 
+    // バックプロパゲーションを行わないモードに切り替え。
+    Setting::set_backprop_disabled();
     debug!("===== 2回目バックプロパゲーション======");
     let gx = &x.borrow().get_grad().unwrap(); //.get_data(); //.clone();
     x.borrow_mut().clear_grad();
