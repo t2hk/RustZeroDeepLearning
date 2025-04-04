@@ -15,6 +15,8 @@ pub use crate::modules::functions::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::cos::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::div::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::exp::*;

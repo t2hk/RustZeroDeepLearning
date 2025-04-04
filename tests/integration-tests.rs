@@ -1199,3 +1199,78 @@ fn test_step33_second_differential() {
     debug!("x 2nd grad: {:?}", x_2nd_grad);
     assert_eq!(expected_2nd_grad, x_2nd_grad);
 }
+
+/// ステップ33 ニュートン法による最適化のテスト(自動化)
+#[test]
+fn test_step33_newton_method() {
+    common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    /// y = x^4 - 2x^2
+    fn f<V: MathOps>(x: &Variable<V>) -> Variable<V> {
+        let y = &(x ^ 4) - &(2 * &(x ^ 2));
+        y
+    }
+
+    let mut x = Variable::new(RawVariable::new(2.0));
+    let mut results: Vec<f64> = vec![];
+    let iters = 10;
+    for i in 0..iters {
+        debug!("i:{}, x:{:?}", i, x.borrow().get_data()[[]]);
+        results.push(x.borrow().get_data()[[]]);
+        let y = f(&x);
+        x.borrow_mut().clear_grad();
+        y.backward();
+
+        let gx = &x.borrow().get_grad().unwrap();
+        x.borrow_mut().clear_grad();
+        gx.backward();
+        let gx2 = x.borrow().get_grad().unwrap();
+
+        let new_x_data = x.borrow().get_data() - (gx.borrow().get_data() / gx2.borrow().get_data());
+        x.set_data(new_x_data);
+    }
+    debug!("results: {:?}", results);
+    // 書籍と同じ値になることを確認する。
+    assert_eq!(2.0, results[0]);
+    assert_eq!(1.4545454545454546, results[1]);
+    assert_eq!(1.1510467893775467, results[2]);
+    assert_eq!(1.0253259289766978, results[3]);
+    assert_eq!(1.0009084519430513, results[4]);
+    assert_eq!(1.0000012353089454, results[5]);
+    assert_eq!(1.000000000002289, results[6]);
+    assert_eq!(1.0, results[7]);
+    assert_eq!(1.0, results[8]);
+    assert_eq!(1.0, results[9]);
+}
+
+/// Sin 関数の高階微分のテスト
+#[test]
+fn test_high_diffeential_sin() {
+    common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    let x = Variable::new(RawVariable::new(1.0));
+    let y = sin(x.clone());
+    y.backward();
+
+    let mut results: Vec<f64> = vec![];
+    for _i in 0..3 {
+        let gx = &x.borrow().get_grad().unwrap();
+        x.borrow_mut().clear_grad();
+        gx.backward();
+        //debug!("{}", x.borrow().get_grad().unwrap().borrow().get_data()[[]]);
+        results.push(x.borrow().get_grad().unwrap().borrow().get_data()[[]]);
+    }
+    assert_eq!(-0.8414709848078965, results[0]);
+    assert_eq!(-0.5403023058681398, results[1]);
+    assert_eq!(0.8414709848078965, results[2]);
+}
