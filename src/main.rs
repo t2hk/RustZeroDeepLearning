@@ -3,8 +3,10 @@ mod modules;
 // ライブラリを一括でインポート
 use rust_zero_deeplearning::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
 use env_logger;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::env;
