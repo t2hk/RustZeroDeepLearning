@@ -1,7 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -22,21 +23,27 @@ impl<V: MathOps> Function<V> for MulFunction {
 
     // Mul (乗算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("mul: {:?} * {:?}", &xs[0][[]], &xs[1][[]]);
+        debug!("mul: {:?} * {:?}", &xs[0], &xs[1]);
         let result = vec![&xs[0] * &xs[1]];
         result
     }
 
     /// 逆伝播
-    /// y=x1 * x2 の微分であるため、dy/dx1=x2 * gy, dy/dx2= x1 * gy である。
+    /// y=x0 * x1 の微分であるため、dy/dx0=x1 * gy, dy/dx1= x0 * gy である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let x0 = inputs[0].borrow().get_data();
-        let x1 = inputs[1].borrow().get_data();
-        let gx_x0 = &gys[0].clone() * &x1;
-        let gx_x1 = &gys[0].clone() * &x0;
-
+        let x0 = &inputs[0];
+        let x1 = &inputs[1];
+        let gx_x0 = x1 * &gys[0];
+        let gx_x1 = x0 * &gys[0];
+        debug!(
+            "mul(backward): dy/dx0 = {:?} * {:?}, dy/dx1 = {:?} * {:?}",
+            &x1.borrow().get_data(),
+            &gys[0].borrow().get_data(),
+            &x0.borrow().get_data(),
+            &gys[0].borrow().get_data(),
+        );
         let gxs = vec![gx_x0, gx_x1];
-        // dbg!(&gxs);
+
         gxs
     }
 }
@@ -192,15 +199,6 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
-
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
@@ -257,15 +255,6 @@ mod tests {
 
         // 逆伝播を実行する。
         result.backward();
-
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            // &c.borrow().get_grad(),
-        );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
@@ -327,15 +316,6 @@ mod tests {
 
         // 逆伝播を実行する。
         result.backward();
-
-        println!(
-            "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            // &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(

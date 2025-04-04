@@ -1,7 +1,9 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -21,6 +23,7 @@ impl<V: MathOps> Function<V> for SinFunction {
 
     // Sin の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("sin(forward): sin({:?})", xs[0]);
         let result = vec![xs[0].mapv(|x| {
             let sin_x = V::to_f64(&x).unwrap().sin();
             println!("sin x: {}", sin_x);
@@ -43,6 +46,7 @@ impl<V: MathOps> Function<V> for SinFunction {
         })];
 
         let gxs = cos_x.iter().map(|x| x * &gys_val).collect();
+        debug!("sin(backward): cos({:?}) * {:?}", &x, &gys_val);
         gxs
     }
 }

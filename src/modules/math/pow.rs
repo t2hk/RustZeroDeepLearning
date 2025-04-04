@@ -1,7 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -33,7 +34,7 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// * Vec<Array<V, IxDyn>>: 累乗の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         let x0 = &xs[0];
-        debug!("pow: {:?} ^ {:?}", &x0[[]], &self.exp);
+        debug!("pow(forward): {:?} ^ {:?}", &x0[[]], &self.exp);
 
         let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), self.exp));
         vec![result]
@@ -42,13 +43,19 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// 逆伝播
     /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let x = inputs[0].borrow().get_data();
+        // let x = inputs[0].borrow().get_data();
+        debug!(
+            "pow(backward): {:?} * {:?} ^ ({:?} - 1) * {:?}",
+            self.exp,
+            inputs[0].borrow().get_data(),
+            self.exp,
+            gys[0].borrow().get_data()
+        );
 
-        let x_diff_exp = x.mapv(|x| {
-            num_traits::pow(V::from(x).unwrap(), self.exp - 1) * V::from(self.exp).unwrap()
-        });
+        let tmp = &(&inputs[0] ^ (self.exp - 1))
+            * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
+        let gxs = &tmp * &gys[0].clone();
 
-        let gxs = &gys[0].clone() * &x_diff_exp;
         vec![gxs]
     }
 }
@@ -101,11 +108,12 @@ mod tests {
         let result = pow(x.clone(), 3);
         assert_eq!(expect, result.borrow().get_data());
 
+        //result.borrow_mut().clear_grad();
         // 微分
         // [[3., 12.], [27., 48.]]
         result.backward();
-        dbg!(&result);
-        dbg!(&x);
+        // dbg!(&result);
+        // dbg!(&x);
         let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
         assert_eq!(
             expect_grad,
@@ -134,8 +142,8 @@ mod tests {
         // 微分
         // [[3, 12], [27, 48]]
         result.backward();
-        dbg!(&result);
-        dbg!(&x);
+        // dbg!(&result);
+        // dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
         assert_eq!(
@@ -166,8 +174,8 @@ mod tests {
         // 微分
         // [[3, 12], [27, 48]]
         result.backward();
-        dbg!(&result);
-        dbg!(&x);
+        // dbg!(&result);
+        // dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
         assert_eq!(

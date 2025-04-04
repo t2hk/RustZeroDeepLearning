@@ -1,7 +1,9 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -30,12 +32,14 @@ impl<V: MathOps> Function<V> for SubFunction {
     /// 逆伝播
     /// y=x0-x1 の微分であるため、dy/dx0=1, dy/dx1=-1 である。
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let neg_gys = gys[0]
-            .borrow()
-            .get_data()
-            .mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap());
+        let neg_gys = &gys[0] * -1;
+        debug!(
+            "sub(backward): dy/dx0 = 1 * {:?}, dy/dx1 = -1 * {:?}",
+            gys[0].clone(),
+            gys[0].clone()
+        );
 
-        vec![gys[0].clone(), Variable::new(RawVariable::new(neg_gys))]
+        vec![gys[0].clone(), neg_gys]
     }
 }
 
@@ -188,14 +192,14 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     // &a.borrow().get_grad(),
+        //     &a.borrow().get_grad(),
+        //     &b.borrow().get_grad(),
+        //     &c.borrow().get_grad(),
+        // );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
@@ -263,13 +267,13 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            // &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, c grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     &a.borrow().get_grad(),
+        //     // &b.borrow().get_grad(),
+        //     &c.borrow().get_grad(),
+        // );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(

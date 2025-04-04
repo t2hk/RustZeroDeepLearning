@@ -1,7 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -21,6 +22,7 @@ impl<V: MathOps> Function<V> for SquareFunction {
 
     /// 順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("square(forward): {:?} ^2", xs[0]);
         let result = vec![xs[0].mapv(|x| x.clone() * x.clone())];
 
         result
@@ -29,11 +31,18 @@ impl<V: MathOps> Function<V> for SquareFunction {
     /// 逆伝播
     /// y=x^2 の微分であるため、dy/dx=2x である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let x = inputs[0].borrow().get_data();
-        let x_gys = &gys[0].clone() * &x;
-        let gxs = vec![Variable::new(RawVariable::new(
-            x_gys.borrow().get_data().mapv(|x| x * V::from(2).unwrap()),
-        ))];
+        debug!(
+            "square(backward): 2 * {:?} * {:?}",
+            &inputs[0].borrow().get_data(),
+            &gys[0].borrow().get_data()
+        );
+        // let x = inputs[0].borrow().get_data();
+        //let x_gys = &gys[0].clone() * &x;
+        let x_gys = &gys[0] * &inputs[0];
+        let gxs = vec![&x_gys * &Variable::new(RawVariable::new(V::from(2).unwrap()))];
+        // let gxs = vec![Variable::new(RawVariable::new(
+        //     x_gys.borrow().get_data().mapv(|x| x * V::from(2).unwrap()),
+        // ))];
         gxs
     }
 }

@@ -1,7 +1,8 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
-
+#[allow(unused_imports)]
 use core::fmt::Debug;
+#[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
@@ -22,17 +23,29 @@ impl<V: MathOps> Function<V> for DivFunction {
 
     // Div (除算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        debug!("div(forward): {:?} / {:?}", &xs[0], &xs[1]);
         let result = vec![&xs[0] / &xs[1]];
         result
     }
 
     /// 逆伝播
-    /// y=x1 / x2 の微分であるため、dy/dx1=1/x2,* gy, dy/dx2= -x1/(x2^2) * gy である。
+    /// y=x0 / x1 の微分であるため、dy/dx0=1/x1 * gy, dy/dx1= -x0/(x1^2) * gy である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let x0 = inputs[0].borrow().get_data();
-        let x1 = inputs[1].borrow().get_data();
-        let gx_x0 = &gys[0].clone() / &x1;
-        let gx_x1 = &gys[0].clone() * &(&x0.mapv(|v| V::from(-1).unwrap() * v) / (&x1 * &x1));
+        let gx_x0 = &gys[0] / &inputs[1];
+        let gx_x1 = &gys[0] * &(&(&inputs[0] * -1) / &(&inputs[1] ^ 2));
+
+        // let x0 = inputs[0].borrow().get_data();
+        // let x1 = inputs[1].borrow().get_data();
+        // let gx_x0 = &gys[0].clone() / &x1;
+        // let gx_x1 = &gys[0].clone() * &(&x0.mapv(|v| V::from(-1).unwrap() * v) / &(&x1 * &x1));
+        debug!(
+            "div(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
+            &inputs[1].borrow().get_data(),
+            &gys[0].clone(),
+            &inputs[0].borrow().get_data(),
+            &inputs[1].borrow().get_data(),
+            &gys[0].clone()
+        );
 
         let gxs = vec![gx_x0, gx_x1];
         gxs
@@ -190,14 +203,14 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     // &a.borrow().get_grad(),
+        //     &a.borrow().get_grad(),
+        //     &b.borrow().get_grad(),
+        //     &c.borrow().get_grad(),
+        // );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
@@ -264,14 +277,14 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, b grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            &b.borrow().get_grad(),
-            // &c.borrow().get_grad(),
-        );
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, b grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     // &a.borrow().get_grad(),
+        //     &a.borrow().get_grad(),
+        //     &b.borrow().get_grad(),
+        //     // &c.borrow().get_grad(),
+        // );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
@@ -334,14 +347,14 @@ mod tests {
         // 逆伝播を実行する。
         result.backward();
 
-        println!(
-            "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-            &result.borrow().get_grad(),
-            // &a.borrow().get_grad(),
-            &a.borrow().get_grad(),
-            // &b.borrow().get_grad(),
-            &c.borrow().get_grad(),
-        );
+        // println!(
+        //     "result grad: {:?}, a grad: {:?}, c grad: {:?}",
+        //     &result.borrow().get_grad(),
+        //     // &a.borrow().get_grad(),
+        //     &a.borrow().get_grad(),
+        //     // &b.borrow().get_grad(),
+        //     &c.borrow().get_grad(),
+        // );
 
         assert_eq!(expected.get_data(), result.borrow().get_data());
         assert_eq!(
