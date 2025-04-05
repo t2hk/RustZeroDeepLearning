@@ -122,7 +122,7 @@ pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
         ));
 
         let c = ((-1i64).pow((i as u64).try_into().unwrap())) / &factrial_variable;
-        let t = &c * &(&x ^ (2 * i + 1) as usize);
+        let t = &c * &(&x ^ (2 * i + 1) as i32);
         y = &y + &t;
 
         let th = t.borrow().get_data()[[]].clone();

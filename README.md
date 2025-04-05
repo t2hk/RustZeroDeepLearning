@@ -175,3 +175,8 @@ cargo run
   ```
   sudo apt install pkg-config libfreetype6-dev libfontconfig1-dev -y
   ```
+
+### ステップ35 高階微分の計算グラフ
+* tanh を追加した。
+* pow について、指数がマイナスの場合にも対応した。
+* 高階微分の計算グラフの可視化を実施した。

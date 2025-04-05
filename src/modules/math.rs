@@ -9,5 +9,6 @@ pub mod pow;
 pub mod sin;
 pub mod square;
 pub mod sub;
+pub mod tanh;
 // 一括でインポート
 pub use crate::modules::*;

@@ -5,6 +5,7 @@ use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
+use num_traits::abs;
 use std::cell::RefCell;
 use std::ops::BitXor;
 use std::rc::Rc;
@@ -12,7 +13,7 @@ use std::rc::Rc;
 /// 累乗関数
 #[derive(Debug, Clone)]
 pub struct PowFunction {
-    exp: usize, // 指数
+    exp: i32, // 指数
 }
 
 impl<V: MathOps> Function<V> for PowFunction {
@@ -36,8 +37,18 @@ impl<V: MathOps> Function<V> for PowFunction {
         let x0 = &xs[0];
         debug!("pow(forward): {:?} ^ {:?}", &x0[[]], &self.exp);
 
-        let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), self.exp));
-        vec![result]
+        // 指数がプラスの場合
+        if self.exp >= 0 {
+            let u_exp = self.exp as usize;
+            let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), u_exp));
+            vec![result]
+        } else {
+            // 指数がマイナスの場合、指数の絶対値で累乗し、逆数を返す。
+            let inv_exp = abs(self.exp);
+            let result =
+                x0.mapv(|x| V::one() / num_traits::pow(V::from(x).unwrap(), inv_exp as usize));
+            vec![result]
+        }
     }
 
     /// 逆伝播
@@ -52,11 +63,26 @@ impl<V: MathOps> Function<V> for PowFunction {
             gys[0].borrow().get_data()
         );
 
-        let tmp = &(&inputs[0] ^ (self.exp - 1))
-            * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
-        let gxs = &tmp * &gys[0].clone();
+        // 指数がプラスの場合
+        if self.exp > 0 {
+            let tmp = &(&inputs[0] ^ (self.exp - 1))
+                * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
+            let gxs = &tmp * &gys[0].clone();
 
-        vec![gxs]
+            vec![gxs]
+        } else {
+            // 指数がマイナスの場合、指数をプラスに変換して累乗した結果を逆数にする。
+            let inv_exp = abs(self.exp as i32 - 1);
+            let input_pow_exp = &inputs[0] ^ (inv_exp);
+            let inv_input_pow_exp = &Variable::new(RawVariable::new(V::one())) / &input_pow_exp;
+
+            let tmp =
+                &inv_input_pow_exp * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
+
+            let gxs = &tmp * &gys[0].clone();
+
+            vec![gxs]
+        }
     }
 }
 
@@ -68,16 +94,16 @@ impl<V: MathOps> Function<V> for PowFunction {
 ///
 /// Return
 /// * Variable<V>: 累乗の結果
-pub fn pow<V: MathOps>(input: Variable<V>, exp: usize) -> Variable<V> {
+pub fn pow<V: MathOps>(input: Variable<V>, exp: i32) -> Variable<V> {
     let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
 
     // 順伝播
     pow.forward(vec![input]).get(0).unwrap().clone()
 }
 
-impl<V: MathOps> BitXor<usize> for &Variable<V> {
+impl<V: MathOps> BitXor<i32> for &Variable<V> {
     type Output = Variable<V>;
-    fn bitxor(self, exp: usize) -> Variable<V> {
+    fn bitxor(self, exp: i32) -> Variable<V> {
         // 順伝播
         let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
         let result = pow.forward(vec![self.clone()]).get(0).unwrap().clone();
@@ -178,6 +204,71 @@ mod tests {
         // dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
+        assert_eq!(
+            expect_grad,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
+    }
+
+    /// 累乗のテスト(f64)
+    /// [[1.0,2.0],[3.0,4.0]] の0乗
+    #[test]
+    fn test_pow_f64_zero() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
+        ));
+        let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 1.0, 1.0, 1.0]).unwrap();
+        let result = pow(x.clone(), 0);
+        assert_eq!(expect, result.borrow().get_data());
+
+        //result.borrow_mut().clear_grad();
+        // 微分
+        // [[1., 0.5], [0.333..., 0.25]]
+        result.backward();
+        // dbg!(&result);
+        // dbg!(&x);
+        let expect_grad = Array::from_shape_vec(vec![2, 2], vec![0.0, 0.0, 0.0, 0.0]).unwrap();
+        assert_eq!(
+            expect_grad,
+            x.borrow().get_grad().unwrap().borrow().get_data()
+        );
+    }
+
+    /// 累乗のテスト(f64)
+    /// [[1.0,2.0],[3.0,4.0]] の-1乗
+    #[test]
+    fn test_pow_f64_minus() {
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
+
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
+        ));
+        let expect =
+            Array::from_shape_vec(vec![2, 2], vec![1.0, 0.5, 0.3333333333333333, 0.25]).unwrap();
+        let result = pow(x.clone(), -1);
+        assert_eq!(expect, result.borrow().get_data());
+
+        //result.borrow_mut().clear_grad();
+        // 微分
+        // [[1., 0.5], [0.333..., 0.25]]
+        result.backward();
+        // dbg!(&result);
+        // dbg!(&x);
+        let expect_grad =
+            Array::from_shape_vec(vec![2, 2], vec![-1.0, -0.25, -0.1111111111111111, -0.0625])
+                .unwrap();
         assert_eq!(
             expect_grad,
             x.borrow().get_grad().unwrap().borrow().get_data()
