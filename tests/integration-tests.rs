@@ -16,6 +16,9 @@ use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use rand::prelude::*;
 use std::env;
+use std::fs::File;
+use std::io::Write;
+use std::path::Path;
 
 use std::rc::Rc;
 
@@ -399,7 +402,7 @@ fn test_multidim_add() {
 /// バックプロパゲーションの有効・無効のテスト。
 #[test]
 fn test_disable_backprop() {
-    common::setup();
+    //common::setup();
 
     // バックプロパゲーションを行わない場合
     Setting::set_backprop_disabled();
@@ -506,7 +509,7 @@ fn test_retain_grad_disabled() {
 /// 中間変数の微分結果を保持する場合のテスト。
 #[test]
 fn test_retain_grad_enabled() {
-    common::setup();
+    // common::setup();
 
     let x1 = Variable::new(RawVariable::new(2.0));
     let x2 = Variable::new(RawVariable::new(3.0));
@@ -624,7 +627,7 @@ fn test_retain_grad_enabled() {
 //               -> a^2 -> c /          x2
 #[test]
 fn test_generations() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -736,7 +739,7 @@ fn test_generations() {
 /// ステップ14 同一の値を３回加算した場合のテスト。
 #[test]
 fn test_add_same_input_3times() {
-    common::setup();
+    // common::setup();
 
     // 加算値をランダムに生成する。
     let x = Variable::new(RawVariable::new(2.0));
@@ -1278,7 +1281,7 @@ fn test_high_diffeential_sin() {
 #[test]
 fn test_step34_graph() {
     use plotters::prelude::*;
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -1367,4 +1370,40 @@ fn test_step34_graph() {
         .border_style(&BLACK)
         .draw()
         .unwrap();
+}
+
+#[test]
+fn test_step34_tanh() {
+    use plotters::prelude::*;
+    // common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    let mut logs: Vec<Vec<f64>> = vec![];
+
+    // y = tanh(x)
+    let x = Variable::new(RawVariable::new(1.0));
+    x.borrow_mut().set_name("x".to_string());
+    let y = tanh(x.clone());
+    y.borrow_mut().set_name("y".to_string());
+    y.backward();
+
+    let iters = 2;
+
+    for _i in 0..iters {
+        let gx = x.borrow().get_grad().unwrap();
+
+        x.borrow_mut().clear_grad();
+        gx.backward();
+    }
+
+    let gx = x.borrow().get_grad().unwrap();
+    let current = iters + 1;
+    gx.borrow_mut()
+        .set_name(format!("gx{}", current).to_string());
+    let file_name = format!("test_step35_tanh_{}.png", current);
+    plot_dot_graph!(gx, file_name, true);
 }
