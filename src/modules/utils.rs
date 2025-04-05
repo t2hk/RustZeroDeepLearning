@@ -3,6 +3,9 @@ use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use std::cell::RefCell;
+use std::fs::File;
+use std::io::{Result, Write};
+use std::path::Path;
 use std::rc::Rc;
 
 /// Variable を graphviz の DOT 言語で出力する。
@@ -110,6 +113,9 @@ macro_rules! get_dot_graph {
     ($variable:ident, $verbose:literal) => {{
         let mut txt = "".to_string();
 
+        let local_dot_var_txt = $crate::dot_var!($variable, $verbose);
+        txt = format!("{}{}", txt, local_dot_var_txt);
+
         let mut creators = FunctionExecutor::extract_creators(vec![$variable.clone()]);
 
         while let Some(creator) = creators.pop() {
@@ -117,11 +123,21 @@ macro_rules! get_dot_graph {
             txt = format!("{}{}", txt, local_dot_func_txt);
 
             let inputs = creator.1.borrow().get_inputs();
-
             for input in inputs {
                 let local_dot_var_txt = $crate::dot_var!(input, $verbose);
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
+
+            let outputs = creator.1.borrow().get_outputs();
+            outputs.iter().for_each(|output| {
+                let name = output.upgrade().unwrap().borrow().get_name();
+                let ptr = output.upgrade().unwrap().as_ptr();
+            });
+
+            // outputs.iter().for_each(|output| {
+            //     let local_dot_var_txt = $crate::dot_var!(output.upgrade().unwrap(), $verbose);
+            //     txt = format!("{}{}", txt, local_dot_var_txt);
+            // });
         }
         format!("digraph g {{\n{}}}", txt)
     }};
@@ -230,6 +246,147 @@ pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
             }
         }
         _ => println!("{}  creator is None.", indent),
+    }
+}
+
+/// Variable の詳細を出力する。
+pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<String> {
+    let mut result: Vec<String> = vec![];
+    let indent = format!("{}", "  ".repeat(indent_num));
+
+    result.push(format!("{}variable", indent));
+    result.push(format!("{}  name: {:?}", indent, x.borrow().get_name()));
+    result.push(format!("{}  data: {:?}", indent, x.borrow().get_data()));
+    result.push(format!(
+        "{}  generation: {:?}",
+        indent,
+        x.borrow().get_generation()
+    ));
+
+    match x.borrow().get_grad() {
+        Some(grad) => {
+            result.push(format!("{}  grad", indent));
+            // result.append(&mut detail_variable(grad.clone(), indent_num + 2usize));
+        }
+        _ => result.push(format!("{}  grad is None", indent)),
+    }
+    let creator = x.borrow().get_creator();
+    match creator {
+        Some(creator) => {
+            result.push(format!(
+                "{}  creator: {:?} gen: {:?}",
+                indent,
+                creator.borrow().get_creator().borrow().get_name(),
+                creator.borrow().get_generation()
+            ));
+            result.push(format!("{}  inputs", indent));
+            let inputs = creator.borrow().get_inputs();
+            for input in inputs {
+                result.push(format!(
+                    "{}    name: {}, data: {:?}",
+                    indent,
+                    input.borrow().get_name().unwrap_or("None".to_string()),
+                    input.borrow().get_data()
+                ));
+                //result.append(&mut detail_variable(input.clone(), indent_num + 2usize));
+            }
+            result.push(format!("{}  outputs", indent));
+            let outputs = creator.borrow().get_outputs();
+            for output in outputs {
+                let tmp_output = output.upgrade().unwrap();
+                result.push(format!(
+                    "{}    name: {}, data: {:?}",
+                    indent,
+                    tmp_output.borrow().get_name().unwrap_or("None".to_string()),
+                    tmp_output.borrow().get_data()
+                ));
+                // debug_variable(
+                //     Variable::new(tmp_output.borrow().clone()),
+                //     format!("{}{}", indent, indent),
+                // );
+            }
+        }
+        _ => result.push(format!("{}  creator is None.", indent)),
+    }
+    result
+}
+
+/// Variable の詳細を出力する。
+pub fn dump_detail_variable<V: MathOps>(
+    file_path: String,
+    x: Variable<V>,
+    indent_num: usize,
+) -> Result<()> {
+    let indent = format!("{}", "  ".repeat(indent_num));
+
+    let path = Path::new(&file_path);
+    let mut file = File::create(&path)?;
+
+    writeln!(file, "{}variable", indent)?;
+    writeln!(file, "{}  name: {:?}", indent, x.borrow().get_name())?;
+    writeln!(file, "{}  data: {:?}", indent, x.borrow().get_data())?;
+    writeln!(
+        file,
+        "{}  generation: {:?}",
+        indent,
+        x.borrow().get_generation()
+    )?;
+
+    match x.borrow().get_grad() {
+        Some(grad) => {
+            writeln!(file, "{}  grad", indent)?;
+            let tmp = detail_variable(grad.clone(), indent_num + 2usize);
+            for line in tmp {
+                writeln!(file, "{}", line)?;
+            }
+        }
+        _ => writeln!(file, "{}  grad is None", indent)?,
+    }
+    let creator = x.borrow().get_creator();
+    match creator {
+        Some(creator) => {
+            writeln!(
+                file,
+                "{}  creator: {:?} gen: {:?}",
+                indent,
+                creator.borrow().get_creator().borrow().get_name(),
+                creator.borrow().get_generation()
+            )?;
+            writeln!(file, "{}  inputs", indent)?;
+            let inputs = creator.borrow().get_inputs();
+            for input in inputs {
+                writeln!(
+                    file,
+                    "{}    name: {}, data: {:?}",
+                    indent,
+                    input.borrow().get_name().unwrap_or("None".to_string()),
+                    input.borrow().get_data()
+                )?;
+                let tmp = detail_variable(input.clone(), indent_num + 2usize);
+                for line in tmp {
+                    writeln!(file, "{}", line)?;
+                }
+            }
+            writeln!(file, "{}  outputs", indent)?;
+            let outputs = creator.borrow().get_outputs();
+            for output in outputs {
+                let tmp_output = output.upgrade().unwrap();
+                writeln!(
+                    file,
+                    "{}    name: {}, data: {:?}",
+                    indent,
+                    tmp_output.borrow().get_name().unwrap_or("None".to_string()),
+                    tmp_output.borrow().get_data()
+                )
+                .unwrap();
+                // debug_variable(
+                //     Variable::new(tmp_output.borrow().clone()),
+                //     format!("{}{}", indent, indent),
+                // );
+            }
+            Ok(())
+        }
+        _ => writeln!(file, "{}  creator is None.", indent),
     }
 }
 
