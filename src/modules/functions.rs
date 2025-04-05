@@ -226,7 +226,7 @@ impl<V: MathOps> FunctionExecutor<V> {
 
         // if Setting::is_enable_backprop() {
         // 逆伝播を実行する。
-        let gxs = self.creator.borrow_mut().backward(self.inputs.clone(), gys);
+        let gxs = self.creator.borrow().backward(self.inputs.clone(), gys);
 
         // 逆伝播の結果を入力値に設定する。
         // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。

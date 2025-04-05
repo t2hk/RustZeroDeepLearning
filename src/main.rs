@@ -141,4 +141,10 @@ fn main() {
             .borrow()
             .get_data()
     );
+
+    // 階乗
+    let num = 1;
+    let result = factorial(num);
+    let result_naive = factorial(num);
+    assert_eq!(result_naive, result);
 }

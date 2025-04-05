@@ -277,13 +277,15 @@ impl<V: MathOps> RawVariable<V> {
 
     /// この変数を出力結果とした場合の逆伝播を行う。
     pub fn backward(&self) {
-        debug!("[backward]");
+        debug!(
+            "[backward] self name: {}",
+            self.get_name().unwrap_or("none".to_string())
+        );
         let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
         while let Some(creator) = creators.pop() {
             // debug!("{:?}", creator.1.borrow().detail());
-
             creator.1.borrow().backward();
         }
     }
