@@ -1,0 +1,163 @@
+digraph g {
+"7fe670006778" [label="gx3: [] f64", color=orange, style=filled]
+"7fe670005998" [label="Add", color=lightblue, style=filled, shape=box]
+"7fe670005e38" -> "7fe670005998"
+"7fe6700065e8" -> "7fe670005998"
+"7fe670005998" -> "7fe670006778"
+"7fe670005e38" [label="[] f64", color=orange, style=filled]
+"7fe6700065e8" [label="[] f64", color=orange, style=filled]
+"7fe670005c68" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670005c88" -> "7fe670005c68"
+"7fe670005668" -> "7fe670005c68"
+"7fe670005c68" -> "7fe670005e38"
+"7fe670005c88" [label="[] f64", color=orange, style=filled]
+"7fe670005668" [label="[] f64", color=orange, style=filled]
+"7fe670006418" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670006438" -> "7fe670006418"
+"7fe670004eb8" -> "7fe670006418"
+"7fe670006418" -> "7fe6700065e8"
+"7fe670006438" [label="[] f64", color=orange, style=filled]
+"7fe670004eb8" [label="[] f64", color=orange, style=filled]
+"7fe670004e98" [label="Add", color=lightblue, style=filled, shape=box]
+"7fe670002d28" -> "7fe670004e98"
+"7fe6700054b8" -> "7fe670004e98"
+"7fe670004e98" -> "7fe670005668"
+"7fe670002d28" [label="[] f64", color=orange, style=filled]
+"7fe6700054b8" [label="[] f64", color=orange, style=filled]
+"7fe670004ce8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670004d08" -> "7fe670004ce8"
+"7fe670004228" -> "7fe670004ce8"
+"7fe670004ce8" -> "7fe670004eb8"
+"7fe670004d08" [label="[] f64", color=orange, style=filled]
+"7fe670004228" [label="[] f64", color=orange, style=filled]
+"7fe6700052e8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670005308" -> "7fe6700052e8"
+"7fe6700043d8" -> "7fe6700052e8"
+"7fe6700052e8" -> "7fe6700054b8"
+"7fe670005308" [label="[] f64", color=orange, style=filled]
+"7fe6700043d8" [label="[] f64", color=orange, style=filled]
+"7fe670003d68" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002538" -> "7fe670003d68"
+"7fe6700040e8" -> "7fe670003d68"
+"7fe670003d68" -> "7fe670004228"
+"7fe670002538" [label="[] f64", color=orange, style=filled]
+"7fe6700040e8" [label="[] f64", color=orange, style=filled]
+"7fe670003f78" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002a38" -> "7fe670003f78"
+"7fe670003de8" -> "7fe670003f78"
+"7fe670003f78" -> "7fe6700043d8"
+"7fe670002a38" [label="[] f64", color=orange, style=filled]
+"7fe670003de8" [label="[] f64", color=orange, style=filled]
+"7fe670001df8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002758" -> "7fe670001df8"
+"7fe670003b78" -> "7fe670001df8"
+"7fe670001df8" -> "7fe670003de8"
+"7fe670002758" [label="[] f64", color=orange, style=filled]
+"7fe670003b78" [label="[] f64", color=orange, style=filled]
+"7fe670001f18" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002d28" -> "7fe670001f18"
+"7fe670001e58" -> "7fe670001f18"
+"7fe670001f18" -> "7fe670002538"
+"7fe670002d28" [label="[] f64", color=orange, style=filled]
+"7fe670001e58" [label="[] f64", color=orange, style=filled]
+"7fe670002d08" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670003348" -> "7fe670002d08"
+"7fe670001e58" -> "7fe670002d08"
+"7fe670002d08" -> "7fe670003b78"
+"7fe670003348" [label="[] f64", color=orange, style=filled]
+"7fe670001e58" [label="[] f64", color=orange, style=filled]
+"7fe670002b58" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002b78" -> "7fe670002b58"
+"7fe670002758" -> "7fe670002b58"
+"7fe670002b58" -> "7fe670002d28"
+"7fe670002b78" [label="[] f64", color=orange, style=filled]
+"7fe670002758" [label="[] f64", color=orange, style=filled]
+"7fe6700018c8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe6700028c8" -> "7fe6700018c8"
+"7fe670002a38" -> "7fe6700018c8"
+"7fe6700018c8" -> "7fe670002b78"
+"7fe6700028c8" [label="[] f64", color=orange, style=filled]
+"7fe670002a38" [label="[] f64", color=orange, style=filled]
+"7fe6700032a8" [label="Sub", color=lightblue, style=filled, shape=box]
+"7fe6700031e8" -> "7fe6700032a8"
+"7fe670003078" -> "7fe6700032a8"
+"7fe6700032a8" -> "7fe670003348"
+"7fe6700031e8" [label="[] f64", color=orange, style=filled]
+"7fe670003078" [label="[] f64", color=orange, style=filled]
+"7fe670006398" [label="Sub", color=lightblue, style=filled, shape=box]
+"7fe6700062d8" -> "7fe670006398"
+"7fe670006168" -> "7fe670006398"
+"7fe670006398" -> "7fe670006438"
+"7fe6700062d8" [label="[] f64", color=orange, style=filled]
+"7fe670006168" [label="[] f64", color=orange, style=filled]
+"7fe670004568" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670004a58" -> "7fe670004568"
+"7fe670004bc8" -> "7fe670004568"
+"7fe670004568" -> "7fe670004d08"
+"7fe670004a58" [label="[] f64", color=orange, style=filled]
+"7fe670004bc8" [label="[] f64", color=orange, style=filled]
+"7fe670005be8" [label="Sub", color=lightblue, style=filled, shape=box]
+"7fe670005b28" -> "7fe670005be8"
+"7fe6700059b8" -> "7fe670005be8"
+"7fe670005be8" -> "7fe670005c88"
+"7fe670005b28" [label="[] f64", color=orange, style=filled]
+"7fe6700059b8" [label="[] f64", color=orange, style=filled]
+"7fe6700048c8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670005058" -> "7fe6700048c8"
+"7fe6700051c8" -> "7fe6700048c8"
+"7fe6700048c8" -> "7fe670005308"
+"7fe670005058" [label="[] f64", color=orange, style=filled]
+"7fe6700051c8" [label="[] f64", color=orange, style=filled]
+"7fe670003648" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe670002eb8" -> "7fe670003648"
+"7fe670003648" -> "7fe670004a58"
+"7fe670002eb8" [label="[] f64", color=orange, style=filled]
+"7fe6700026b8" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670002068" -> "7fe6700026b8"
+"7fe6700025f8" -> "7fe6700026b8"
+"7fe6700026b8" -> "7fe670002758"
+"7fe670002068" [label="[] f64", color=orange, style=filled]
+"7fe6700025f8" [label="[] f64", color=orange, style=filled]
+"7fe670006118" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe670005fa8" -> "7fe670006118"
+"7fe670006118" -> "7fe670006168"
+"7fe670005fa8" [label="[] f64", color=orange, style=filled]
+"7fe670001798" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe6700016d8" -> "7fe670001798"
+"7fe670001798" -> "7fe6700028c8"
+"7fe6700016d8" [label="[] f64", color=orange, style=filled]
+"7fe670003028" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe670002eb8" -> "7fe670003028"
+"7fe670003028" -> "7fe670003078"
+"7fe670002eb8" [label="[] f64", color=orange, style=filled]
+"7fe670005008" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe6700016d8" -> "7fe670005008"
+"7fe670005008" -> "7fe670005058"
+"7fe6700016d8" [label="[] f64", color=orange, style=filled]
+"7fe670005968" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fe6700057f8" -> "7fe670005968"
+"7fe670005968" -> "7fe6700059b8"
+"7fe6700057f8" [label="[] f64", color=orange, style=filled]
+"7fe670002158" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fe670001588" -> "7fe670002158"
+"7fe670001fa8" -> "7fe670002158"
+"7fe670002158" -> "7fe670002068"
+"7fe670001588" [label="[] f64", color=orange, style=filled]
+"7fe670001fa8" [label="[] f64", color=orange, style=filled]
+"7fe670002738" [label="Tanh", color=lightblue, style=filled, shape=box]
+"7fe670001138" -> "7fe670002738"
+"7fe670002738" -> "7fe670002eb8"
+"7fe670001138" [label="x: [] f64", color=orange, style=filled]
+"7fe670001548" [label="Tanh", color=lightblue, style=filled, shape=box]
+"7fe670001138" -> "7fe670001548"
+"7fe670001548" -> "7fe6700016d8"
+"7fe670001138" [label="x: [] f64", color=orange, style=filled]
+"7fe670005648" [label="Tanh", color=lightblue, style=filled, shape=box]
+"7fe670001138" -> "7fe670005648"
+"7fe670005648" -> "7fe6700057f8"
+"7fe670001138" [label="x: [] f64", color=orange, style=filled]
+"7fe670005498" [label="Tanh", color=lightblue, style=filled, shape=box]
+"7fe670001138" -> "7fe670005498"
+"7fe670005498" -> "7fe670005fa8"
+"7fe670001138" [label="x: [] f64", color=orange, style=filled]
+}

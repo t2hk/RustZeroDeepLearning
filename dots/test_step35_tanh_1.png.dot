@@ -1,0 +1,23 @@
+digraph g {
+"7fcc14002068" [label="gx1: [] f64", color=orange, style=filled]
+"7fcc14001e98" [label="Mul", color=lightblue, style=filled, shape=box]
+"7fcc14001eb8" -> "7fcc14001e98"
+"7fcc14001798" -> "7fcc14001e98"
+"7fcc14001e98" -> "7fcc14002068"
+"7fcc14001eb8" [label="[] f64", color=orange, style=filled]
+"7fcc14001798" [label="[] f64", color=orange, style=filled]
+"7fcc14001d28" [label="Sub", color=lightblue, style=filled, shape=box]
+"7fcc14001c68" -> "7fcc14001d28"
+"7fcc14001af8" -> "7fcc14001d28"
+"7fcc14001d28" -> "7fcc14001eb8"
+"7fcc14001c68" [label="[] f64", color=orange, style=filled]
+"7fcc14001af8" [label="[] f64", color=orange, style=filled]
+"7fcc14001aa8" [label="Pow", color=lightblue, style=filled, shape=box]
+"7fcc140018e8" -> "7fcc14001aa8"
+"7fcc14001aa8" -> "7fcc14001af8"
+"7fcc140018e8" [label="[] f64", color=orange, style=filled]
+"7fcc14001758" [label="Tanh", color=lightblue, style=filled, shape=box]
+"7fcc14001138" -> "7fcc14001758"
+"7fcc14001758" -> "7fcc140018e8"
+"7fcc14001138" [label="x: [] f64", color=orange, style=filled]
+}
