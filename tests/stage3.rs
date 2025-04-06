@@ -261,3 +261,64 @@ fn test_step34_tanh() {
     let file_name = format!("test_step35_tanh_{}.png", current);
     plot_dot_graph!(gx, file_name, true);
 }
+
+#[test]
+fn tests_stage36_double_backprop() {
+    common::setup();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_enabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    info!("===== y = x^2");
+    // y = x ^2
+    let mut x = Variable::new(RawVariable::new(2.0));
+    x.borrow_mut().set_name("x".to_string());
+    let y = &x ^ 2;
+    y.borrow_mut().set_name("y".to_string());
+    println!("y = x^2 -> y:{:?}", y.borrow().get_data()[[]]);
+
+    let dummy = Variable::new(RawVariable::new(-999.0));
+
+    info!("===== y backward");
+
+    y.backward();
+    let gx = x.borrow().get_grad().unwrap();
+    gx.borrow_mut().set_name("gx".to_string());
+    println!(
+        "y backward x grad:{:?}",
+        x.borrow().get_grad().unwrap().borrow().get_data()[[]]
+    );
+    println!("y backward gx :{:?}", gx.borrow().get_data()[[]]);
+
+    info!("===== x clear grad");
+
+    x.borrow_mut().clear_grad();
+
+    // z = gx^3 + y
+    let tmp = &gx ^ 3;
+    let z = &tmp + &y;
+    z.borrow_mut().set_name("z".to_string());
+    println!(
+        "z = gx^3 + y -> z:{:?}, gx:{:?}, y:{:?}",
+        z.borrow().get_data()[[]],
+        gx.borrow().get_data()[[]],
+        y.borrow().get_data()[[]]
+    );
+
+    info!("===== z backward");
+    z.backward();
+
+    let z_grad = z.borrow().get_grad().unwrap().borrow().get_data();
+
+    println!("z grad: {:?}", z_grad);
+
+    println!(
+        "x grad: {:?}",
+        x.borrow().get_grad().unwrap().borrow().get_data()[[]]
+    );
+
+    let file_name = "test_step36_backprop.png";
+    plot_dot_graph!(z, file_name, true);
+}

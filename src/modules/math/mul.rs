@@ -23,7 +23,12 @@ impl<V: MathOps> Function<V> for MulFunction {
 
     // Mul (乗算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("mul: {:?} * {:?}", &xs[0], &xs[1]);
+        info!("mul(forward)");
+        debug!(
+            "  {:?} * {:?}",
+            &xs[0].flatten().to_vec(),
+            &xs[1].flatten().to_vec()
+        );
         let result = vec![&xs[0] * &xs[1]];
         result
     }
@@ -31,16 +36,20 @@ impl<V: MathOps> Function<V> for MulFunction {
     /// 逆伝播
     /// y=x0 * x1 の微分であるため、dy/dx0=x1 * gy, dy/dx1= x0 * gy である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("mul(backward)");
         let x0 = &inputs[0];
         let x1 = &inputs[1];
         let gx_x0 = x1 * &gys[0];
         let gx_x1 = x0 * &gys[0];
         debug!(
-            "mul(backward): dy/dx0 = {:?} * {:?}, dy/dx1 = {:?} * {:?}",
-            &x1.borrow().get_data(),
-            &gys[0].borrow().get_data(),
-            &x0.borrow().get_data(),
-            &gys[0].borrow().get_data(),
+            "  dy/dx0 = {:?} * {:?}",
+            &x1.borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec(),
+        );
+        debug!(
+            "  dy/dx1 = {:?} * {:?}",
+            &x0.borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec(),
         );
         let gxs = vec![gx_x0, gx_x1];
 

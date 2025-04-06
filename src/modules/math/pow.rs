@@ -34,8 +34,9 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// Returns
     /// * Vec<Array<V, IxDyn>>: 累乗の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        info!("pow(forward)");
         let x0 = &xs[0];
-        debug!("pow(forward): {:?} ^ {:?}", &x0[[]], &self.exp);
+        debug!("  {:?} ^ {:?}", &x0.flatten().to_vec(), &self.exp);
 
         // 指数がプラスの場合
         if self.exp >= 0 {
@@ -54,13 +55,13 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// 逆伝播
     /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        // let x = inputs[0].borrow().get_data();
+        info!("pow(backward)");
         debug!(
-            "pow(backward): {:?} * {:?} ^ ({:?} - 1) * {:?}",
+            "  {:?} * ({:?} ^ ({:?} - 1)) * {:?}",
             self.exp,
-            inputs[0].borrow().get_data(),
+            inputs[0].borrow().get_data().flatten().to_vec(),
             self.exp,
-            gys[0].borrow().get_data()
+            gys[0].borrow().get_data().flatten().to_vec()
         );
 
         // 指数がプラスの場合
