@@ -317,3 +317,18 @@ fn tests_stage36_double_backprop() {
     let x_grad = x.borrow().get_grad().unwrap();
     plot_dot_graph!(x_grad, file_name, true);
 }
+
+#[test]
+fn test_step36_hessian_matorix() {
+    let x = Variable::new(RawVariable::from_shape_vec(vec![1, 2], vec![1.0, 2.0]));
+    let y = Variable::new(RawVariable::from_shape_vec(vec![1, 2], vec![4.0, 5.0]));
+
+    dbg!(&x);
+
+    fn f<V: MathOps>(x: Variable<V>) -> Variable<V> {
+        let t = &x ^ 2;
+        //let y = t
+
+        t
+    }
+}

@@ -15,6 +15,7 @@ pub use modules::math::pow::*;
 pub use modules::math::sin::*;
 pub use modules::math::square::*;
 pub use modules::math::sub::*;
+pub use modules::math::sum::*;
 pub use modules::math::tanh::*;
 pub use modules::settings::*;
 pub use modules::utils::*;
