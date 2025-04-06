@@ -266,8 +266,9 @@ fn test_step34_tanh() {
 fn tests_stage36_double_backprop() {
     common::setup();
 
-    // 逆伝播を実行する。微分値を保持する。
-    Setting::set_retain_grad_enabled();
+    // 逆伝播を実行する。微分値を保持しない。
+    // Setting::set_retain_grad_enabled();
+    Setting::set_retain_grad_disabled();
     // バックプロパゲーションを行う。
     Setting::set_backprop_enabled();
 
@@ -290,17 +291,14 @@ fn tests_stage36_double_backprop() {
         "y backward x grad:{:?}",
         x.borrow().get_grad().unwrap().borrow().get_data()[[]]
     );
-    println!("y backward gx :{:?}", gx.borrow().get_data()[[]]);
 
     info!("===== x clear grad");
-
     x.borrow_mut().clear_grad();
 
     // z = gx^3 + y
-    let tmp = &gx ^ 3;
-    let z = &tmp + &y;
+    let z = &(&gx ^ 3) + &y;
     z.borrow_mut().set_name("z".to_string());
-    println!(
+    info!(
         "z = gx^3 + y -> z:{:?}, gx:{:?}, y:{:?}",
         z.borrow().get_data()[[]],
         gx.borrow().get_data()[[]],
@@ -310,15 +308,12 @@ fn tests_stage36_double_backprop() {
     info!("===== z backward");
     z.backward();
 
-    let z_grad = z.borrow().get_grad().unwrap().borrow().get_data();
+    let x_grad = x.borrow().get_grad().unwrap().borrow().get_data()[[]];
+    info!("x grad: {:?}", x_grad);
 
-    println!("z grad: {:?}", z_grad);
-
-    println!(
-        "x grad: {:?}",
-        x.borrow().get_grad().unwrap().borrow().get_data()[[]]
-    );
+    assert_eq!(100.0, x_grad);
 
     let file_name = "test_step36_backprop.png";
-    plot_dot_graph!(z, file_name, true);
+    let x_grad = x.borrow().get_grad().unwrap();
+    plot_dot_graph!(x_grad, file_name, true);
 }
