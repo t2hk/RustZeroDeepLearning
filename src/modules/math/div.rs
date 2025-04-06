@@ -23,7 +23,12 @@ impl<V: MathOps> Function<V> for DivFunction {
 
     // Div (除算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("div(forward): {:?} / {:?}", &xs[0], &xs[1]);
+        info!("div(forward)");
+        debug!(
+            "div(forward): {:?} / {:?}",
+            &xs[0].flatten().to_vec(),
+            &xs[1].flatten().to_vec()
+        );
         let result = vec![&xs[0] / &xs[1]];
         result
     }
@@ -31,20 +36,18 @@ impl<V: MathOps> Function<V> for DivFunction {
     /// 逆伝播
     /// y=x0 / x1 の微分であるため、dy/dx0=1/x1 * gy, dy/dx1= -x0/(x1^2) * gy である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("div(backward)");
+
         let gx_x0 = &gys[0] / &inputs[1];
         let gx_x1 = &gys[0] * &(&(&inputs[0] * -1) / &(&inputs[1] ^ 2));
 
-        // let x0 = inputs[0].borrow().get_data();
-        // let x1 = inputs[1].borrow().get_data();
-        // let gx_x0 = &gys[0].clone() / &x1;
-        // let gx_x1 = &gys[0].clone() * &(&x0.mapv(|v| V::from(-1).unwrap() * v) / &(&x1 * &x1));
         debug!(
             "div(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
-            &inputs[1].borrow().get_data(),
-            &gys[0].clone(),
-            &inputs[0].borrow().get_data(),
-            &inputs[1].borrow().get_data(),
-            &gys[0].clone()
+            &inputs[1].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &inputs[1].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
 
         let gxs = vec![gx_x0, gx_x1];

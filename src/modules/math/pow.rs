@@ -36,7 +36,7 @@ impl<V: MathOps> Function<V> for PowFunction {
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("pow(forward)");
         let x0 = &xs[0];
-        debug!("  {:?} ^ {:?}", &x0.flatten().to_vec(), &self.exp);
+        debug!("pow(forwad) {:?} ^ {:?}", &x0.flatten().to_vec(), &self.exp);
 
         // 指数がプラスの場合
         if self.exp >= 0 {
@@ -57,12 +57,14 @@ impl<V: MathOps> Function<V> for PowFunction {
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("pow(backward)");
         debug!(
-            "  {:?} * ({:?} ^ ({:?} - 1)) * {:?}",
+            "pow(backward) {:?} * ({:?} ^ ({:?} - 1)) * {:?}",
             self.exp,
             inputs[0].borrow().get_data().flatten().to_vec(),
             self.exp,
             gys[0].borrow().get_data().flatten().to_vec()
         );
+
+        let mut result = vec![];
 
         // 指数がプラスの場合
         if self.exp > 0 {
@@ -70,7 +72,8 @@ impl<V: MathOps> Function<V> for PowFunction {
                 * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
             let gxs = &tmp * &gys[0].clone();
 
-            vec![gxs]
+            // vec![gxs]
+            result.push(gxs);
         } else {
             // 指数がマイナスの場合、指数をプラスに変換して累乗した結果を逆数にする。
             let inv_exp = abs(self.exp as i32 - 1);
@@ -81,9 +84,13 @@ impl<V: MathOps> Function<V> for PowFunction {
                 &inv_input_pow_exp * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
 
             let gxs = &tmp * &gys[0].clone();
-
-            vec![gxs]
+            result.push(gxs);
         }
+        debug!(
+            "pow(backward) result: {:?}",
+            result[0].borrow().get_data().flatten().to_vec()
+        );
+        result
     }
 }
 

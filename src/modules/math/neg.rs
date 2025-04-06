@@ -24,7 +24,8 @@ impl<V: MathOps> Function<V> for NegFunction {
 
     // Neg (y=-x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("neg(forward): -{:?}", xs[0]);
+        info!("neg(forward)");
+        debug!("neg(forward): -{:?}", xs[0].flatten().to_vec());
         let result = vec![xs[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())];
 
         result
@@ -33,12 +34,13 @@ impl<V: MathOps> Function<V> for NegFunction {
     /// 逆伝播
     /// y=-x の微分 dy/dx=-1 である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("neg(backward)");
         let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].borrow().get_data();
 
         let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];
         let gxs: Vec<Variable<V>> = x_exp.iter().map(|_x_exp| &gys[0] * -1).collect();
-        debug!("neg(backward): -1 * {:?}", &gys_val);
+        debug!("neg(backward): -1 * {:?}", &gys_val.flatten().to_vec());
 
         gxs
     }

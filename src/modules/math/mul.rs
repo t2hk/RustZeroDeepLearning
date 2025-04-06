@@ -25,7 +25,7 @@ impl<V: MathOps> Function<V> for MulFunction {
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("mul(forward)");
         debug!(
-            "  {:?} * {:?}",
+            "mul(backward) {:?} * {:?}",
             &xs[0].flatten().to_vec(),
             &xs[1].flatten().to_vec()
         );
@@ -42,16 +42,22 @@ impl<V: MathOps> Function<V> for MulFunction {
         let gx_x0 = x1 * &gys[0];
         let gx_x1 = x0 * &gys[0];
         debug!(
-            "  dy/dx0 = {:?} * {:?}",
+            "mul(backward) dy/dx0 = {:?} * {:?}",
             &x1.borrow().get_data().flatten().to_vec(),
             &gys[0].borrow().get_data().flatten().to_vec(),
         );
         debug!(
-            "  dy/dx1 = {:?} * {:?}",
+            "mul(backward) dy/dx1 = {:?} * {:?}",
             &x0.borrow().get_data().flatten().to_vec(),
             &gys[0].borrow().get_data().flatten().to_vec(),
         );
         let gxs = vec![gx_x0, gx_x1];
+
+        debug!(
+            "mul(backward) result: {:?} {:?}",
+            gxs[0].borrow().get_data().flatten().to_vec(),
+            gxs[1].borrow().get_data().flatten().to_vec()
+        );
 
         gxs
     }

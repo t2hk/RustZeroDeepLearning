@@ -96,6 +96,7 @@ fn calc_odd_part(n: BigInt) -> BigInt {
 
 /// 階乗
 pub fn factorial(n: u64) -> BigInt {
+    info!("factorial n:{}", n);
     if n <= 20 {
         return small_factorial(n);
     }

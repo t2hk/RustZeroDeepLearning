@@ -24,7 +24,12 @@ impl<V: MathOps> Function<V> for SubFunction {
 
     // Sub (減算) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("sub: {:?} - {:?}", &xs[0][[]], &xs[1][[]]);
+        info!("sub(forward)");
+        debug!(
+            "sub(forward): {:?} - {:?}",
+            &xs[0].flatten().to_vec(),
+            &xs[1].flatten().to_vec()
+        );
         let result = vec![&xs[0] - &xs[1]];
         result
     }
@@ -32,13 +37,13 @@ impl<V: MathOps> Function<V> for SubFunction {
     /// 逆伝播
     /// y=x0-x1 の微分であるため、dy/dx0=1, dy/dx1=-1 である。
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let neg_gys = &gys[0] * -1;
+        info!("sub(backward)");
         debug!(
             "sub(backward): dy/dx0 = 1 * {:?}, dy/dx1 = -1 * {:?}",
-            gys[0].clone(),
-            gys[0].clone()
+            gys[0].borrow().get_data().flatten().to_vec(),
+            gys[0].borrow().get_data().flatten().to_vec()
         );
-
+        let neg_gys = &gys[0] * -1;
         vec![gys[0].clone(), neg_gys]
     }
 }

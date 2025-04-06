@@ -25,7 +25,7 @@ impl<V: MathOps> Function<V> for AddFunction {
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("add(forward)");
         debug!(
-            "  {:?} + {:?}",
+            "add(forward) {:?} + {:?}",
             &xs[0].flatten().to_vec(),
             &xs[1].flatten().to_vec()
         );
@@ -39,14 +39,20 @@ impl<V: MathOps> Function<V> for AddFunction {
         info!("add(backward)");
 
         debug!(
-            "  dy/dx0={:?}",
+            "add(backward) dy/dx0={:?}",
             &gys[0].borrow().get_data().flatten().to_vec()
         );
         debug!(
-            "  dy/dx1={:?}",
+            "add(backward) dy/dx1={:?}",
             &gys[0].borrow().get_data().flatten().to_vec()
         );
-        vec![gys[0].clone(), gys[0].clone()]
+        let result = vec![gys[0].clone(), gys[0].clone()];
+        debug!(
+            "add(backward) result: {:?} {:?}",
+            result[0].borrow().get_data().flatten().to_vec(),
+            result[1].borrow().get_data().flatten().to_vec()
+        );
+        result
     }
 }
 

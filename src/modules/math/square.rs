@@ -22,7 +22,8 @@ impl<V: MathOps> Function<V> for SquareFunction {
 
     /// 順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("square(forward): {:?} ^2", xs[0]);
+        info!("square(forward)");
+        debug!("square(forward): {:?} ^2", xs[0].flatten().to_vec());
         let result = vec![xs[0].mapv(|x| x.clone() * x.clone())];
 
         result
@@ -31,10 +32,11 @@ impl<V: MathOps> Function<V> for SquareFunction {
     /// 逆伝播
     /// y=x^2 の微分であるため、dy/dx=2x である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("square(backward)");
         debug!(
             "square(backward): 2 * {:?} * {:?}",
-            &inputs[0].borrow().get_data(),
-            &gys[0].borrow().get_data()
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
         // let x = inputs[0].borrow().get_data();
         //let x_gys = &gys[0].clone() * &x;
