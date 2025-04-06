@@ -23,7 +23,9 @@ impl<V: MathOps> Function<V> for CosFunction {
 
     // Cos の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("cos(forward): cos({:?})", xs[0]);
+        info!("cos(forward)");
+        debug!("cos(forwad) cos({:?})", xs[0].flatten().to_vec());
+
         let result = vec![xs[0].mapv(|x| {
             let cos_x = V::to_f64(&x).unwrap().cos();
             V::from(cos_x).unwrap()
@@ -35,10 +37,11 @@ impl<V: MathOps> Function<V> for CosFunction {
     /// 逆伝播
     /// dy/dx=-sin(x) である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("cos(backward)");
         debug!(
             "cos(backward): -sin({:?}) * {:?}",
-            &inputs[0].borrow().get_data(),
-            &gys[0].borrow().get_data()
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
 
         let minus_sin_x = &sin(inputs[0].clone()) * -1;

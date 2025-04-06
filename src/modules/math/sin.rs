@@ -23,7 +23,8 @@ impl<V: MathOps> Function<V> for SinFunction {
 
     // Sin の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("sin(forward): sin({:?})", xs[0]);
+        info!("sin(forward)");
+        debug!("sin(forward): sin({:?})", xs[0].flatten().to_vec());
         let result = vec![xs[0].mapv(|x| {
             let sin_x = V::to_f64(&x).unwrap().sin();
             V::from(sin_x).unwrap()
@@ -35,10 +36,11 @@ impl<V: MathOps> Function<V> for SinFunction {
     /// 逆伝播
     /// dy/dx=cos(x) である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("sin(backward)");
         debug!(
             "sin(backward): cos({:?}) * {:?}",
-            &inputs[0].borrow().get_data(),
-            &gys[0].borrow().get_data()
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
         let gxs = vec![&cos(inputs[0].clone()) * &gys[0]];
         gxs

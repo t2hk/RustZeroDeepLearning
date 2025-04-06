@@ -22,7 +22,8 @@ impl<V: MathOps> Function<V> for TanhFunction {
 
     // Tanh の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("tanh(forward): tanh({:?})", xs[0]);
+        info!("tanh(forward)");
+        debug!("tanh(forward): tanh({:?})", xs[0].flatten().to_vec());
         let result = vec![xs[0].mapv(|x| {
             let tanh_x = V::to_f64(&x).unwrap().tanh();
             V::from(tanh_x).unwrap()
@@ -34,10 +35,11 @@ impl<V: MathOps> Function<V> for TanhFunction {
     /// 逆伝播
     /// d tanh(x) /dx = 1 - y^2
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("tanh(backward)");
         debug!(
             "tanh(backward): (1 - {:?} ^2) * {:?}",
-            &inputs[0].borrow().get_data(),
-            &gys[0].borrow().get_data(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
 
         let tanh_x_pow_2 = &tanh(inputs[0].clone()) ^ 2;

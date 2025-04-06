@@ -158,7 +158,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// Return
     /// * Vec<Variable<V>>: 関数の実行結果
     pub fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        debug!("[forward] name:{}", &self.creator.borrow().get_name());
+        info!("[forward {}]", &self.creator.borrow().get_name());
 
         // 入力値からデータを取り出す。
         let xs_data: Vec<Array<V, IxDyn>> = inputs
@@ -206,7 +206,17 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
     pub fn backward(&self) {
-        debug!("[backward] name: {:?}", &self.creator.borrow().get_name());
+        info!(
+            "[backward: {:?} gen:{}]",
+            &self.creator.borrow().get_name(),
+            &self.generation
+        );
+        let input_values: Vec<Vec<V>> = self
+            .inputs
+            .iter()
+            .map(|input| input.borrow().get_data().clone().flatten().to_vec())
+            .collect();
+        info!("  [creator inputs] {:?}", input_values);
 
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         // let grad_one = Array::from_elem(IxDyn(&[]), V::one());
@@ -217,6 +227,10 @@ impl<V: MathOps> FunctionExecutor<V> {
             .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
+                info!(
+                    "  [creator outputs] {:?}",
+                    output.borrow().get_data().flatten().to_vec()
+                );
                 if output.borrow().get_grad().is_none() {
                     output.borrow_mut().set_grad(grad_one.clone());
                 }

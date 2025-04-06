@@ -23,7 +23,8 @@ impl<V: MathOps> Function<V> for ExpFunction {
 
     // Exp (y=e^x) の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        debug!("exp(forward): e ^ {:?}", &xs[0]);
+        info!("exp(forward)");
+        debug!("exp(forward): e ^ {:?}", &xs[0].flatten().to_vec());
         let e = std::f64::consts::E;
         let result = vec![xs[0].mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
 
@@ -33,6 +34,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
     /// 逆伝播
     /// dy/dx=e^x である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        info!("exp(backward)");
         let e = std::f64::consts::E;
         // let x = inputs[0].borrow().get_data();
         // let gys_val = gys[0].clone();
@@ -42,8 +44,8 @@ impl<V: MathOps> Function<V> for ExpFunction {
         let gxs = vec![&x_exp * &gys[0].clone()];
         debug!(
             "exp(backward): (e ^ {:?}) * {:?}",
-            &inputs[0].borrow().get_data(),
-            &gys[0].borrow().get_data()
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &gys[0].borrow().get_data().flatten().to_vec()
         );
 
         gxs
