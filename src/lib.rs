@@ -12,6 +12,7 @@ pub use modules::math::factorial::*;
 pub use modules::math::mul::*;
 pub use modules::math::neg::*;
 pub use modules::math::pow::*;
+pub use modules::math::reshape::*;
 pub use modules::math::sin::*;
 pub use modules::math::square::*;
 pub use modules::math::sub::*;
