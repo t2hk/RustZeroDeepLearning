@@ -27,6 +27,12 @@ impl<V: MathOps> Function<V> for SinFunction {
         debug!("sin(forward): sin({:?})", xs[0].flatten().to_vec());
         let result = vec![xs[0].mapv(|x| {
             let sin_x = V::to_f64(&x).unwrap().sin();
+            println!(
+                "=== {:?} -> {:?} / {:?}",
+                &x,
+                &sin_x,
+                V::from(sin_x).unwrap()
+            );
             V::from(sin_x).unwrap()
         })];
 
