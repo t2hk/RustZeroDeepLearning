@@ -78,3 +78,28 @@ fn test_ndarray_reshape() {
     let array4 = array1.clone().into_shape_clone(shape4).unwrap();
     dbg!(&array4);
 }
+
+/// Variable のリシェイプのテスト
+#[test]
+fn test_variable_reshape() {
+    common::setup();
+
+    let x = Variable::new(RawVariable::from_shape_vec(
+        vec![2, 3],
+        vec![1, 2, 3, 4, 5, 6],
+    ));
+
+    let r1 = x.reshape(vec![6]);
+    assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
+    assert_eq!(
+        vec![1, 2, 3, 4, 5, 6],
+        r1.borrow().get_data().flatten().to_vec()
+    );
+
+    let r2 = r1.reshape(vec![3, 2]);
+    assert_eq!(vec![3, 2], r2.borrow().get_data().shape().to_vec());
+    assert_eq!(
+        vec![1, 2, 3, 4, 5, 6],
+        r2.borrow().get_data().flatten().to_vec()
+    );
+}

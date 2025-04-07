@@ -7,6 +7,8 @@ use num_traits::Float;
 use std::cell::{Ref, RefCell, RefMut};
 use std::rc::Rc;
 
+use super::math::reshape;
+
 /// RawVariable 構造体
 /// 変数自体、および逆伝播に必要な情報を保持する。
 ///
@@ -100,6 +102,17 @@ impl<V: MathOps> Variable<V> {
             grad_detail
         );
         detail.to_string()
+    }
+
+    /// リシェイプ
+    ///
+    /// Arguments:
+    /// * shape (Vec<usize>): 変更後の形状
+    ///
+    /// Return:
+    /// * Variable<RawVariable<V>>
+    pub fn reshape(&self, shape: Vec<usize>) -> Self {
+        return reshape(self.clone(), shape.clone());
     }
 }
 
@@ -416,5 +429,28 @@ mod tests {
         let min = var.get_data().mapv(|x| x).get(0).unwrap().clone();
         assert_eq!(start, min);
         assert_eq!(end, max);
+    }
+
+    /// Variable のリシェイプのテスト
+    #[test]
+    fn test_variable_reshape() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3],
+            vec![1, 2, 3, 4, 5, 6],
+        ));
+
+        let r1 = x.reshape(vec![6]);
+        assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
+        assert_eq!(
+            vec![1, 2, 3, 4, 5, 6],
+            r1.borrow().get_data().flatten().to_vec()
+        );
+
+        let r2 = r1.reshape(vec![3, 2]);
+        assert_eq!(vec![3, 2], r2.borrow().get_data().shape().to_vec());
+        assert_eq!(
+            vec![1, 2, 3, 4, 5, 6],
+            r2.borrow().get_data().flatten().to_vec()
+        );
     }
 }
