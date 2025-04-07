@@ -37,6 +37,8 @@ pub use crate::modules::math::square::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sub::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::transpose::*;
+#[allow(unused_imports)]
 pub use crate::modules::settings::*;
 #[allow(unused_imports)]
 pub use crate::modules::utils::*;
