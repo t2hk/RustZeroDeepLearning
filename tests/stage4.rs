@@ -59,7 +59,8 @@ fn test_basic() {
 }
 
 #[test]
-fn test_ndarray_reshape() {
+fn test_ndarray_reshape_transpose() {
+    // ndarray のリシェイプに関する確認
     let shape1 = vec![2, 3];
     let values = vec![1, 2, 3, 4, 5, 6];
     let array1 = Array::from_shape_vec(shape1, values).unwrap();
@@ -77,6 +78,18 @@ fn test_ndarray_reshape() {
     let shape4 = vec![6, 1];
     let array4 = array1.clone().into_shape_clone(shape4).unwrap();
     dbg!(&array4);
+
+    // ndarray の転置に関する確認
+    let t_array1 = array1.t();
+    dbg!(&t_array1);
+    let rows = t_array1.rows();
+    // 全ての行に対してイテレーション
+    for (i, row) in rows.into_iter().enumerate() {
+        println!("Row {}: {:?}", i, row);
+    }
+
+    let t_array2 = array2.t();
+    dbg!(&t_array2);
 }
 
 /// Variable のリシェイプのテスト
