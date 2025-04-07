@@ -27,7 +27,7 @@ impl<V: MathOps> Function<V> for TransposeFunction {
     /// * xs (Vec<Array<V,IxDyn>>): 変換対象のテンソル
     ///
     /// Returns
-    /// * Vec<Array<V, IxDyn>>: 転値の結果
+    /// * Vec<Array<V, IxDyn>>: 転置の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("transpose(forward)");
         let y = xs[0].clone().t().to_owned();
@@ -53,14 +53,13 @@ impl<V: MathOps> Function<V> for TransposeFunction {
     }
 }
 
-/// 累乗関数
+/// 転置関数
 ///
 /// Arguments
-/// * input (Variable<V>): 基数
-/// * exp (usize): 指数
+/// * input (Variable<V>): 転置対象
 ///
 /// Return
-/// * Variable<V>: 累乗の結果
+/// * Variable<V>: 転置の結果
 pub fn transpose<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut transpose = FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction {})));
 
@@ -72,7 +71,7 @@ pub fn transpose<V: MathOps>(input: Variable<V>) -> Variable<V> {
 mod tests {
     use super::*;
 
-    /// 行列の転値のテスト
+    /// 行列の転置のテスト
     #[test]
     fn test_transpose() {
         let input_shape = vec![2, 3];
@@ -84,7 +83,7 @@ mod tests {
 
         let y = transpose(x.clone());
 
-        // 転値後の確認
+        // 転置後の確認
         assert_eq!(vec![3, 2], y.borrow().get_data().shape().to_vec());
         assert_eq!(
             vec![1, 4, 2, 5, 3, 6],
