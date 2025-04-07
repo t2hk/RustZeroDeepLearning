@@ -90,6 +90,19 @@ fn test_ndarray_reshape_transpose() {
 
     let t_array2 = array2.t();
     dbg!(&t_array2);
+
+    let axes_array1 = array4.permuted_axes(vec![1, 0]);
+    dbg!(&axes_array1);
+
+    let array_values = (0..=23).collect::<Vec<i32>>();
+    let array5 = Array::from_shape_vec(vec![4, 3, 2], array_values).unwrap();
+    dbg!(&array5);
+
+    let array5_axes = array5.permuted_axes(vec![1, 0, 2]);
+    dbg!(&array5_axes);
+
+    let array5_axes_t = array5_axes.t();
+    dbg!(&array5_axes_t);
 }
 
 /// Variable のリシェイプのテスト

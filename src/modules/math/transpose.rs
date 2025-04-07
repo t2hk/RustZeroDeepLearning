@@ -10,7 +10,9 @@ use std::rc::Rc;
 
 /// 転置関数
 #[derive(Debug, Clone)]
-pub struct TransposeFunction {}
+pub struct TransposeFunction {
+    axes: Option<Vec<usize>>,
+}
 
 impl<V: MathOps> Function<V> for TransposeFunction {
     /// 関数名を取得する。
@@ -29,27 +31,52 @@ impl<V: MathOps> Function<V> for TransposeFunction {
     /// Returns
     /// * Vec<Array<V, IxDyn>>: 転置の結果
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        info!("transpose(forward)");
-        let y = xs[0].clone().t().to_owned();
+        if let Some(axes) = self.axes.clone() {
+            info!("transpose_axes(forward)");
+            let y = xs[0].clone().permuted_axes(axes).to_owned();
 
-        debug!("transpose(forwad) {:?} -> {:?}", &xs[0].shape(), y.shape());
+            debug!(
+                "transpose_axes(forwad) {:?} -> {:?}",
+                &xs[0].shape(),
+                y.shape()
+            );
 
-        return vec![y];
+            vec![y]
+        } else {
+            info!("transpose(forward)");
+            let y = xs[0].clone().t().to_owned();
+
+            debug!("transpose(forwad) {:?} -> {:?}", &xs[0].shape(), y.shape());
+
+            vec![y]
+        }
     }
 
     /// 逆伝播
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        info!("transpose(backward)");
+        if let Some(axes) = self.axes.clone() {
+            info!("transpose_axes(backward)");
 
-        let t_gy = transpose(gys[0].clone());
+            let axes_len = axes.len();
+            let inv_axes: Vec<usize> = axes.iter().map(|&ax| ax.rem_euclid(axes_len)).collect();
 
-        debug!(
-            "transpose(backward) {:?} -> {:?}",
-            gys[0].borrow().get_data().shape(),
-            t_gy.borrow().get_data().shape(),
-        );
+            let mut indices: Vec<usize> = (0..axes_len).collect();
+            indices.sort_by_key(|&i| inv_axes[i]);
 
-        vec![t_gy]
+            let permuted = transpose_axes(gys[0].clone(), indices.clone());
+            vec![permuted]
+        } else {
+            info!("transpose(backward)");
+            let t_gy = transpose(gys[0].clone());
+
+            debug!(
+                "transpose(backward) {:?} -> {:?}",
+                gys[0].borrow().get_data().shape(),
+                t_gy.borrow().get_data().shape(),
+            );
+
+            vec![t_gy]
+        }
     }
 }
 
@@ -61,7 +88,25 @@ impl<V: MathOps> Function<V> for TransposeFunction {
 /// Return
 /// * Variable<V>: 転置の結果
 pub fn transpose<V: MathOps>(input: Variable<V>) -> Variable<V> {
-    let mut transpose = FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction {})));
+    let mut transpose =
+        FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction { axes: None })));
+
+    // 順伝播
+    transpose.forward(vec![input]).get(0).unwrap().clone()
+}
+
+/// 転置関数
+///
+/// Arguments
+/// * input (Variable<V>): 転置対象
+/// * axes (Option<Vec<usize>>): 入れ替える軸
+///
+/// Return
+/// * Variable<V>: 転置の結果
+pub fn transpose_axes<V: MathOps>(input: Variable<V>, axes: Vec<usize>) -> Variable<V> {
+    let mut transpose = FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction {
+        axes: Some(axes),
+    })));
 
     // 順伝播
     transpose.forward(vec![input]).get(0).unwrap().clone()
@@ -70,6 +115,54 @@ pub fn transpose<V: MathOps>(input: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_transpose_axes() {
+        let input_shape = vec![4, 3, 2];
+        let x = Variable::new(RawVariable::from_shape_vec(
+            input_shape.clone(),
+            (0..=23).collect::<Vec<i32>>(),
+        ));
+        // dbg!(&x);
+
+        let y = transpose_axes(x.clone(), vec![1, 0, 2]);
+        // dbg!(&y);
+
+        let y_data = y.borrow().get_data();
+        // 正しく軸が入れ替わっていることを確認 (4, 3, 2) -> (3, 4, 2)
+        assert_eq!(vec![3, 4, 2], y_data.shape().to_vec());
+
+        let expect_rows = vec![
+            [0, 1],
+            [6, 7],
+            [12, 13],
+            [18, 19],
+            [2, 3],
+            [8, 9],
+            [14, 15],
+            [20, 21],
+            [4, 5],
+            [10, 11],
+            [16, 17],
+            [22, 23],
+        ];
+
+        let y_rows = y_data.rows();
+        // 全ての行に対してイテレーションし、転置後の値が正しいかチェックする。
+        for (i, row) in y_rows.into_iter().enumerate() {
+            assert_eq!(
+                format!("{:?}", expect_rows[i]),
+                format!("{:?}", row.flatten().to_vec())
+            );
+        }
+
+        y.backward();
+        let x_grad = x.borrow().get_grad().unwrap().borrow().get_data();
+
+        // 逆伝播後の勾配が入力値の形状と一致することを確認する。
+        assert_eq!(vec![4, 3, 2], x_grad.shape().to_vec());
+        //dbg!(&x_grad);
+    }
 
     /// 行列の転置のテスト
     #[test]
