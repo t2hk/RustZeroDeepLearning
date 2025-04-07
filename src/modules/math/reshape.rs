@@ -9,7 +9,7 @@ use num_traits::abs;
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// 累乗関数
+/// リシェイプ関数
 #[derive(Debug, Clone)]
 pub struct ReshapeFunction {
     shape: Vec<usize>,   // 変換後
@@ -42,7 +42,7 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
     }
 
     /// 逆伝播
-    /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
+    /// 順伝播の入力値と同じ形状に微分値の形状を返還する。
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("reshape(backward)");
         debug!(
@@ -65,14 +65,14 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
     }
 }
 
-/// 累乗関数
+/// リシェイプ関数
 ///
 /// Arguments
-/// * input (Variable<V>): 基数
-/// * exp (usize): 指数
+/// * input (Variable<V>): テンソル
+/// * shape (Vec<usize>): 変換後の形状
 ///
 /// Return
-/// * Variable<V>: 累乗の結果
+/// * Variable<V>: リシェイプ語の結果
 pub fn reshape<V: MathOps>(input: Variable<V>, shape: Vec<usize>) -> Variable<V> {
     let x_shape = input.borrow().get_data().shape().to_vec();
 
