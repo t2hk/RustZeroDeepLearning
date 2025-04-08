@@ -9,7 +9,7 @@ use rust_zero_deeplearning::*;
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{Array, ArrayBase, Axis, Ix2, IxDyn, OwnedArcRepr};
 
 #[test]
 fn test_basic() {
@@ -129,3 +129,115 @@ fn test_variable_reshape() {
         r2.borrow().get_data().flatten().to_vec()
     );
 }
+
+#[test]
+fn test_ndarray_broadcast() {
+    let x = Array::from_shape_vec(vec![1, 3], vec![1, 2, 3]).unwrap();
+    dbg!(&x);
+
+    let y = x.broadcast(vec![2, 3]);
+    dbg!(&y);
+}
+
+#[test]
+fn test_ndarray_sum_to() {
+    let x = Array::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]).unwrap();
+    let y = x.clone().sum_axis(Axis(0)).into_shape(vec![1, 3]).unwrap();
+    dbg!(&y);
+
+    let z = x.clone().sum_axis(Axis(1)).into_shape(vec![2, 1]).unwrap();
+    dbg!(&z);
+
+    let orig_shape = x.shape();
+    dbg!(&orig_shape);
+
+    let mut result = x.to_owned();
+
+    let target_shape = vec![3, 1];
+    for (axis_idx, (&orig_size, &target_size)) in
+        orig_shape.iter().zip(target_shape.iter()).enumerate()
+    {
+        println!(
+            "axis_idx: {:?}, orig_size:{:?}, target_size:{:?}",
+            axis_idx, orig_size, target_size
+        );
+        if orig_size > target_size {
+            // この次元は集約が必要
+            if target_size == 1 {
+                // 完全に集約する場合
+                result = result.sum_axis(Axis(axis_idx));
+            } else {
+                // 部分的な集約が必要な場合（より複雑なケース）
+                // この例では単純化のため、1に集約するケースのみ対応
+                panic!("Partial reduction not supported in this example");
+            }
+        } else if orig_size < target_size {
+            // この次元はブロードキャストが必要（実装が複雑になるため省略）
+            //panic!("Broadcasting to larger dimensions not supported in this example");
+            println!(
+                "result shape: {:?}, target_shape: {:?}",
+                result.shape(),
+                target_shape
+            );
+            //result = result.broadcast(target_shape.clone()).unwrap().to_owned();
+            //result = result.permuted_axes(target_shape.clone());
+            result = result.
+            //dbg!(&dummy);
+        }
+    }
+
+    dbg!(&result);
+
+    let r = result
+        .into_shape(target_shape.to_vec())
+        .unwrap()
+        .into_dimensionality::<Ix2>()
+        .unwrap();
+    dbg!(&r);
+}
+
+// // 汎用的なsum_to_shape関数
+// fn sum_to_shape<D>(array: &ArrayBase<OwnedRepr<i32>, D>, target_shape: &[usize]) -> Array<i32, Ix2>
+// where
+//     D: Dimension,
+// {
+//     let orig_shape = array.shape();
+
+//     // 入力と目標の形状のランクが一致することを確認
+//     assert_eq!(
+//         orig_shape.len(),
+//         target_shape.len(),
+//         "Input shape and target shape must have the same rank"
+//     );
+
+//     // 各次元ごとに処理するためにクローンを作成
+//     let mut result = array.to_owned();
+
+//     // 各次元について、集約が必要かどうかをチェック
+//     for (axis_idx, (&orig_size, &target_size)) in
+//         orig_shape.iter().zip(target_shape.iter()).enumerate()
+//     {
+//         if orig_size > target_size {
+//             // この次元は集約が必要
+//             if target_size == 1 {
+//                 // 完全に集約する場合
+//                 result = result.sum_axis(Axis(axis_idx));
+//             } else {
+//                 // 部分的な集約が必要な場合（より複雑なケース）
+//                 // この例では単純化のため、1に集約するケースのみ対応
+//                 panic!("Partial reduction not supported in this example");
+//             }
+//         } else if orig_size < target_size {
+//             // この次元はブロードキャストが必要（実装が複雑になるため省略）
+//             panic!("Broadcasting to larger dimensions not supported in this example");
+//         }
+//         // orig_size == target_size の場合はそのまま
+//     }
+
+//     // 最終的な形状に変換
+//     result
+//         .into_shape(target_shape.to_vec())
+//         .unwrap()
+//         .into_dimensionality::<Ix2>()
+//         .unwrap()
+// }
