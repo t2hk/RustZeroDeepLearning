@@ -15,6 +15,8 @@ pub use crate::modules::functions::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::broadcast_to::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::cos::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::div::*;
@@ -36,6 +38,8 @@ pub use crate::modules::math::sin::*;
 pub use crate::modules::math::square::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sub::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::sum::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::transpose::*;
 #[allow(unused_imports)]

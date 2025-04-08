@@ -140,6 +140,53 @@ fn test_ndarray_broadcast() {
 }
 
 #[test]
+fn test_ndarray_insert_axis() {
+    let x = Array::from_shape_vec(vec![3, 2, 2], (1..13).collect()).unwrap();
+
+    let x_sum_axis0 = x.sum_axis(Axis(1));
+    dbg!(&x_sum_axis0);
+
+    let x_keepdims_0 = x_sum_axis0.insert_axis(Axis(1));
+    dbg!(&x_keepdims_0);
+
+    let x2 = Array::from_shape_vec(vec![2, 3], (1..7).collect()).unwrap();
+
+    let x2_sum_axis0 = x2.sum_axis(Axis(0)).sum_axis(Axis(0));
+    let x2_keepdims_0 = x2_sum_axis0.insert_axis(Axis(0)).insert_axis(Axis(0));
+    dbg!(&x2_keepdims_0);
+    dbg!(&x2_keepdims_0.shape());
+
+    let x3 = Array::from_shape_vec(vec![2, 3, 4], (0..24).collect()).unwrap();
+    dbg!(&x3);
+
+    // keepdims = false, axis=0
+    let x3_sum_axis0 = x3.sum_axis(Axis(0));
+    dbg!(&x3_sum_axis0);
+
+    // keepdims = false, axis=1
+    let x3_sum_axis1 = x3.sum_axis(Axis(1));
+    dbg!(&x3_sum_axis1);
+
+    // keepdims = true, axis=0
+    let x3_sum_keepdims_axis0 = x3.sum_axis(Axis(0));
+    let x3_sum_keepdims_axis0 = x3_sum_keepdims_axis0.insert_axis(Axis(0));
+    dbg!(&x3_sum_keepdims_axis0);
+
+    // keepdims = true, axis=1
+    let x3_sum_keepdims_axis1 = x3.sum_axis(Axis(1));
+    let x3_sum_keepdims_axis1 = x3_sum_keepdims_axis1.insert_axis(Axis(1));
+    dbg!(&x3_sum_keepdims_axis1);
+
+    // keepdims = true
+    let x3_sum_keepdims_no_axis0 = x3.sum_axis(Axis(0)).sum_axis(Axis(0)).sum_axis(Axis(0));
+    let x3_sum_keepdims_no_axis0 = x3_sum_keepdims_no_axis0
+        .insert_axis(Axis(0))
+        .insert_axis(Axis(0))
+        .insert_axis(Axis(0));
+    dbg!(&x3_sum_keepdims_no_axis0);
+}
+
+#[test]
 fn test_ndarray_sum_to() {
     let x = Array::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]).unwrap();
     let y = x.clone().sum_axis(Axis(0)).into_shape(vec![1, 3]).unwrap();
@@ -181,7 +228,7 @@ fn test_ndarray_sum_to() {
             );
             //result = result.broadcast(target_shape.clone()).unwrap().to_owned();
             //result = result.permuted_axes(target_shape.clone());
-            result = result.
+            //result = result.
             //dbg!(&dummy);
         }
     }
