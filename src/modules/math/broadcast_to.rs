@@ -28,8 +28,10 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
         info!("broadcast_to(forward)");
         debug!(
             "broadcast_to(backward) {:?} -> {:?}",
-            self.x_shape, self.shape
+            self.x_shape.clone(),
+            self.shape.clone()
         );
+
         let y = x[0].broadcast(self.shape.clone()).unwrap().to_owned();
         vec![y]
     }

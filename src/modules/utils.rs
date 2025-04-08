@@ -2,6 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use ndarray::{Array, Axis, IxDyn};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Result, Write};
@@ -390,6 +391,55 @@ pub fn dump_detail_variable<V: MathOps>(
         }
         _ => writeln!(file, "{}  creator is None.", indent),
     }
+}
+
+/// Sum 関数の逆伝播の勾配についてリシェイプする。
+///
+/// Arguments:
+/// * gy (Array<V, IxDyn>): 勾配
+/// * x_shape (Vec<usize>): 順伝播時の形状
+/// * axis (Option<Vec<isize>): Sum 関数で使用する軸
+/// * keepdims (bool): 形状を維持するかどうか
+///
+/// Return:
+/// * Array<V, IxDyn>: 形状変換後
+pub fn reshape_sum_backward<V: MathOps>(
+    gy: Array<V, IxDyn>,
+    x_shape: Vec<usize>,
+    axis: Option<Vec<isize>>,
+    keepdims: bool,
+) -> Array<V, IxDyn> {
+    let ndim = x_shape.len();
+    if ndim == 0 || axis.is_none() || keepdims {
+        // No reshaping needed
+        return gy;
+    }
+
+    let mut actual_axis = match axis {
+        Some(axes) => axes
+            .iter()
+            .map(|&a| {
+                if a >= 0 {
+                    a as usize
+                } else {
+                    (a + ndim as isize) as usize
+                }
+            })
+            .collect::<Vec<_>>(),
+        None => Vec::new(),
+    };
+    // Start with the current shape of gy
+    let mut shape = gy.shape().to_vec();
+
+    // Insert 1s at the appropriate positions
+    actual_axis.sort_by(|a, b| a.partial_cmp(b).unwrap());
+
+    for a in actual_axis {
+        shape.insert(a, 1);
+    }
+
+    // Reshape gy to the new shape
+    gy.into_shape(IxDyn(&shape)).unwrap()
 }
 
 #[cfg(test)]

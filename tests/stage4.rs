@@ -235,12 +235,12 @@ fn test_ndarray_sum_to() {
 
     dbg!(&result);
 
-    let r = result
-        .into_shape(target_shape.to_vec())
-        .unwrap()
-        .into_dimensionality::<Ix2>()
-        .unwrap();
-    dbg!(&r);
+    // let r = result
+    //     .into_shape(target_shape.to_vec())
+    //     .unwrap()
+    //     .into_dimensionality::<Ix2>()
+    //     .unwrap();
+    // dbg!(&r);
 }
 
 // // 汎用的なsum_to_shape関数

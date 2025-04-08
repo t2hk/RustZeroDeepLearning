@@ -12,7 +12,8 @@ use std::rc::Rc;
 #[derive(Debug, Clone)]
 pub struct SumFunction {
     x_shape: Vec<usize>,
-    axis: Option<Axis>,
+    // axis: Option<Axis>,
+    axis: Option<Vec<isize>>,
     keepdims: bool,
 }
 impl<V: MathOps> Function<V> for SumFunction {
@@ -30,17 +31,17 @@ impl<V: MathOps> Function<V> for SumFunction {
 
         let mut result;
 
-        if let Some(axis) = self.axis {
+        if let Some(axis) = self.axis.clone() {
             if self.keepdims {
-                let tmp_x = x[0].sum_axis(axis);
-                result = tmp_x.insert_axis(axis);
+                let tmp_x = x[0].sum_axis(Axis(axis[0] as usize));
+                result = tmp_x.insert_axis(Axis(axis[0] as usize));
                 debug!(
                     "sum(backward) {:?} -> {:?}",
                     x[0].flatten().to_vec(),
                     result.flatten().to_vec()
                 );
             } else {
-                result = x[0].sum_axis(axis);
+                result = x[0].sum_axis(Axis(axis[0] as usize));
 
                 debug!(
                     "sum(backward) {:?} -> {:?}",
@@ -83,13 +84,24 @@ impl<V: MathOps> Function<V> for SumFunction {
     /// TODO utils.reshape_sum_backward 相当が必要
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("sum(backward)");
-        let result = broadcast_to(gys[0].clone(), self.x_shape.clone());
+        let gy = utils::reshape_sum_backward(
+            gys[0].borrow().get_data(),
+            self.x_shape.clone(),
+            self.axis.clone(),
+            self.keepdims,
+        );
+
+        let reshape_gy = Variable::new(RawVariable::new(gy));
+
+        let gx = broadcast_to(reshape_gy, self.x_shape.clone());
+        println!("self axis: {:?}", self.axis);
+
         debug!(
             "sum(backward) {:?} -> {:?}",
             gys[0].borrow().get_data().flatten().to_vec(),
-            result.borrow().get_data().flatten().to_vec()
+            gx.borrow().get_data().flatten().to_vec()
         );
-        vec![result]
+        vec![gx]
     }
 }
 
@@ -102,7 +114,7 @@ impl<V: MathOps> Function<V> for SumFunction {
 ///
 /// Return
 /// * Variable<V>: 結果
-pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Axis>, keepdims: bool) -> Variable<V> {
+pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Vec<isize>>, keepdims: bool) -> Variable<V> {
     let x_shape = x.borrow().get_data().shape().to_vec();
     let mut sum = FunctionExecutor::new(Rc::new(RefCell::new(SumFunction {
         x_shape: x_shape,
@@ -144,6 +156,7 @@ impl<V: MathOps> Function<V> for SumToFunction {
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("sum_to(backward)");
         let result = broadcast_to(gys[0].clone(), self.x_shape.clone());
+
         debug!(
             "sum_to(backward) {:?} -> {:?}",
             gys[0].borrow().get_data().flatten().to_vec(),
@@ -204,112 +217,226 @@ pub fn util_sum_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) {
     // let y = x.borrow().get_data().sum()
 }
 
-/// シンプルな全要素の和
-#[test]
-fn test_simple_sum() {
-    let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
-    let y = sum(x.clone(), None, false);
-    y.backward();
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rand::prelude::*;
+    /// シンプルな全要素の和
+    #[test]
+    fn test_simple_sum() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
+        let y = sum(x.clone(), None, false);
+        y.backward();
 
-    assert_eq!(vec![21], y.borrow().get_data().flatten().to_vec());
+        assert_eq!(vec![21], y.borrow().get_data().flatten().to_vec());
 
-    assert_eq!(
-        vec![1, 6],
-        x.borrow().get_grad().unwrap().borrow().get_data().shape()
-    );
-    assert_eq!(
-        vec![1, 1, 1, 1, 1, 1],
-        x.borrow()
-            .get_grad()
-            .unwrap()
-            .borrow()
-            .get_data()
-            .flatten()
-            .to_vec()
-    );
-}
+        assert_eq!(
+            vec![1, 6],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+        assert_eq!(
+            vec![1, 1, 1, 1, 1, 1],
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
 
-/// keepdims を指定した全要素の和
-#[test]
-fn test_sum_keepdims() {
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3, 4],
-        (0..24).collect(),
-    ));
-    let y = sum(x.clone(), None, true);
+        // 逆伝播結果
+        // dbg!(&x.borrow().get_grad().unwrap());
+        assert_eq!(
+            vec![1, 6],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+        assert_eq!(
+            vec![1, 1, 1, 1, 1, 1],
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
+    }
 
-    let tmp = y.borrow().get_data();
+    /// シンプルな全要素の和
+    #[test]
+    fn test_simple_sum2() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 3], (1..7).collect()));
+        let y = sum(x.clone(), Some(vec![0]), false);
+        y.backward();
 
-    assert_eq!(vec![276], tmp.flatten().to_vec());
-    assert_eq!(vec![1, 1, 1], tmp.shape().to_vec());
-}
+        // 順伝播結果
+        assert_eq!(vec![5, 7, 9], y.borrow().get_data().flatten().to_vec());
+        assert_eq!(vec![3], y.borrow().get_data().shape().to_vec());
 
-/// keepdims を指定しない Axis(0) の和
-#[test]
-fn test_sum_axis0() {
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3, 4],
-        (0..24).collect(),
-    ));
-    let y = sum(x.clone(), Some(Axis(0)), false);
+        // 逆伝播結果
+        // dbg!(&x.borrow().get_grad().unwrap());
+        assert_eq!(
+            vec![2, 3],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+        assert_eq!(
+            vec![1, 1, 1, 1, 1, 1],
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
+    }
 
-    let tmp = y.borrow().get_data();
-    dbg!(&tmp);
+    /// keepdims を指定した全要素の和
+    #[test]
+    fn test_sum_keepdims() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3, 4],
+            (0..24).collect(),
+        ));
+        let y = sum(x.clone(), None, true);
 
-    assert_eq!(
-        vec![12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
-        tmp.flatten().to_vec()
-    );
-    assert_eq!(vec![3, 4], tmp.shape().to_vec());
-}
+        let tmp = y.borrow().get_data();
 
-/// keepdims を指定した Axis(0) の和
-#[test]
-fn test_sum_keepdims_axis0() {
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3, 4],
-        (0..24).collect(),
-    ));
-    let y = sum(x.clone(), Some(Axis(0)), true);
+        assert_eq!(vec![276], tmp.flatten().to_vec());
+        assert_eq!(vec![1, 1, 1], tmp.shape().to_vec());
+    }
 
-    let tmp = y.borrow().get_data();
-    dbg!(&tmp);
+    /// keepdims を指定しない Axis(0) の和
+    #[test]
+    fn test_sum_axis0() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3, 4],
+            (0..24).collect(),
+        ));
+        let y = sum(x.clone(), Some(vec![0]), false);
 
-    assert_eq!(
-        vec![12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
-        tmp.flatten().to_vec()
-    );
-    assert_eq!(vec![1, 3, 4], tmp.shape().to_vec());
-}
+        let tmp = y.borrow().get_data();
+        dbg!(&tmp);
 
-/// keepdims を指定しない Axis(1) の和
-#[test]
-fn test_sum_axis1() {
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3, 4],
-        (0..24).collect(),
-    ));
-    let y = sum(x.clone(), Some(Axis(1)), false);
+        assert_eq!(
+            vec![12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
+            tmp.flatten().to_vec()
+        );
+        assert_eq!(vec![3, 4], tmp.shape().to_vec());
+    }
 
-    let tmp = y.borrow().get_data();
-    dbg!(&tmp);
+    /// keepdims を指定した Axis(0) の和
+    #[test]
+    fn test_sum_keepdims_axis0() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3, 4],
+            (0..24).collect(),
+        ));
+        let y = sum(x.clone(), Some(vec![0]), true);
 
-    assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
-    assert_eq!(vec![2, 4], tmp.shape().to_vec());
-}
+        let tmp = y.borrow().get_data();
+        dbg!(&tmp);
 
-/// keepdims を指定した Axis(1) の和
-#[test]
-fn test_sum_keepdims_axis1() {
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3, 4],
-        (0..24).collect(),
-    ));
-    let y = sum(x.clone(), Some(Axis(1)), true);
+        assert_eq!(
+            vec![12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34],
+            tmp.flatten().to_vec()
+        );
+        assert_eq!(vec![1, 3, 4], tmp.shape().to_vec());
 
-    let tmp = y.borrow().get_data();
-    dbg!(&tmp);
+        y.backward();
 
-    assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
-    assert_eq!(vec![2, 1, 4], tmp.shape().to_vec());
+        // 逆伝播結果
+        // dbg!(&x.borrow().get_grad().unwrap());
+        assert_eq!(
+            vec![2, 3, 4],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+
+        let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
+        assert_eq!(
+            grad,
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
+    }
+
+    /// keepdims を指定しない Axis(1) の和
+    #[test]
+    fn test_sum_axis1() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3, 4],
+            (0..24).collect(),
+        ));
+        let y = sum(x.clone(), Some(vec![1]), false);
+
+        let tmp = y.borrow().get_data();
+        dbg!(&tmp);
+
+        assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
+        assert_eq!(vec![2, 4], tmp.shape().to_vec());
+
+        y.backward();
+
+        // 逆伝播結果
+        // dbg!(&x.borrow().get_grad().unwrap());
+        assert_eq!(
+            vec![2, 3, 4],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+
+        let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
+        assert_eq!(
+            grad,
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
+    }
+
+    /// keepdims を指定した Axis(1) の和
+    #[test]
+    fn test_sum_keepdims_axis1() {
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3, 4],
+            (0..24).collect(),
+        ));
+        let y = sum(x.clone(), Some(vec![1]), true);
+
+        let tmp = y.borrow().get_data();
+        dbg!(&tmp);
+
+        assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
+        assert_eq!(vec![2, 1, 4], tmp.shape().to_vec());
+
+        y.backward();
+
+        // 逆伝播結果
+        // dbg!(&x.borrow().get_grad().unwrap());
+        assert_eq!(
+            vec![2, 3, 4],
+            x.borrow().get_grad().unwrap().borrow().get_data().shape()
+        );
+
+        let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
+        assert_eq!(
+            grad,
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .flatten()
+                .to_vec()
+        );
+    }
 }
