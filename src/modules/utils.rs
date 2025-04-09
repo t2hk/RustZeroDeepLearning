@@ -451,7 +451,7 @@ pub fn reshape_sum_backward<V: MathOps>(
 /// * arr (&Array<T, IxDyn>): 対象のテンソル
 /// Return:
 /// * Array<T, IxDyn>: 結果
-fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
+pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
     // 長さ1でない次元を集める
     let new_shape: Vec<usize> = arr
         .shape()
