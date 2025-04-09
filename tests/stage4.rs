@@ -189,10 +189,18 @@ fn test_ndarray_insert_axis() {
 #[test]
 fn test_ndarray_sum_to() {
     let x = Array::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]).unwrap();
-    let y = x.clone().sum_axis(Axis(0)).into_shape(vec![1, 3]).unwrap();
+    let y = x
+        .clone()
+        .sum_axis(Axis(0))
+        .into_shape_with_order(vec![1, 3])
+        .unwrap();
     dbg!(&y);
 
-    let z = x.clone().sum_axis(Axis(1)).into_shape(vec![2, 1]).unwrap();
+    let z = x
+        .clone()
+        .sum_axis(Axis(1))
+        .into_shape_with_order(vec![2, 1])
+        .unwrap();
     dbg!(&z);
 
     let orig_shape = x.shape();
