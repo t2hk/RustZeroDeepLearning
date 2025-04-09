@@ -11,7 +11,11 @@ use std::rc::Rc;
 
 /// 加算関数
 #[derive(Debug, Clone)]
-pub struct AddFunction;
+pub struct AddFunction {
+    x0_shape: Vec<usize>,
+    x1_shape: Vec<usize>,
+}
+
 impl<V: MathOps> Function<V> for AddFunction {
     /// 関数名を取得する。
     ///
@@ -29,6 +33,7 @@ impl<V: MathOps> Function<V> for AddFunction {
             &xs[0].flatten().to_vec(),
             &xs[1].flatten().to_vec()
         );
+
         let result = vec![&xs[0] + &xs[1]];
         result
     }
@@ -38,17 +43,20 @@ impl<V: MathOps> Function<V> for AddFunction {
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("add(backward)");
 
-        debug!(
-            "add(backward) dy/dx0={:?}",
-            &gys[0].borrow().get_data().flatten().to_vec()
-        );
-        debug!(
-            "add(backward) dy/dx1={:?}",
-            &gys[0].borrow().get_data().flatten().to_vec()
-        );
+        if self.x0_shape != self.x1_shape {
+            let gx0 = sum_to(gys[0].clone(), self.x0_shape.clone());
+            let gx1 = sum_to(gys[0].clone(), self.x1_shape.clone());
+            debug!(
+                "add(backward) dy/dx0: {:?}, dy/dx1: {:?}",
+                gx0.borrow().get_data().flatten().to_vec(),
+                gx1.borrow().get_data().flatten().to_vec()
+            );
+            return vec![gx0, gx1];
+        }
+
         let result = vec![gys[0].clone(), gys[0].clone()];
         debug!(
-            "add(backward) result: {:?} {:?}",
+            "add(backward) dy/dx0: {:?}, dy/dx1: {:?}",
             result[0].borrow().get_data().flatten().to_vec(),
             result[1].borrow().get_data().flatten().to_vec()
         );
@@ -66,7 +74,14 @@ impl<V: MathOps> Function<V> for AddFunction {
 /// * Rc<RefCell<RawVariable>>: 加算結果
 pub fn add<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     debug!("AddFunction::add");
-    let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+
+    let x0_shape = x0.borrow().get_data().shape().to_vec();
+    let x1_shape = x1.borrow().get_data().shape().to_vec();
+
+    let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction {
+        x0_shape: x0_shape,
+        x1_shape: x1_shape,
+    })));
     // 加算の順伝播
     add.forward(vec![x0.clone(), x1.clone()])
         .get(0)
@@ -86,8 +101,15 @@ impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
     type Output = Variable<V>;
     fn add(self, rhs: &Variable<V>) -> Variable<V> {
         debug!("Add overload (Variable<V> + Variable<V>)");
+
+        let x0_shape = self.borrow().get_data().shape().to_vec();
+        let x1_shape = rhs.borrow().get_data().shape().to_vec();
+
         // 順伝播
-        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction)));
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction {
+            x0_shape: x0_shape,
+            x1_shape: x1_shape,
+        })));
         let result = add
             .forward(vec![self.clone(), rhs.clone()])
             .get(0)

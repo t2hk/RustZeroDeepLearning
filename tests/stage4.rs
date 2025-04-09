@@ -243,48 +243,28 @@ fn test_ndarray_sum_to() {
     // dbg!(&r);
 }
 
-// // 汎用的なsum_to_shape関数
-// fn sum_to_shape<D>(array: &ArrayBase<OwnedRepr<i32>, D>, target_shape: &[usize]) -> Array<i32, Ix2>
-// where
-//     D: Dimension,
-// {
-//     let orig_shape = array.shape();
+/// 行列の和に関するテスト
+#[test]
+fn test_step40_sum1() {
+    common::setup();
+    let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
+    let x1 = Variable::new(RawVariable::from_shape_vec(vec![1], vec![10]));
 
-//     // 入力と目標の形状のランクが一致することを確認
-//     assert_eq!(
-//         orig_shape.len(),
-//         target_shape.len(),
-//         "Input shape and target shape must have the same rank"
-//     );
+    let y = &x0 + &x1;
 
-//     // 各次元ごとに処理するためにクローンを作成
-//     let mut result = array.to_owned();
+    // 行列の和の形状と値が一致することを確認する。
+    assert_eq!(vec![1, 3], y.borrow().get_data().shape().to_vec());
+    assert_eq!(vec![11, 12, 13], y.borrow().get_data().flatten().to_vec());
 
-//     // 各次元について、集約が必要かどうかをチェック
-//     for (axis_idx, (&orig_size, &target_size)) in
-//         orig_shape.iter().zip(target_shape.iter()).enumerate()
-//     {
-//         if orig_size > target_size {
-//             // この次元は集約が必要
-//             if target_size == 1 {
-//                 // 完全に集約する場合
-//                 result = result.sum_axis(Axis(axis_idx));
-//             } else {
-//                 // 部分的な集約が必要な場合（より複雑なケース）
-//                 // この例では単純化のため、1に集約するケースのみ対応
-//                 panic!("Partial reduction not supported in this example");
-//             }
-//         } else if orig_size < target_size {
-//             // この次元はブロードキャストが必要（実装が複雑になるため省略）
-//             panic!("Broadcasting to larger dimensions not supported in this example");
-//         }
-//         // orig_size == target_size の場合はそのまま
-//     }
+    //dbg!(&y);
 
-//     // 最終的な形状に変換
-//     result
-//         .into_shape(target_shape.to_vec())
-//         .unwrap()
-//         .into_dimensionality::<Ix2>()
-//         .unwrap()
-// }
+    y.backward();
+
+    // 逆伝播による勾配の形状と値が一致することを確認する。
+    let gx0 = x0.borrow().get_grad().unwrap().borrow().get_data();
+    let gx1 = x1.borrow().get_grad().unwrap().borrow().get_data();
+
+    assert_eq!(vec![1, 3], gx0.shape().to_vec());
+    assert_eq!(vec![1, 1, 1], gx0.flatten().to_vec());
+    assert_eq!(vec![3], gx1.flatten().to_vec());
+}
