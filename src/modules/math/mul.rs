@@ -160,7 +160,7 @@ impl_variable_mul!(u64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
+
     #[test]
     /// 乗算のテスト(f32)
     fn test_mul_2() {

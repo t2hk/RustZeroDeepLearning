@@ -152,7 +152,6 @@ impl_variable_div!(u64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
     #[test]
     /// 除算のテスト(f32)
     fn test_div_1() {

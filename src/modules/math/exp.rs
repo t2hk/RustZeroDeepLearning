@@ -35,7 +35,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
     /// dy/dx=e^x である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("exp(backward)");
-        let e = std::f64::consts::E;
+
         // let x = inputs[0].borrow().get_data();
         // let gys_val = gys[0].clone();
         let x_exp = exp(inputs[0].clone());
@@ -68,7 +68,6 @@ pub fn exp<V: MathOps>(input: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
 
     /// Exp 関数のテスト。
     #[test]
