@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn, Shape};
+use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -76,7 +76,6 @@ pub fn broadcast_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f32::consts::PI as PIf32;
 
     /// broadcast_to 関数のテスト。
     #[test]

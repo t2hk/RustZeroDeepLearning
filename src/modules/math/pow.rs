@@ -122,7 +122,6 @@ impl<V: MathOps> BitXor<i32> for &Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
 
     /// 累乗のテスト(f64)
     /// [[1.0,2.0],[3.0,4.0]] の3乗

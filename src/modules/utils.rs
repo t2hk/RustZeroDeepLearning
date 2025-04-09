@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Result, Write};
@@ -131,11 +131,11 @@ macro_rules! get_dot_graph {
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
 
-            let outputs = creator.1.borrow().get_outputs();
-            outputs.iter().for_each(|output| {
-                let name = output.upgrade().unwrap().borrow().get_name();
-                let ptr = output.upgrade().unwrap().as_ptr();
-            });
+            // let outputs = creator.1.borrow().get_outputs();
+            // outputs.iter().for_each(|output| {
+            //     let name = output.upgrade().unwrap().borrow().get_name();
+            //     let ptr = output.upgrade().unwrap().as_ptr();
+            // });
 
             // outputs.iter().for_each(|output| {
             //     let local_dot_var_txt = $crate::dot_var!(output.upgrade().unwrap(), $verbose);
@@ -267,7 +267,7 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
     ));
 
     match x.borrow().get_grad() {
-        Some(grad) => {
+        Some(_grad) => {
             result.push(format!("{}  grad", indent));
             // result.append(&mut detail_variable(grad.clone(), indent_num + 2usize));
         }
@@ -439,7 +439,11 @@ pub fn reshape_sum_backward<V: MathOps>(
     }
 
     // Reshape gy to the new shape
-    let reshape_gy = gy.borrow().get_data().into_shape(IxDyn(&shape)).unwrap();
+    let reshape_gy = gy
+        .borrow()
+        .get_data()
+        .into_shape_with_order(IxDyn(&shape))
+        .unwrap();
     let mut gy_clone = gy.clone();
     gy_clone.set_data(reshape_gy);
     gy_clone
@@ -468,7 +472,9 @@ pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
         new_shape
     };
 
-    arr.clone().into_shape(IxDyn(&final_shape)).unwrap()
+    arr.clone()
+        .into_shape_with_order(IxDyn(&final_shape))
+        .unwrap()
 }
 
 #[cfg(test)]
