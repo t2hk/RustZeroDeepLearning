@@ -9,7 +9,7 @@ use rust_zero_deeplearning::*;
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{Array, ArrayBase, Axis, Ix2, IxDyn, OwnedArcRepr};
 
 #[test]
 fn test_basic() {
@@ -128,4 +128,143 @@ fn test_variable_reshape() {
         vec![1, 2, 3, 4, 5, 6],
         r2.borrow().get_data().flatten().to_vec()
     );
+}
+
+#[test]
+fn test_ndarray_broadcast() {
+    let x = Array::from_shape_vec(vec![1, 3], vec![1, 2, 3]).unwrap();
+    dbg!(&x);
+
+    let y = x.broadcast(vec![2, 3]);
+    dbg!(&y);
+}
+
+#[test]
+fn test_ndarray_insert_axis() {
+    let x = Array::from_shape_vec(vec![3, 2, 2], (1..13).collect()).unwrap();
+
+    let x_sum_axis0 = x.sum_axis(Axis(1));
+    dbg!(&x_sum_axis0);
+
+    let x_keepdims_0 = x_sum_axis0.insert_axis(Axis(1));
+    dbg!(&x_keepdims_0);
+
+    let x2 = Array::from_shape_vec(vec![2, 3], (1..7).collect()).unwrap();
+
+    let x2_sum_axis0 = x2.sum_axis(Axis(0)).sum_axis(Axis(0));
+    let x2_keepdims_0 = x2_sum_axis0.insert_axis(Axis(0)).insert_axis(Axis(0));
+    dbg!(&x2_keepdims_0);
+    dbg!(&x2_keepdims_0.shape());
+
+    let x3 = Array::from_shape_vec(vec![2, 3, 4], (0..24).collect()).unwrap();
+    dbg!(&x3);
+
+    // keepdims = false, axis=0
+    let x3_sum_axis0 = x3.sum_axis(Axis(0));
+    dbg!(&x3_sum_axis0);
+
+    // keepdims = false, axis=1
+    let x3_sum_axis1 = x3.sum_axis(Axis(1));
+    dbg!(&x3_sum_axis1);
+
+    // keepdims = true, axis=0
+    let x3_sum_keepdims_axis0 = x3.sum_axis(Axis(0));
+    let x3_sum_keepdims_axis0 = x3_sum_keepdims_axis0.insert_axis(Axis(0));
+    dbg!(&x3_sum_keepdims_axis0);
+
+    // keepdims = true, axis=1
+    let x3_sum_keepdims_axis1 = x3.sum_axis(Axis(1));
+    let x3_sum_keepdims_axis1 = x3_sum_keepdims_axis1.insert_axis(Axis(1));
+    dbg!(&x3_sum_keepdims_axis1);
+
+    // keepdims = true
+    let x3_sum_keepdims_no_axis0 = x3.sum_axis(Axis(0)).sum_axis(Axis(0)).sum_axis(Axis(0));
+    let x3_sum_keepdims_no_axis0 = x3_sum_keepdims_no_axis0
+        .insert_axis(Axis(0))
+        .insert_axis(Axis(0))
+        .insert_axis(Axis(0));
+    dbg!(&x3_sum_keepdims_no_axis0);
+}
+
+#[test]
+fn test_ndarray_sum_to() {
+    let x = Array::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]).unwrap();
+    let y = x.clone().sum_axis(Axis(0)).into_shape(vec![1, 3]).unwrap();
+    dbg!(&y);
+
+    let z = x.clone().sum_axis(Axis(1)).into_shape(vec![2, 1]).unwrap();
+    dbg!(&z);
+
+    let orig_shape = x.shape();
+    dbg!(&orig_shape);
+
+    let mut result = x.to_owned();
+
+    let target_shape = vec![3, 1];
+    for (axis_idx, (&orig_size, &target_size)) in
+        orig_shape.iter().zip(target_shape.iter()).enumerate()
+    {
+        println!(
+            "axis_idx: {:?}, orig_size:{:?}, target_size:{:?}",
+            axis_idx, orig_size, target_size
+        );
+        if orig_size > target_size {
+            // この次元は集約が必要
+            if target_size == 1 {
+                // 完全に集約する場合
+                result = result.sum_axis(Axis(axis_idx));
+            } else {
+                // 部分的な集約が必要な場合（より複雑なケース）
+                // この例では単純化のため、1に集約するケースのみ対応
+                panic!("Partial reduction not supported in this example");
+            }
+        } else if orig_size < target_size {
+            // この次元はブロードキャストが必要（実装が複雑になるため省略）
+            //panic!("Broadcasting to larger dimensions not supported in this example");
+            println!(
+                "result shape: {:?}, target_shape: {:?}",
+                result.shape(),
+                target_shape
+            );
+            //result = result.broadcast(target_shape.clone()).unwrap().to_owned();
+            //result = result.permuted_axes(target_shape.clone());
+            //result = result.
+            //dbg!(&dummy);
+        }
+    }
+
+    dbg!(&result);
+
+    // let r = result
+    //     .into_shape(target_shape.to_vec())
+    //     .unwrap()
+    //     .into_dimensionality::<Ix2>()
+    //     .unwrap();
+    // dbg!(&r);
+}
+
+/// 行列の和に関するテスト
+#[test]
+fn test_step40_sum1() {
+    common::setup();
+    let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
+    let x1 = Variable::new(RawVariable::from_shape_vec(vec![1], vec![10]));
+
+    let y = &x0 + &x1;
+
+    // 行列の和の形状と値が一致することを確認する。
+    assert_eq!(vec![1, 3], y.borrow().get_data().shape().to_vec());
+    assert_eq!(vec![11, 12, 13], y.borrow().get_data().flatten().to_vec());
+
+    //dbg!(&y);
+
+    y.backward();
+
+    // 逆伝播による勾配の形状と値が一致することを確認する。
+    let gx0 = x0.borrow().get_grad().unwrap().borrow().get_data();
+    let gx1 = x1.borrow().get_grad().unwrap().borrow().get_data();
+
+    assert_eq!(vec![1, 3], gx0.shape().to_vec());
+    assert_eq!(vec![1, 1, 1], gx0.flatten().to_vec());
+    assert_eq!(vec![3], gx1.flatten().to_vec());
 }
