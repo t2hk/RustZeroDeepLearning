@@ -198,5 +198,6 @@ cargo run
 ### ステップ39 和を求める関数
 * ステップ40 で対応する機能についてもあわせて実装中。
 * Sum 関数を追加した。逆伝播時に勾配の形状を返還するための utils.reshape_sum_backward も追加している。
+* SumTo 関数で必要になるため、Squeeze 関数を追加した (サイズが 1 の次元を削除する)。
 * BroadcastTo 関数: forward 完了、backward: 未完了 (sum_to が必要)
 * SumTo 関数: forward 未完了(utils.sum_to 相当が必要)、backward: 完了
