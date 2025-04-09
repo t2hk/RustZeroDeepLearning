@@ -85,15 +85,15 @@ impl<V: MathOps> Function<V> for SumFunction {
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("sum(backward)");
         let gy = utils::reshape_sum_backward(
-            gys[0].borrow().get_data(),
+            gys[0].clone(),
             self.x_shape.clone(),
             self.axis.clone(),
             self.keepdims,
         );
 
-        let reshape_gy = Variable::new(RawVariable::new(gy));
+        //let reshape_gy = Variable::new(RawVariable::new(gy));
 
-        let gx = broadcast_to(reshape_gy, self.x_shape.clone());
+        let gx = broadcast_to(gy.clone(), self.x_shape.clone());
         println!("self axis: {:?}", self.axis);
 
         debug!(
@@ -158,8 +158,10 @@ impl<V: MathOps> Function<V> for SumToFunction {
         let result = broadcast_to(gys[0].clone(), self.x_shape.clone());
 
         debug!(
-            "sum_to(backward) {:?} -> {:?}",
+            "sum_to(backward) {:?} {:?} -> {:?} {:?}",
+            gys[0].borrow().get_data().shape().to_vec(),
             gys[0].borrow().get_data().flatten().to_vec(),
+            result.borrow().get_data().shape().to_vec(),
             result.borrow().get_data().flatten().to_vec()
         );
         vec![result]
