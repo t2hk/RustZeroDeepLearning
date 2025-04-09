@@ -41,6 +41,8 @@ pub use crate::modules::math::sub::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sum::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::sum_to::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::transpose::*;
 #[allow(unused_imports)]
 pub use crate::modules::settings::*;

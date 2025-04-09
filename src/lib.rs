@@ -18,6 +18,7 @@ pub use modules::math::sin::*;
 pub use modules::math::square::*;
 pub use modules::math::sub::*;
 pub use modules::math::sum::*;
+pub use modules::math::sum_to::*;
 pub use modules::math::tanh::*;
 pub use modules::math::transpose::*;
 pub use modules::settings::*;

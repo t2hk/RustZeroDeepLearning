@@ -8,121 +8,98 @@ use ndarray::{Array, Axis, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Sum 関数
+/// SumTo 関数
 #[derive(Debug, Clone)]
-pub struct SumFunction {
+pub struct SumToFunction {
     x_shape: Vec<usize>,
-    // axis: Option<Axis>,
-    axis: Option<Vec<isize>>,
-    keepdims: bool,
 }
-impl<V: MathOps> Function<V> for SumFunction {
+impl<V: MathOps> Function<V> for SumToFunction {
     /// 関数名を取得する。
     ///
     /// Return
     /// ＊String: 関数の名前
     fn get_name(&self) -> String {
-        "Sum".to_string()
+        "SumTo".to_string()
     }
 
-    // Sum の順伝播
+    // SumTo の順伝播
+    // ToDo 未実装
     fn forward(&self, x: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
-        info!("sum(forward)");
+        info!("sum_to(forward)");
 
-        let mut result;
+        // TODO utils.sum_to 相当の処理の実装に変更すること。
+        let y = x[0].sum();
 
-        if let Some(axis) = self.axis.clone() {
-            if self.keepdims {
-                let tmp_x = x[0].sum_axis(Axis(axis[0] as usize));
-                result = tmp_x.insert_axis(Axis(axis[0] as usize));
-                debug!(
-                    "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
-                    result.flatten().to_vec()
-                );
-            } else {
-                result = x[0].sum_axis(Axis(axis[0] as usize));
+        debug!("sum_to(backward) {:?} -> {:?}", x[0].flatten().to_vec(), y);
 
-                debug!(
-                    "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
-                    result.flatten().to_vec()
-                );
-            }
-        } else {
-            if self.keepdims {
-                let dims = x[0].shape().len();
-                let mut tmp_x = x[0].sum_axis(Axis(0));
-                for _i in 1..dims {
-                    tmp_x = tmp_x.sum_axis(Axis(0));
-                }
-
-                result = tmp_x.insert_axis(Axis(0));
-                for _i in 1..dims {
-                    result = result.insert_axis(Axis(0));
-                }
-                debug!(
-                    "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
-                    result.flatten().to_vec()
-                );
-            } else {
-                result = Array::from_elem(IxDyn(&[]), x[0].sum());
-                debug!(
-                    "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
-                    result.flatten().to_vec()
-                );
-            }
-        }
-
-        vec![result]
+        vec![Array::from_elem(IxDyn(&[]), y)]
     }
 
-    /// 逆伝播
-    /// y=x0 * x1 の微分であるため、dy/dx0=x1 * gy, dy/dx1= x0 * gy である。
-    /// TODO utils.reshape_sum_backward 相当が必要
+    /// SumTo の逆伝播
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        info!("sum(backward)");
-        let gy = utils::reshape_sum_backward(
-            gys[0].clone(),
-            self.x_shape.clone(),
-            self.axis.clone(),
-            self.keepdims,
-        );
-
-        //let reshape_gy = Variable::new(RawVariable::new(gy));
-
-        let gx = broadcast_to(gy.clone(), self.x_shape.clone());
-        println!("self axis: {:?}", self.axis);
+        info!("sum_to(backward)");
+        let result = broadcast_to(gys[0].clone(), self.x_shape.clone());
 
         debug!(
-            "sum(backward) {:?} -> {:?}",
+            "sum_to(backward) {:?} {:?} -> {:?} {:?}",
+            gys[0].borrow().get_data().shape().to_vec(),
             gys[0].borrow().get_data().flatten().to_vec(),
-            gx.borrow().get_data().flatten().to_vec()
+            result.borrow().get_data().shape().to_vec(),
+            result.borrow().get_data().flatten().to_vec()
         );
-        vec![gx]
+        vec![result]
     }
 }
 
-/// Sum 関数
+/// SumTo 関数
 ///
 /// Arguments
-/// * x (Rc<RefCell<Variable>>): 対象の変数
-/// * axis (Option<Axis>): 軸
-/// * keepdims (bool): 次元を維持するか
+/// * x (Variable<V>): 対象の変数
 ///
 /// Return
 /// * Variable<V>: 結果
-pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Vec<isize>>, keepdims: bool) -> Variable<V> {
+pub fn sum_to<V: MathOps>(x: Variable<V>) -> Variable<V> {
     let x_shape = x.borrow().get_data().shape().to_vec();
-    let mut sum = FunctionExecutor::new(Rc::new(RefCell::new(SumFunction {
-        x_shape: x_shape,
-        axis: axis,
-        keepdims: keepdims,
-    })));
+    let mut sum_to =
+        FunctionExecutor::new(Rc::new(RefCell::new(SumToFunction { x_shape: x_shape })));
     // 順伝播
-    sum.forward(vec![x.clone()]).get(0).unwrap().clone()
+    sum_to.forward(vec![x.clone()]).get(0).unwrap().clone()
+}
+
+/// ToDo 実装するか削除する必要あり
+pub fn util_sum_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) {
+    // ndim = len(shape)
+    // lead = x.ndim - ndim
+    // lead_axis = tuple(range(lead))
+
+    // axis = tuple([i + lead for i, sx in enumerate(shape) if sx == 1])
+    // y = x.sum(lead_axis + axis, keepdims=True)
+    // if lead > 0:
+    //     y = y.squeeze(lead_axis)
+    // return y
+
+    let ndim = shape.len() as i32;
+    // let lead = x.borrow().get_data().shape().len() - ndim;
+    let x_len = x.borrow().get_data().shape().len() as i32;
+
+    let lead = x_len - ndim;
+    let lead_axis: Vec<i32> = (0..lead).map(|x| x).collect();
+
+    println!(
+        "ndim: {:?}, x_len:{:?}, lead: {:?}, lead_axis:{:?}",
+        ndim, x_len, lead, lead_axis
+    );
+
+    dbg!(&lead_axis);
+
+    let mut axis = vec![];
+    for (index, sx) in shape.iter().enumerate() {
+        if *sx == 1 {
+            axis.push(index as i32 + lead);
+        }
+    }
+    dbg!(&axis);
+    // let y = x.borrow().get_data().sum()
 }
 
 #[cfg(test)]

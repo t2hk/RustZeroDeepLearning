@@ -12,6 +12,7 @@ pub mod sin;
 pub mod square;
 pub mod sub;
 pub mod sum;
+pub mod sum_to;
 pub mod tanh;
 pub mod transpose;
 // 一括でインポート
