@@ -4,6 +4,7 @@ pub mod cos;
 pub mod div;
 pub mod exp;
 pub mod factorial;
+pub mod matmul;
 pub mod mul;
 pub mod neg;
 pub mod pow;
