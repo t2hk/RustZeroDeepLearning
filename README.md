@@ -203,3 +203,6 @@ cargo run
 * SumTo 関数: forward 完了、backward: 完了
 * BroadcastTo 関数: forward 完了、backward: 完了
 * Add 関数を行列に対応した。
+
+### ステップ41 行列の積
+* 開始
