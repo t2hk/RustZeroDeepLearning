@@ -80,8 +80,6 @@ impl<V: MathOps> Function<V> for SumFunction {
     }
 
     /// 逆伝播
-    /// y=x0 * x1 の微分であるため、dy/dx0=x1 * gy, dy/dx1= x0 * gy である。
-    /// TODO utils.reshape_sum_backward 相当が必要
     fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("sum(backward)");
         let gy = utils::reshape_sum_backward(
