@@ -38,15 +38,15 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         //     .unwrap();
 
         let x_dim = utils::get_ixdim(&inputs[0]).unwrap();
-        match x_dim {
-            Ok(FixedDimArray::Dim1(arr)) => arr,
-            Ok(FixedDimArray::Dim2(arr)) => arr,
-            Ok(FixedDimArray::Dim3(arr)) => arr,
-            Ok(FixedDimArray::Dim4(arr)) => arr,
-            Ok(FixedDimArray::Dim5(arr)) => arr,
-            Ok(FixedDimArray::Dim6(arr)) => arr,
-            _ => println!("Invalid or unsupported dimension"),
-        }
+        // match x_dim {
+        //     Ok(FixedDimArray::Dim1(arr)) => arr,
+        //     Ok(FixedDimArray::Dim2(arr)) => arr,
+        //     Ok(FixedDimArray::Dim3(arr)) => arr,
+        //     Ok(FixedDimArray::Dim4(arr)) => arr,
+        //     Ok(FixedDimArray::Dim5(arr)) => arr,
+        //     Ok(FixedDimArray::Dim6(arr)) => arr,
+        //     _ => println!("Invalid or unsupported dimension"),
+        // }
 
         dbg!(&x_dim);
 
@@ -97,7 +97,38 @@ mod tests {
     #[test]
     fn test_test() {
         let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
-        let y = matmul(x.clone(), x.clone());
+        // let y = matmul(x.clone(), x.clone());
+
+        // let x1 = Variable::new(RawVariable::from_shape_vec(vec![2, 2, 2], (1..9).collect()));
+        // let x2 = Variable::new(RawVariable::from_shape_vec(
+        //     vec![2, 2, 2],
+        //     (10..19).collect(),
+        // ));
+
+        let hoge = utils::get_ixdim(&x.borrow().get_data());
+        dbg!(&hoge);
+
+        if let Some(fixed_array) = hoge {
+            dbg!(&fixed_array);
+            fixed_array.dot(&fixed_array);
+            // array1d を使った処理...
+        }
+
+        // let raw1 = x1
+        //     .borrow()
+        //     .get_data()
+        //     .clone()
+        //     .into_dimensionality()
+        //     .unwrap();
+        // let raw2 = x2
+        //     .borrow()
+        //     .get_data()
+        //     .clone()
+        //     .into_dimensionality()
+        //     .unwrap();
+
+        // // let result = raw1.dot(&raw2);
+        // dbg!(&raw1);
     }
 
     /// シンプルな行列の積

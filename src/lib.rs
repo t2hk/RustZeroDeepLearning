@@ -1,3 +1,4 @@
+#![recursion_limit = "2048"]
 #[macro_use]
 pub mod modules;
 
