@@ -34,18 +34,40 @@ impl<V: MathOps> Function<V> for MatmulFunction {
             w_data.ndim()
         );
 
-        // ベクトルの場合
-        if x_data.dim()[0] == 1 && x_data.dim() == w_data.dim() {
-            let result_value = x_data
-                .iter()
-                .zip(w_data.iter())
-                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+        println!(
+            "x dim: {:?}, x ndim: {:?},  w dim: {:?}, w ndim: {:?}",
+            x_data.dim(),
+            x_data.ndim(),
+            w_data.dim(),
+            w_data.ndim()
+        );
+        println!(
+            "matmul(forward) x: {:?}, w: {:?}",
+            x_data.flatten().to_vec(),
+            w_data.flatten().to_vec(),
+        );
 
-            return vec![Array::from_elem(IxDyn(&[]), result_value)];
+        // ベクトルの場合
+        if (x_data.ndim() == 0 && w_data.ndim() == 0)
+            || (x_data.dim()[0] == 1 && x_data.dim() == w_data.dim())
+        {
+            info!("matmul(forward) for vector");
+
+            let x_vals = x_data.flatten().to_vec();
+            let w_vals = w_data.flatten().to_vec();
+
+            let mut sum = V::zero();
+
+            for i in 0..x_vals.len() {
+                sum = sum + x_vals[i].clone() * w_vals[i].clone();
+            }
+            return vec![Array::from_elem(IxDyn(&[]), sum)];
         }
 
         match (x_data.ndim(), w_data.ndim()) {
             (1, 1) => {
+                info!("matmul(forward) for shape (1, 1)");
+
                 let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
                 let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
 
@@ -57,6 +79,7 @@ impl<V: MathOps> Function<V> for MatmulFunction {
                 vec![Array::from_elem(IxDyn(&[]), result_value)]
             }
             (1, 2) => {
+                info!("matmul(forward) for shape (1, 2)");
                 let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
                 let w_tmp = w_data.into_dimensionality::<Ix2>().unwrap();
 
@@ -76,6 +99,7 @@ impl<V: MathOps> Function<V> for MatmulFunction {
                 vec![result.into_dimensionality::<IxDyn>().unwrap()]
             }
             (2, 1) => {
+                info!("matmul(forward) for shape (2, 1)");
                 let x_tmp = x_data.into_dimensionality::<Ix2>().unwrap();
                 let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
 
@@ -96,6 +120,7 @@ impl<V: MathOps> Function<V> for MatmulFunction {
                 vec![result.into_dimensionality::<IxDyn>().unwrap()]
             }
             (2, 2) => {
+                info!("matmul(forward) for shape (2, 2)");
                 let x_tmp = x_data.into_dimensionality::<Ix2>().unwrap();
                 let w_tmp = w_data.into_dimensionality::<Ix2>().unwrap();
 
@@ -122,18 +147,29 @@ impl<V: MathOps> Function<V> for MatmulFunction {
                 vec![result.into_dimensionality::<IxDyn>().unwrap()]
             }
             _ => {
+                error!("matmul(forward) for invalid shape");
+                debug!("x ndim: {} w ndim: {}", x_data.ndim(), w_data.ndim());
+                debug!(
+                    "x : {:?} w : {:?}",
+                    x_data.flatten().to_vec(),
+                    w_data.flatten().to_vec()
+                );
                 panic!("error: invalid dimension. x: {:?}, w: {:?}", x_data, w_data);
             }
         }
     }
 
     /// 逆伝播
-    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("matmul(backward)");
 
-        //let reshape_gy = Variable::new(RawVariable::new(gy));
+        let x = inputs[0].clone();
+        let w = inputs[1].clone();
 
-        gys
+        let gx = matmul(gys[0].clone(), w.transpose());
+        let gw = matmul(x.transpose(), gys[0].clone());
+
+        vec![gx, gw]
     }
 }
 
@@ -146,7 +182,6 @@ impl<V: MathOps> Function<V> for MatmulFunction {
 /// Return
 /// * Variable<V>: 結果
 pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
-    let x_shape = x.borrow().get_data().shape().to_vec();
     let mut matmul = FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
     // 順伝播
     matmul
@@ -224,6 +259,37 @@ mod tests {
                 .borrow()
                 .get_data()
                 .flatten()
+                .to_vec()
+        );
+    }
+
+    #[test]
+    fn test_backward1() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 3], (1..=6).collect()));
+        let w = Variable::new(RawVariable::from_shape_vec(vec![3, 4], (1..=12).collect()));
+
+        let y = matmul(x.clone(), w.clone());
+        dbg!(&y);
+        y.backward();
+
+        assert_eq!(
+            vec![2, 3],
+            x.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .shape()
+                .to_vec()
+        );
+        assert_eq!(
+            vec![3, 4],
+            w.borrow()
+                .get_grad()
+                .unwrap()
+                .borrow()
+                .get_data()
+                .shape()
                 .to_vec()
         );
     }
