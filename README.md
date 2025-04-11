@@ -203,3 +203,8 @@ cargo run
 * SumTo 関数: forward 完了、backward: 完了
 * BroadcastTo 関数: forward 完了、backward: 完了
 * Add 関数を行列に対応した。
+
+### ステップ41 行列の積
+* matmul の順伝播、逆伝播を実装した。
+* 数値型全般を扱えるようにジェネリクスを使っていたが、BigInt 型が Copy トレイトを実装しておらず、LinalgScalar を使えなかった。
+  これにより、ndarray の dot を使うとオーバーフローに関するエラーが発生してしまったため、dot を独自に実装した。

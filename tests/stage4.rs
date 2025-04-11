@@ -3,13 +3,14 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
+use ndarray::linalg::Dot;
 use rust_zero_deeplearning::modules::*;
 use rust_zero_deeplearning::modules::{math::sin, utils::*};
 use rust_zero_deeplearning::*;
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayBase, Axis, Ix2, IxDyn, OwnedArcRepr};
+use ndarray::{Array, ArrayBase, Axis, IxDyn, OwnedArcRepr};
 
 #[test]
 fn test_basic() {
@@ -275,4 +276,22 @@ fn test_step40_sum1() {
     assert_eq!(vec![1, 3], gx0.shape().to_vec());
     assert_eq!(vec![1, 1, 1], gx0.flatten().to_vec());
     assert_eq!(vec![3], gx1.flatten().to_vec());
+}
+
+#[test]
+fn test_nd() {
+    let x = Array::from_shape_vec((2, 3), vec![1, 2, 3, 4, 5, 6]).unwrap(); //        .into_diag();
+
+    let w = Array::from_shape_vec((3, 4), vec![10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21])
+        .unwrap(); //        .into_diag();
+    let result = &x.dot(&w);
+    dbg!(&result.shape());
+
+    let gy = Array::from_shape_vec((2, 4), vec![1, 1, 1, 1, 1, 1, 1, 1]).unwrap();
+    let gx = &gy.dot(&w.t());
+
+    let gw = &x.t().dot(&gy);
+
+    dbg!(&gx.shape());
+    dbg!(&gw.shape());
 }

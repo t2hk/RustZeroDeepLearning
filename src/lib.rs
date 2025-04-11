@@ -10,6 +10,7 @@ pub use modules::math::cos::*;
 pub use modules::math::div::*;
 pub use modules::math::exp::*;
 pub use modules::math::factorial::*;
+pub use modules::math::matmul::*;
 pub use modules::math::mul::*;
 pub use modules::math::neg::*;
 pub use modules::math::pow::*;
