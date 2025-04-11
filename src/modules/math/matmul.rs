@@ -4,7 +4,8 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayD, Axis, IxDyn};
+use ndarray::{linalg::Dot, Array1, Array2, ArrayD, Ix1, Ix2};
+use ndarray::{Array, IxDyn, LinalgScalar};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -24,40 +25,106 @@ impl<V: MathOps> Function<V> for MatmulFunction {
     fn forward(&self, inputs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("matmul(forward)");
 
-        // let x = inputs[0];
-        // let w = inputs[1];
+        let x_data = inputs[0].clone();
+        let w_data = inputs[1].clone();
 
-        // let x = ArrayD::from_shape_vec(inputs[0].shape().to_vec(), inputs[0].flatten().to_vec())
-        //     .unwrap()
-        //     .into_dimensionality()
-        //     .unwrap();
+        debug!(
+            "matmul(forward) x ndim: {:?}, w ndim: {:?}",
+            x_data.ndim(),
+            w_data.ndim()
+        );
 
-        // let w = ArrayD::from_shape_vec(inputs[1].shape().to_vec(), inputs[0].flatten().to_vec())
-        //     .unwrap()
-        //     .into_dimensionality()
-        //     .unwrap();
+        // ベクトルの場合
+        if x_data.dim()[0] == 1 && x_data.dim() == w_data.dim() {
+            let result_value = x_data
+                .iter()
+                .zip(w_data.iter())
+                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-        let x_dim = utils::get_ixdim(&inputs[0]).unwrap();
-        // match x_dim {
-        //     Ok(FixedDimArray::Dim1(arr)) => arr,
-        //     Ok(FixedDimArray::Dim2(arr)) => arr,
-        //     Ok(FixedDimArray::Dim3(arr)) => arr,
-        //     Ok(FixedDimArray::Dim4(arr)) => arr,
-        //     Ok(FixedDimArray::Dim5(arr)) => arr,
-        //     Ok(FixedDimArray::Dim6(arr)) => arr,
-        //     _ => println!("Invalid or unsupported dimension"),
-        // }
+            return vec![Array::from_elem(IxDyn(&[]), result_value)];
+        }
 
-        dbg!(&x_dim);
+        match (x_data.ndim(), w_data.ndim()) {
+            (1, 1) => {
+                let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
 
-        // let x = Array::from_shape_vec(inputs[0].shape().to_vec(), inputs[0].flatten().to_vec())
-        //     .unwrap()
-        //     .into_dimensionality(x_dim.)
-        //     .unwrap();
+                let result_value = x_tmp
+                    .iter()
+                    .zip(w_tmp.iter())
+                    .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-        // let y = &x.dot(&w);
+                vec![Array::from_elem(IxDyn(&[]), result_value)]
+            }
+            (1, 2) => {
+                let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix2>().unwrap();
 
-        inputs
+                let x_len = x_tmp.len();
+                let w_cols = w_tmp.shape()[1];
+
+                let mut result = Array::zeros((w_cols,));
+
+                for j in 0..w_cols {
+                    let mut sum = V::zero();
+                    for i in 0..x_len {
+                        sum = sum + x_tmp[i].clone() * w_tmp[[i, j]].clone();
+                    }
+                    result[j] = sum;
+                }
+
+                vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            }
+            (2, 1) => {
+                let x_tmp = x_data.into_dimensionality::<Ix2>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
+
+                let x_rows = x_tmp.shape()[0];
+                let x_cols = x_tmp.shape()[1];
+
+                // 結果は x_rows 長のベクトルになる
+                let mut result = Array::zeros((x_rows,));
+
+                for i in 0..x_rows {
+                    let mut sum = V::zero();
+                    for j in 0..x_cols {
+                        sum = sum + x_tmp[[i, j]].clone() * w_tmp[j].clone();
+                    }
+                    result[i] = sum;
+                }
+
+                vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            }
+            (2, 2) => {
+                let x_tmp = x_data.into_dimensionality::<Ix2>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix2>().unwrap();
+
+                let x_rows = x_tmp.shape()[0];
+                let x_cols = x_tmp.shape()[1];
+                let w_cols = w_tmp.shape()[1];
+
+                // x_cols と w_rows（= x_tmp.shape()[1]とw_tmp.shape()[0]）は同じサイズであることを確認
+                assert_eq!(x_cols, w_tmp.shape()[0], "行列の次元が不一致です");
+
+                // 結果は x_rows x w_cols の行列になる
+                let mut result = Array::zeros((x_rows, w_cols));
+
+                for i in 0..x_rows {
+                    for j in 0..w_cols {
+                        let mut sum = V::zero();
+                        for k in 0..x_cols {
+                            sum = sum + x_tmp[[i, k]].clone() * w_tmp[[k, j]].clone();
+                        }
+                        result[[i, j]] = sum;
+                    }
+                }
+
+                vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            }
+            _ => {
+                panic!("error: invalid dimension. x: {:?}, w: {:?}", x_data, w_data);
+            }
+        }
     }
 
     /// 逆伝播
@@ -92,43 +159,31 @@ pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::{Ix1, Ix2, Ix3};
     use rand::prelude::*;
 
     #[test]
-    fn test_test() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
+    fn test_forward1() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
+        let w = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![4, 5, 6]));
+
+        let y = matmul(x, w);
+        assert_eq!(32, y.borrow().get_data().flatten().to_vec()[0]);
+    }
+
+    #[test]
+    fn test_forward2() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 2], (1..=4).collect()));
         // let y = matmul(x.clone(), x.clone());
 
-        // let x1 = Variable::new(RawVariable::from_shape_vec(vec![2, 2, 2], (1..9).collect()));
-        // let x2 = Variable::new(RawVariable::from_shape_vec(
-        //     vec![2, 2, 2],
-        //     (10..19).collect(),
-        // ));
+        let w = Variable::new(RawVariable::from_shape_vec(vec![2, 2], (5..=8).collect()));
 
-        let hoge = utils::get_ixdim(&x.borrow().get_data());
-        dbg!(&hoge);
-
-        if let Some(fixed_array) = hoge {
-            dbg!(&fixed_array);
-            fixed_array.dot(&fixed_array);
-            // array1d を使った処理...
-        }
-
-        // let raw1 = x1
-        //     .borrow()
-        //     .get_data()
-        //     .clone()
-        //     .into_dimensionality()
-        //     .unwrap();
-        // let raw2 = x2
-        //     .borrow()
-        //     .get_data()
-        //     .clone()
-        //     .into_dimensionality()
-        //     .unwrap();
-
-        // // let result = raw1.dot(&raw2);
-        // dbg!(&raw1);
+        let y = matmul(x, w);
+        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
+        assert_eq!(
+            vec![19, 22, 43, 50],
+            y.borrow().get_data().flatten().to_vec()
+        );
     }
 
     /// シンプルな行列の積

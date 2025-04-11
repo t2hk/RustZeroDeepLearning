@@ -2,9 +2,8 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayBase, ArrayD, Dim, Ix1, Ix2, Ix3, Ix4, Ix5, Ix6, IxDyn};
+use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::fmt::Error;
 use std::fs::File;
 use std::io::{Result, Write};
 use std::path::Path;
@@ -476,85 +475,6 @@ pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
     arr.clone()
         .into_shape_with_order(IxDyn(&final_shape))
         .unwrap()
-}
-
-#[derive(Debug)]
-pub enum FixedDimArray<V> {
-    Dim1(Array<V, Ix1>),
-    Dim2(Array<V, Ix2>),
-    Dim3(Array<V, Ix3>),
-    Dim4(Array<V, Ix4>),
-    Dim5(Array<V, Ix5>),
-    Dim6(Array<V, Ix6>),
-}
-
-impl<V: Clone> FixedDimArray<V> {
-    // 内部配列をクローンして動的次元の配列に変換
-    pub fn to_dyn(&self) -> ArrayD<V>
-    where
-        V: Clone,
-    {
-        match self {
-            FixedDimArray::Dim1(arr) => arr.clone().into_dyn(),
-            FixedDimArray::Dim2(arr) => arr.clone().into_dyn(),
-            FixedDimArray::Dim3(arr) => arr.clone().into_dyn(),
-            FixedDimArray::Dim4(arr) => arr.clone().into_dyn(),
-            FixedDimArray::Dim5(arr) => arr.clone().into_dyn(),
-            FixedDimArray::Dim6(arr) => arr.clone().into_dyn(),
-        }
-    }
-
-    // 行列積を計算（2次元配列同士の場合）
-    pub fn dot(&self, other: &FixedDimArray<V>) -> Option<FixedDimArray<V>>
-    where
-        V: std::ops::Mul<Output = V> + std::ops::AddAssign + Default + Copy,
-    {
-        match (self, other) {
-            (FixedDimArray::Dim2(a), FixedDimArray::Dim2(b)) => {
-                let a_tmp = a.clone().into_dimensionality::<Ix2>().unwrap();
-                let b_tmp = b.clone().into_dimensionality::<Ix2>().unwrap();
-                let result = a_tmp.dot(&b_tmp);
-                Some(FixedDimArray::Dim2(result))
-            }
-            (FixedDimArray::Dim1(a), FixedDimArray::Dim1(b)) => {
-                // ベクトル同士の内積はスカラー値になるので、
-                // 1要素の1次元配列として返す
-                let dot_product = a.dot(b);
-                let mut result = Array::zeros(Ix1(1));
-                result[0] = dot_product;
-                Some(FixedDimArray::Dim1(result))
-            }
-            // 他の次元の組み合わせに対する実装...
-            _ => None,
-        }
-    }
-}
-
-pub fn get_ixdim<V>(x: &Array<V, IxDyn>) -> Option<FixedDimArray<V>>
-where
-    V: MathOps,
-{
-    match x.ndim() {
-        1 => Some(FixedDimArray::Dim1(
-            x.clone().into_dimensionality::<Ix1>().unwrap(),
-        )),
-        2 => Some(FixedDimArray::Dim2(
-            x.clone().into_dimensionality::<Ix2>().unwrap(),
-        )),
-        3 => Some(FixedDimArray::Dim3(
-            x.clone().into_dimensionality::<Ix3>().unwrap(),
-        )),
-        4 => Some(FixedDimArray::Dim4(
-            x.clone().into_dimensionality::<Ix4>().unwrap(),
-        )),
-        5 => Some(FixedDimArray::Dim5(
-            x.clone().into_dimensionality::<Ix5>().unwrap(),
-        )),
-        6 => Some(FixedDimArray::Dim6(
-            x.clone().into_dimensionality::<Ix6>().unwrap(),
-        )),
-        _ => None,
-    }
 }
 
 #[cfg(test)]
