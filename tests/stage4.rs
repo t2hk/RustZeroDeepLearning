@@ -4,6 +4,10 @@ extern crate rust_zero_deeplearning;
 mod common;
 
 use ndarray_rand::RandomExt;
+use plotters::chart::ChartBuilder;
+use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
+use plotters::series::{LineSeries, PointSeries};
+use plotters::style::{Color, IntoFont, BLACK, BLUE, GREEN, MAGENTA, RED, WHITE};
 use rand::distributions::Uniform;
 use rust_zero_deeplearning::modules::*;
 use rust_zero_deeplearning::modules::{math::sin, utils::*};
@@ -301,19 +305,132 @@ fn test_nd() {
     dbg!(&gw.shape());
 }
 
+/// 線形回帰
 #[test]
-fn test_rand() {
-    let x = rand::random::<u8>();
-    println!("{}", x);
-
-    let a = Array::random((2, 5), Uniform::new(0., 1.));
-    println!("{:8.4}", a);
-
+fn test_linear_regression() {
+    // 乱数による y = 2x + 5 の生成
     let mut seed = 0;
     let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-    // Generate a random array using `rng`
+    let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    let y_var: ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> =
+        5.0 + 2.0 * x_var.clone() + Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
 
-    let a = Array::random_using((2, 5), Uniform::new(0., 10.), &mut rng);
-    println!("{:8.4}", a);
+    let x = Variable::new(RawVariable::from_shape_vec(
+        x_var.shape(),
+        x_var.flatten().to_vec(),
+    ));
+    let y = Variable::new(RawVariable::from_shape_vec(
+        y_var.shape(),
+        y_var.flatten().to_vec(),
+    ));
+
+    // 線形回帰による予測
+    let mut w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![0.0]));
+    let mut b = Variable::new(RawVariable::from_shape_vec(vec![1], vec![0.0]));
+
+    let lr = 0.1;
+    let iters = 100;
+
+    let mut loss_data = 0.0;
+    for i in 0..iters {
+        // let y_pred = predict(x.clone());
+        let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
+        let loss = utils::mean_squared_error(y.clone(), y_pred.clone());
+
+        w.borrow_mut().clear_grad();
+        b.borrow_mut().clear_grad();
+        loss.backward();
+
+        let w_new_data =
+            w.borrow().get_data() - w.borrow().get_grad().unwrap().borrow().get_data() * lr;
+        w.set_data(w_new_data);
+
+        let b_new_data =
+            b.borrow().get_data() - b.borrow().get_grad().unwrap().borrow().get_data() * lr;
+        b.set_data(b_new_data);
+
+        println!(
+            "w: {:?}, b: {:?}, loss: {:?}",
+            w.borrow().get_data(),
+            b.borrow().get_data(),
+            loss.borrow().get_data()
+        );
+        loss_data = loss.borrow().get_data().flatten().to_vec()[0];
+    }
+
+    // グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step42_linear_regression.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("y=2x+5", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0.0..1.0, 5.0..8.0)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 元データのプロット
+    let mut plot_data_vec = vec![];
+    let x_var_vec = x_var.flatten().to_vec();
+    let y_var_vec = y_var.flatten().to_vec();
+
+    for i in 0..100 {
+        plot_data_vec.push(vec![x_var_vec[i], y_var_vec[i]]);
+    }
+    // 点グラフの定義＆描画
+    let point_series = PointSeries::<_, _, Circle<_, _>, _>::new(
+        plot_data_vec.iter().map(|(xy)| (xy[0], xy[1])),
+        2,     // Circleのサイズ
+        &BLUE, // 色を指定
+    );
+    chart.draw_series(point_series).unwrap();
+
+    // 線形回帰による予測線の描画
+    let pred_x = vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+    let w_data = w.borrow().get_data().flatten().to_vec()[0];
+    let b_data = b.borrow().get_data().flatten().to_vec()[0];
+
+    chart
+        .draw_series(LineSeries::new(
+            pred_x.iter().map(|x| (*x, *x * w_data + b_data)),
+            RED,
+        ))
+        .unwrap()
+        .label(format!("w: {}", w_data).to_string())
+        .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+    chart
+        .draw_series(std::iter::once(EmptyElement::at((0.0, 0.0))))
+        .unwrap() // 凡例に b の値を出力するためのダミー要素
+        .label(format!("b: {}", b_data).to_string())
+        .legend(|(x, y)| EmptyElement::at((x, y)));
+    chart
+        .draw_series(std::iter::once(EmptyElement::at((0.0, 0.0))))
+        .unwrap() // 凡例に loss の値を出力するためのダミー要素
+        .label(format!("loss: {}", loss_data).to_string())
+        .legend(|(x, y)| EmptyElement::at((x, y)));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+}
+
+fn predict(x: Variable<f64>) -> Variable<f64> {
+    let w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![0.0]));
+    let b = Variable::new(RawVariable::from_shape_vec(vec![1], vec![0.0]));
+
+    let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
+
+    w.borrow_mut().clear_grad();
+    b.borrow_mut().clear_grad();
+
+    return y_pred;
 }
