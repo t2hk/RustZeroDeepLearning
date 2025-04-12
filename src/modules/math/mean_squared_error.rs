@@ -65,3 +65,70 @@ pub fn mean_squared_error<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Varia
         .unwrap()
         .clone()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::{cell::RefCell, rc::Rc};
+
+    use ndarray::Array;
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_mse_forward1() {
+        let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+        let x1 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+
+        let result = mean_squared_error(x0.clone(), x1.clone());
+        // 書籍と同じ結果であることを確認する。
+        assert_eq!(0.0, result.borrow().get_data()[[]]);
+    }
+
+    /// 数値微分による近似テスト
+    #[test]
+    fn test_mse_backward1() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
+        let x1_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 1],
+            x0_var.flatten().to_vec(),
+        ));
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut mean_squared_error =
+            FunctionExecutor::new(Rc::new(RefCell::new(MeanSquaredErrorFunction {})));
+
+        utils::gradient_check(&mut mean_squared_error, vec![x0.clone(), x1.clone()]);
+    }
+
+    #[test]
+    fn test_mse_backward2() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let x1_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![100, 1],
+            x0_var.flatten().to_vec(),
+        ));
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![100, 1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut mean_squared_error =
+            FunctionExecutor::new(Rc::new(RefCell::new(MeanSquaredErrorFunction {})));
+
+        utils::gradient_check(&mut mean_squared_error, vec![x0.clone(), x1.clone()]);
+    }
+}

@@ -16,9 +16,7 @@ use rust_zero_deeplearning::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, Axis};
-
 use rand::SeedableRng;
-
 use rand_isaac::isaac64::Isaac64Rng;
 
 #[test]
