@@ -3,14 +3,19 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
-use ndarray::linalg::Dot;
+use ndarray_rand::RandomExt;
+use rand::distributions::Uniform;
 use rust_zero_deeplearning::modules::*;
 use rust_zero_deeplearning::modules::{math::sin, utils::*};
 use rust_zero_deeplearning::*;
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayBase, Axis, IxDyn, OwnedArcRepr};
+use ndarray::{Array, Axis};
+
+use rand::SeedableRng;
+
+use rand_isaac::isaac64::Isaac64Rng;
 
 #[test]
 fn test_basic() {
@@ -294,4 +299,21 @@ fn test_nd() {
 
     dbg!(&gx.shape());
     dbg!(&gw.shape());
+}
+
+#[test]
+fn test_rand() {
+    let x = rand::random::<u8>();
+    println!("{}", x);
+
+    let a = Array::random((2, 5), Uniform::new(0., 1.));
+    println!("{:8.4}", a);
+
+    let mut seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    // Generate a random array using `rng`
+
+    let a = Array::random_using((2, 5), Uniform::new(0., 10.), &mut rng);
+    println!("{:8.4}", a);
 }

@@ -846,8 +846,10 @@ fn test_square() {
     common::setup();
 
     // 2乗する値をランダムに生成する。
-    let mut rng = rand::rng();
-    let rand_x = rng.random::<f64>();
+    //let mut rng = rand::rng();
+    //let rand_x = rng.random::<f64>();
+    let rand_x = rand::random::<f64>();
+
     let x = Variable::new(RawVariable::new(rand_x));
 
     // 2乗した結果の期待値を計算する。
@@ -887,9 +889,11 @@ fn test_add() {
     common::setup();
 
     // 加算値をランダムに生成する。
-    let mut rng = rand::rng();
-    let rand_x1 = rng.random::<f64>();
-    let rand_x2 = rng.random::<f64>();
+    //let mut rng = rand::rng();
+    // let rand_x1 = rng.random::<f64>();
+    // let rand_x2 = rng.random::<f64>();
+    let rand_x1 = rand::random::<f64>();
+    let rand_x2 = rand::random::<f64>();
     let x1 = Variable::new(RawVariable::new(rand_x1));
     let x2 = Variable::new(RawVariable::new(rand_x2));
 
