@@ -215,3 +215,4 @@ cargo run
   rand 0.9 系で記述していた処理も変更した。
 * utils に平均二乗誤差を追加した。→ utils から個別の関数に移行した。
 * 線形回帰を実装し、y=2x+5 の近似を plotters でグラフ描画した。
+* utils に数値微分による近似テストを追加(utils::gradient_check, utils::numerical_grad)
