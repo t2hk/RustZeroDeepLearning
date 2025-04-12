@@ -477,9 +477,138 @@ pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
         .unwrap()
 }
 
+/// 数値微分
+/// 関数の数値微分を行う。扱う数値は f64 固定とする。
+///
+/// Argumesnts:
+/// * function (&mut FunctionExecutor<f64>): 評価する関数
+/// * inputs (Vec<Variable<f64>>): 関数の入力値
+///
+/// Return:
+/// * Vec<Variable<f64>>: 数値微分の結果
+pub fn numerical_grad(
+    function: &mut FunctionExecutor<f64>,
+    inputs: Vec<Variable<f64>>,
+) -> Vec<Variable<f64>> {
+    let eps = 1e-4;
+
+    // 入力値全てに対する数値微分結果を格納する。
+    let mut grad: Vec<Variable<f64>> = vec![];
+
+    // 全ての入力値について評価する。
+    for i in 0..inputs.len() {
+        // 1つの入力値について、形状と要素の値を取得し、値ごとに処理する。
+        let shape = inputs[i].borrow().get_data().shape().to_vec();
+        let mut values = inputs[i].borrow().get_data().flatten().to_vec();
+        let mut inputs_tmp = inputs.to_owned();
+
+        // 要素ごとに eps を増減させ、それぞれ順伝播を行う。順伝播の結果について中心差分を算出する。
+        for j in 0..values.len() {
+            let origin_value = values[j].clone();
+
+            // eps だけ増加させて順伝播を行う。
+            values[j] += eps;
+            let variable =
+                Variable::new(RawVariable::from_shape_vec(shape.clone(), values.clone()));
+            inputs_tmp[i] = variable;
+            let y1 = function.forward(inputs_tmp.clone());
+
+            // eps だけ減少させて順伝播を行う。
+            values[j] = origin_value - eps;
+            let variable =
+                Variable::new(RawVariable::from_shape_vec(shape.clone(), values.clone()));
+            inputs_tmp[i] = variable;
+            let y2 = function.forward(inputs_tmp.clone());
+
+            // 中心差分を求める。
+            let diff = sum(&y1[0] - &y2[0], None, false);
+            let grad_value = &diff / (2.0 * eps);
+            grad.push(grad_value);
+
+            // 次のループに向けて元に戻しておく。
+            values[j] = origin_value;
+        }
+    }
+
+    // 数値微分した結果について、入力値ごとの形状に直して返却する。
+    let mut start_pos = 0;
+    let mut result: Vec<Variable<f64>> = vec![];
+
+    // 数値微分の結果ベクトルを入力値の形状に合わせる。
+    for input in inputs {
+        let shape = input.borrow().get_data().shape().to_vec();
+        let value_len = input.borrow().get_data().len();
+        println!(
+            "shape: {:?}, value len: {}, start_pos: {}",
+            shape, value_len, start_pos
+        );
+
+        let mut grad_values: Vec<f64> = vec![];
+        for pos in start_pos..(start_pos + value_len) {
+            grad_values.push(grad[pos].borrow().get_data().flatten().to_vec()[0]);
+        }
+
+        let grad_var = Variable::new(RawVariable::from_shape_vec(shape, grad_values.clone()));
+        result.push(grad_var);
+        start_pos += value_len;
+        grad_values = vec![];
+    }
+    result
+}
+
+/// 数値微分を使ったバックプロパゲーションの結果チェック
+/// バックプロパゲーションの結果と数値微分を比較し、近似するか確認する。
+///
+/// Argumesnts:
+/// * function (&mut FunctionExecutor<f64>): 評価する関数
+/// * inputs (Vec<Variable<f64>>): 関数の入力値
+///
+pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable<f64>>) {
+    let mut func = function.to_owned();
+
+    // テスト対象の関数について、数値微分を行う。
+    let num_grads = numerical_grad(&mut func, inputs.clone());
+
+    // テスト対象の関数について、順伝播と逆伝播を行う。
+    let y = func.forward(inputs.clone());
+    y[0].backward();
+
+    // 入力値ごとに数値微分と逆伝播の結果が近似するか確認する。
+    for i in 0..inputs.len() {
+        let bp_grad = inputs[i].borrow().get_grad().unwrap().borrow().get_data();
+        let num_grad = num_grads[i].borrow().get_data();
+
+        // 形状が一致すること
+        assert_eq!(num_grad.shape(), bp_grad.shape());
+
+        // 近似していること
+        assert!(bp_grad.abs_diff_eq(&num_grad, 0.00001));
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
+
+    #[test]
+    fn test_num_grad() {
+        let x0_values = vec![
+            0.48905058, 0.12052497, 0.25442758, 0.92318036, 0.38172492, 0.9410574, 0.00147813,
+            0.80549311, 0.4386291, 0.02845124,
+        ];
+        let x1_values = vec![
+            0.82280806, 0.09954563, 0.68377267, 0.59132052, 0.69092459, 0.24181232, 0.66857664,
+            0.86462292, 0.25217713, 0.14296797,
+        ];
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 10], x0_values));
+        let x1 = Variable::new(RawVariable::from_shape_vec(vec![1, 10], x1_values));
+
+        let mut mean_squared_error =
+            FunctionExecutor::new(Rc::new(RefCell::new(MeanSquaredErrorFunction {})));
+
+        gradient_check(&mut mean_squared_error, vec![x0.clone(), x1.clone()]);
+    }
 
     #[test]
     fn test_squeeze() {
