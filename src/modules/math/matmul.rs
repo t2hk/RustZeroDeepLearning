@@ -9,7 +9,7 @@ use ndarray::{Array, IxDyn, LinalgScalar};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Sum 関数
+/// matmul 関数
 #[derive(Debug, Clone)]
 pub struct MatmulFunction {}
 impl<V: MathOps> Function<V> for MatmulFunction {
