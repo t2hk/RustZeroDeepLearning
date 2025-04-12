@@ -309,7 +309,7 @@ fn test_nd() {
 #[test]
 fn test_linear_regression() {
     // 乱数による y = 2x + 5 の生成
-    let mut seed = 0;
+    let seed = 0;
     let mut rng = Isaac64Rng::seed_from_u64(seed);
 
     let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
@@ -333,10 +333,9 @@ fn test_linear_regression() {
     let iters = 100;
 
     let mut loss_data = 0.0;
-    for i in 0..iters {
-        // let y_pred = predict(x.clone());
+    for _i in 0..iters {
         let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
-        let loss = utils::mean_squared_error(y.clone(), y_pred.clone());
+        let loss = mean_squared_error(y.clone(), y_pred.clone());
 
         w.borrow_mut().clear_grad();
         b.borrow_mut().clear_grad();
