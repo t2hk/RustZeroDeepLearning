@@ -5,6 +5,7 @@ pub mod div;
 pub mod exp;
 pub mod factorial;
 pub mod matmul;
+pub mod mean_squared_error;
 pub mod mul;
 pub mod neg;
 pub mod pow;
@@ -16,5 +17,6 @@ pub mod sum;
 pub mod sum_to;
 pub mod tanh;
 pub mod transpose;
+
 // 一括でインポート
 pub use crate::modules::*;

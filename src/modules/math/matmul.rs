@@ -4,12 +4,12 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{linalg::Dot, Array1, Array2, ArrayD, Ix1, Ix2};
-use ndarray::{Array, IxDyn, LinalgScalar};
+use ndarray::{Array, IxDyn};
+use ndarray::{Ix1, Ix2};
 use std::cell::RefCell;
 use std::rc::Rc;
 
-/// Sum 関数
+/// matmul 関数
 #[derive(Debug, Clone)]
 pub struct MatmulFunction {}
 impl<V: MathOps> Function<V> for MatmulFunction {
@@ -194,8 +194,6 @@ pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Ix1, Ix2, Ix3};
-    use rand::prelude::*;
 
     #[test]
     fn test_forward1() {

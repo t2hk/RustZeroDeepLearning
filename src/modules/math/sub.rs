@@ -151,9 +151,11 @@ mod tests {
     #[test]
     fn test_sub() {
         // 減算値をランダムに生成する。
-        let mut rng = rand::rng();
-        let rand_x1 = rng.random::<f64>();
-        let rand_x2 = rng.random::<f64>();
+        // let mut rng = rand::rng();
+        // let rand_x1 = rng.random::<f64>();
+        // let rand_x2 = rng.random::<f64>();
+        let rand_x1 = rand::random::<f64>();
+        let rand_x2 = rand::random::<f64>();
         let x1 = Variable::new(RawVariable::new(rand_x1));
         let x2 = Variable::new(RawVariable::new(rand_x2));
 

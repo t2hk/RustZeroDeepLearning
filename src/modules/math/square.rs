@@ -71,8 +71,9 @@ mod tests {
     #[test]
     fn test_square() {
         // 2乗する値をランダムに生成する。
-        let mut rng = rand::rng();
-        let rand_x = rng.random::<f64>();
+        //let mut rng = rand::rng();
+        //let rand_x = rng.random::<f64>();
+        let rand_x = rand::random::<f64>();
         let x = Variable::new(RawVariable::new(rand_x));
 
         // 2乗した結果の期待値を計算する。

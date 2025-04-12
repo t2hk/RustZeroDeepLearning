@@ -7,12 +7,16 @@ edition = "2021"
 ndarray = { version = "0.16.*", features = ["approx"] }
 approx = {version = "0.5.*"}
 num-complex = { version = "0.4.*" }
-rand = {version = "0.9.*"}
+rand = {version = "0.8.*"}
 num-traits = {version = "0.2.*"}
 num-bigint = {version = "0.4.*"}
 log = {version = "0.4.*"}
 env_logger = {version = "0.11.*"}
 plotters = {version = "0.3.*"}
+ndarray-rand = {version = "0.15.*"}
+
+[dev-dependencies]
+rand_isaac = { version = "0.3.*"} 
 
 [profile.dev]
 opt-level = 0
