@@ -477,6 +477,24 @@ pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
         .unwrap()
 }
 
+/// 平均二乗誤差
+///
+/// Arguments:
+/// * x0 (Variable<V>):
+/// * x1 (Variable<V>):
+///
+/// Return
+/// * Variable<V>
+pub fn mean_squared_error<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
+    let diff = &x0 - &x1;
+    let diff_pow_2 = sum(&diff ^ 2, None, false);
+    let diff_len = diff.borrow().get_data().len();
+
+    let result = &diff_pow_2 / diff_len as f64;
+
+    result
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
