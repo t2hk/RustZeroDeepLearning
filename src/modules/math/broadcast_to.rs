@@ -77,6 +77,30 @@ pub fn broadcast_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V
 mod tests {
     use super::*;
 
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1, 100],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let mut broadcast_to = FunctionExecutor::new(Rc::new(RefCell::new(BroadcastToFunction {
+            x_shape: vec![1, 100],
+            shape: vec![100, 100],
+        })));
+
+        utils::gradient_check(&mut broadcast_to, vec![x0.clone()]);
+    }
+
     /// broadcast_to 関数のテスト。
     #[test]
     fn test_broadcast_to_1() {

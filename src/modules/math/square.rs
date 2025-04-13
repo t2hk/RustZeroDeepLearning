@@ -65,7 +65,26 @@ pub fn square<V: MathOps>(input: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let mut square: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(SquareFunction {})));
+
+        utils::gradient_check(&mut square, vec![x0.clone()]);
+    }
 
     /// 二乗のテスト
     #[test]

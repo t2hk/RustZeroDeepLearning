@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{Array, Array1, Array2, Ix0, IxDyn};
 use ndarray::{Ix1, Ix2};
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -34,37 +34,59 @@ impl<V: MathOps> Function<V> for MatmulFunction {
             w_data.ndim()
         );
 
-        println!(
-            "x dim: {:?}, x ndim: {:?},  w dim: {:?}, w ndim: {:?}",
-            x_data.dim(),
+        debug!(
+            "matmul(forward) x_data ndim: {:?}, dim: {:?}, shape: {:?}",
             x_data.ndim(),
+            x_data.dim(),
+            x_data.shape()
+        );
+        debug!(
+            "matmul(forward) w_data ndim: {:?}, dim: {:?}, shape: {:?}",
+            w_data.ndim(),
             w_data.dim(),
-            w_data.ndim()
+            w_data.shape()
         );
-        println!(
-            "matmul(forward) x: {:?}, w: {:?}",
-            x_data.flatten().to_vec(),
-            w_data.flatten().to_vec(),
-        );
-
-        // ベクトルの場合
-        if (x_data.ndim() == 0 && w_data.ndim() == 0)
-            || (x_data.dim()[0] == 1 && x_data.dim() == w_data.dim())
-        {
-            info!("matmul(forward) for vector");
-
-            let x_vals = x_data.flatten().to_vec();
-            let w_vals = w_data.flatten().to_vec();
-
-            let mut sum = V::zero();
-
-            for i in 0..x_vals.len() {
-                sum = sum + x_vals[i].clone() * w_vals[i].clone();
-            }
-            return vec![Array::from_elem(IxDyn(&[]), sum)];
-        }
 
         match (x_data.ndim(), w_data.ndim()) {
+            (0, 0) => {
+                info!("matmul(forward) for shape (0, 0)");
+
+                let x_tmp = x_data.into_dimensionality::<Ix0>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix0>().unwrap();
+
+                let result_value = x_tmp
+                    .iter()
+                    .zip(w_tmp.iter())
+                    .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+                vec![Array::from_elem(IxDyn(&[]), result_value)]
+            }
+            (0, 1) => {
+                info!("matmul(forward) for shape (0, 1)");
+
+                let x_tmp = x_data.into_dimensionality::<Ix0>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
+
+                let result_value = w_tmp
+                    .iter()
+                    .zip(x_tmp.iter())
+                    .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+                vec![Array::from_shape_vec(vec![1], vec![result_value]).unwrap()]
+            }
+            (1, 0) => {
+                info!("matmul(forward) for shape (1, 0)");
+
+                let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
+                let w_tmp = w_data.into_dimensionality::<Ix0>().unwrap();
+
+                let result_value = x_tmp
+                    .iter()
+                    .zip(w_tmp.iter())
+                    .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+                vec![Array::from_shape_vec(vec![1], vec![result_value]).unwrap()]
+            }
             (1, 1) => {
                 info!("matmul(forward) for shape (1, 1)");
 
@@ -80,8 +102,19 @@ impl<V: MathOps> Function<V> for MatmulFunction {
             }
             (1, 2) => {
                 info!("matmul(forward) for shape (1, 2)");
-                let x_tmp = x_data.into_dimensionality::<Ix1>().unwrap();
-                let w_tmp = w_data.into_dimensionality::<Ix2>().unwrap();
+
+                if x_data.shape()[0] != w_data.shape()[0] {
+                    panic!(
+                        "shapes {:?} and {:?} not aligned. {} != {}",
+                        x_data.shape(),
+                        w_data.shape(),
+                        x_data.shape()[0],
+                        w_data.shape()[0]
+                    );
+                }
+
+                let x_tmp: Array1<V> = x_data.into_dimensionality::<Ix1>().unwrap();
+                let w_tmp: Array2<V> = w_data.into_dimensionality::<Ix2>().unwrap();
 
                 let x_len = x_tmp.len();
                 let w_cols = w_tmp.shape()[1];
@@ -96,10 +129,22 @@ impl<V: MathOps> Function<V> for MatmulFunction {
                     result[j] = sum;
                 }
 
+                dbg!(&result);
+
                 vec![result.into_dimensionality::<IxDyn>().unwrap()]
             }
             (2, 1) => {
                 info!("matmul(forward) for shape (2, 1)");
+
+                if x_data.shape()[0] != w_data.shape()[0] {
+                    panic!(
+                        "shapes {:?} and {:?} not aligned. {} != {}",
+                        x_data.shape(),
+                        w_data.shape(),
+                        x_data.shape()[0],
+                        w_data.shape()[0]
+                    );
+                }
                 let x_tmp = x_data.into_dimensionality::<Ix2>().unwrap();
                 let w_tmp = w_data.into_dimensionality::<Ix1>().unwrap();
 
@@ -166,6 +211,9 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         let x = inputs[0].clone();
         let w = inputs[1].clone();
 
+        dbg!(&gys[0].borrow().get_data());
+        dbg!(&w.borrow().get_data());
+
         let gx = matmul(gys[0].clone(), w.transpose());
         let gw = matmul(x.transpose(), gys[0].clone());
 
@@ -194,14 +242,160 @@ pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::Array;
+    use ndarray_rand::RandomExt;
+    use rand::prelude::*;
+    use rand::{distributions::Uniform, Rng, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check_0_0() {
+        let rand_x0 = rand::random::<f64>();
+        let rand_x1 = rand::random::<f64>();
+
+        let x0 = Variable::new(RawVariable::new(rand_x0));
+        let x1 = Variable::new(RawVariable::new(rand_x1));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check_0_1() {
+        let rand_x0 = rand::random::<f64>();
+        let x0 = Variable::new(RawVariable::new(rand_x0));
+
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x1_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check_1_0() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let rand_x1 = rand::random::<f64>();
+        let x1 = Variable::new(RawVariable::new(rand_x1));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check_1_1() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x1_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
 
     #[test]
     fn test_forward1() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
-        let w = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![4, 5, 6]));
+        let x = Variable::new(RawVariable::from_vec(vec![1., 2., 3.]));
+        let w = Variable::new(RawVariable::from_vec(vec![4., 5., 6.]));
 
         let y = matmul(x, w);
-        assert_eq!(32, y.borrow().get_data().flatten().to_vec()[0]);
+        assert_eq!(32., y.borrow().get_data().flatten().to_vec()[0]);
+    }
+
+    #[test]
+    fn test_num_grad_check2() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1, 100],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x1_var = Array::random_using((100, 1), Uniform::new(0., 10.), &mut rng);
+
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![100, 1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
+
+    #[test]
+    fn test_num_grad_check3() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((2, 100), Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 100],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x1_var = Array::random_using((100, 2), Uniform::new(0., 10.), &mut rng);
+
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![100, 2],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x0.clone(), x1.clone()]);
+    }
+
+    #[test]
+    fn test_forward10() {
+        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![10.]));
+        let w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![20.]));
+
+        let y = matmul(x, w);
+        assert_eq!(200., y.borrow().get_data().flatten().to_vec()[0]);
+
+        y.backward();
     }
 
     #[test]
@@ -290,5 +484,51 @@ mod tests {
                 .shape()
                 .to_vec()
         );
+    }
+
+    #[test]
+    fn test_backward_num_grad_1() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let x_var = Array::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 3],
+            x_var.flatten().to_vec(),
+        ));
+
+        let w_var = Array::random_using((3, 4), Uniform::new(0., 10.), &mut rng);
+        let w = Variable::new(RawVariable::from_shape_vec(
+            vec![3, 4],
+            w_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x.clone(), w.clone()]);
+    }
+
+    #[test]
+    fn test_backward_num_grad_2() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let x_var = Array::random_using((10, 1), Uniform::new(0., 10.), &mut rng);
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 1],
+            x_var.flatten().to_vec(),
+        ));
+
+        let w_var = Array::random_using((1, 5), Uniform::new(0., 10.), &mut rng);
+        let w = Variable::new(RawVariable::from_shape_vec(
+            vec![1, 5],
+            w_var.flatten().to_vec(),
+        ));
+
+        let mut matmul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
+
+        utils::gradient_check(&mut matmul, vec![x.clone(), w.clone()]);
     }
 }

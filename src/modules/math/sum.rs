@@ -126,7 +126,33 @@ pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Vec<isize>>, keepdims: bool)
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
+    use ndarray_rand::RandomExt;
+
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 10],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x_shape = x0.borrow().get_data().shape().to_vec();
+
+        let mut sum: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(SumFunction {
+                x_shape: x_shape,
+                axis: None,
+                keepdims: false,
+            })));
+
+        utils::gradient_check(&mut sum, vec![x0.clone()]);
+    }
+
     /// シンプルな全要素の和
     #[test]
     fn test_simple_sum() {

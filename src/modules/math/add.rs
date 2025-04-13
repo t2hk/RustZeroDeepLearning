@@ -179,7 +179,34 @@ impl_variable_add!(u64);
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, prelude::*};
+    use rand_isaac::Isaac64Rng;
+
+    /// 数値微分による近似チェック
+    #[test]
+    fn test_num_grad_check() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+        let x1_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1, 100],
+            x0_var.flatten().to_vec(),
+        ));
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![1, 100],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut add = FunctionExecutor::new(Rc::new(RefCell::new(AddFunction {
+            x0_shape: vec![1, 100],
+            x1_shape: vec![1, 100],
+        })));
+
+        utils::gradient_check(&mut add, vec![x0.clone(), x1.clone()]);
+    }
 
     /// 加算のテスト
     #[test]
