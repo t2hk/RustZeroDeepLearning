@@ -160,6 +160,33 @@ impl_variable_mul!(u64);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x1_var = Array::random_using((1), Uniform::new(0., 10.), &mut rng);
+
+        let x1 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x1_var.flatten().to_vec(),
+        ));
+
+        let mut mul: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(MulFunction {})));
+
+        utils::gradient_check(&mut mul, vec![x0.clone(), x1.clone()]);
+    }
 
     #[test]
     /// 乗算のテスト(f32)

@@ -70,6 +70,27 @@ mod tests {
     use super::*;
     use std::f32::consts::PI as PIf32;
 
+    use ndarray_rand::RandomExt;
+    use rand::prelude::*;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 10],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let mut tanh: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(TanhFunction {})));
+
+        utils::gradient_check(&mut tanh, vec![x0.clone()]);
+    }
+
     /// Tanh 関数のテスト。
     #[test]
     fn test_tanh_1() {

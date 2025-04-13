@@ -122,6 +122,26 @@ impl<V: MathOps> BitXor<i32> for &Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![1],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let mut pow: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: 3 })));
+
+        utils::gradient_check(&mut pow, vec![x0.clone()]);
+    }
 
     /// 累乗のテスト(f64)
     /// [[1.0,2.0],[3.0,4.0]] の3乗

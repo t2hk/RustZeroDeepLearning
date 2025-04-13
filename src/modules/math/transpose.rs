@@ -116,6 +116,28 @@ pub fn transpose_axes<V: MathOps>(input: Variable<V>, axes: Vec<usize>) -> Varia
 mod tests {
     use super::*;
 
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((4, 3, 2), Uniform::new(0., 10.), &mut rng);
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![4, 3, 2],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let mut transpose: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction {
+                axes: Some(vec![1, 0, 2]),
+            })));
+
+        utils::gradient_check(&mut transpose, vec![x0.clone()]);
+    }
+
     #[test]
     fn test_transpose_axes() {
         let input_shape = vec![4, 3, 2];

@@ -217,3 +217,4 @@ cargo run
 * 線形回帰を実装し、y=2x+5 の近似を plotters でグラフ描画した。
 * utils に数値微分による近似テストを追加(utils::gradient_check, utils::numerical_grad)
 * Variable に from_vec を追加し、ベクトルからも作成できるように対応した。
+* 各関数に数値微分による近似テストを追加した。

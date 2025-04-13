@@ -490,7 +490,7 @@ pub fn numerical_grad(
     function: &mut FunctionExecutor<f64>,
     inputs: Vec<Variable<f64>>,
 ) -> Vec<Variable<f64>> {
-    let eps = 1e-4;
+    let eps = 1e-5;
 
     // 入力値全てに対する数値微分結果を格納する。
     let mut grad: Vec<Variable<f64>> = vec![];
@@ -563,7 +563,7 @@ pub fn numerical_grad(
 /// * function (&mut FunctionExecutor<f64>): 評価する関数
 /// * inputs (Vec<Variable<f64>>): 関数の入力値
 ///
-pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable<f64>>) {
+pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable<f64>>) -> bool {
     let mut func = function.to_owned();
 
     // テスト対象の関数について、数値微分を行う。
@@ -579,11 +579,14 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
         let num_grad = num_grads[i].borrow().get_data();
 
         // 形状が一致すること
+        dbg!(&num_grad);
+        dbg!(&bp_grad);
         assert_eq!(num_grad.shape(), bp_grad.shape());
 
         // 近似していること
-        assert!(bp_grad.abs_diff_eq(&num_grad, 0.00001));
+        assert!(bp_grad.abs_diff_eq(&num_grad, 0.0000001));
     }
+    true
 }
 
 #[cfg(test)]

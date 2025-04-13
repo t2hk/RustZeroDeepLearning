@@ -112,6 +112,31 @@ mod tests {
     use super::*;
     use rand::prelude::*;
 
+    use ndarray_rand::RandomExt;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    #[test]
+    fn test_num_grad() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0 = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 10],
+            x0_var.flatten().to_vec(),
+        ));
+
+        let x_shape = x0.borrow().get_data().shape().to_vec();
+
+        let mut sum_to: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(SumToFunction {
+                x_shape: x_shape,
+                shape: vec![1],
+            })));
+
+        utils::gradient_check(&mut sum_to, vec![x0.clone()]);
+    }
+
     #[test]
     fn test_sum_to_forward1() {
         let x = Variable::new(RawVariable::from_shape_vec(vec![1, 10], (1..11).collect()));

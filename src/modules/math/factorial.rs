@@ -137,7 +137,7 @@ pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
 
 #[cfg(test)]
 mod tests {
-    use std::f64::consts::PI;
+    use std::{cell::RefCell, f64::consts::PI};
 
     use crate::plot_dot_graph;
 
