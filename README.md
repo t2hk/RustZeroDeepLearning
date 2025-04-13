@@ -216,3 +216,4 @@ cargo run
 * utils に平均二乗誤差を追加した。→ utils から個別の関数に移行した。
 * 線形回帰を実装し、y=2x+5 の近似を plotters でグラフ描画した。
 * utils に数値微分による近似テストを追加(utils::gradient_check, utils::numerical_grad)
+* Variable に from_vec を追加し、ベクトルからも作成できるように対応した。

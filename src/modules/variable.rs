@@ -159,6 +159,24 @@ impl<V: MathOps> RawVariable<V> {
         }
     }
 
+    /// RawVariable をベクトルから生成する。
+    ///
+    /// Arguments
+    /// * values (Vec<V>): 変数
+    ///
+    /// Returns
+    /// * Self
+    pub fn from_vec(values: Vec<V>) -> Self {
+        let array = Array::from_vec(values).into_dyn();
+        Self {
+            data: array,
+            name: None,
+            grad: None,
+            creator: None,
+            generation: 0,
+        }
+    }
+
     /// 要素数による等差数列を生成する。
     ///
     /// Arguments:
