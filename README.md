@@ -218,3 +218,5 @@ cargo run
 * utils に数値微分による近似テストを追加(utils::gradient_check, utils::numerical_grad)
 * Variable に from_vec を追加し、ベクトルからも作成できるように対応した。
 * 各関数に数値微分による近似テストを追加した。
+
+### ステップ43 ニューラルネットワーク
