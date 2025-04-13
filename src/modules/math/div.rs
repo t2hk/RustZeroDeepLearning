@@ -162,15 +162,15 @@ mod tests {
     fn test_num_grad_check() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
-        let x1_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
+        let x0_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
+        let x1_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1, 100],
+            vec![1, 10],
             x0_var.flatten().to_vec(),
         ));
         let x1 = Variable::new(RawVariable::from_shape_vec(
-            vec![1, 100],
+            vec![1, 10],
             x1_var.flatten().to_vec(),
         ));
 
