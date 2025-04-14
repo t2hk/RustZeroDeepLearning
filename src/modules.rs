@@ -25,6 +25,8 @@ pub use crate::modules::math::exp::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::factorial::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::linear::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::matmul::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::mean_squared_error::*;

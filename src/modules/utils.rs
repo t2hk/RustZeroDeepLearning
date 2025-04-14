@@ -492,67 +492,56 @@ pub fn numerical_grad(
 ) -> Vec<Variable<f64>> {
     let eps = 1e-4;
 
-    // 入力値全てに対する数値微分結果を格納する。
-    let mut grad: Vec<Variable<f64>> = vec![];
+    // 結果を格納するベクトルを事前に確保
+    let mut result: Vec<Variable<f64>> = Vec::with_capacity(inputs.len());
 
-    // 全ての入力値について評価する。
-    for i in 0..inputs.len() {
-        // 1つの入力値について、形状と要素の値を取得し、値ごとに処理する。
-        let shape = inputs[i].borrow().get_data().shape().to_vec();
-        let mut values = inputs[i].borrow().get_data().flatten().to_vec();
-        let mut inputs_tmp = inputs.to_owned();
-
-        // 要素ごとに eps を増減させ、それぞれ順伝播を行う。順伝播の結果について中心差分を算出する。
-        for j in 0..values.len() {
-            let origin_value = values[j].clone();
-
-            // eps だけ増加させて順伝播を行う。
-            values[j] += eps;
-            let variable =
-                Variable::new(RawVariable::from_shape_vec(shape.clone(), values.clone()));
-            inputs_tmp[i] = variable;
-            let y1 = function.forward(inputs_tmp.clone());
-
-            // eps だけ減少させて順伝播を行う。
-            values[j] = origin_value - eps;
-            let variable =
-                Variable::new(RawVariable::from_shape_vec(shape.clone(), values.clone()));
-            inputs_tmp[i] = variable;
-            let y2 = function.forward(inputs_tmp.clone());
-
-            // 中心差分を求める。
-            let diff = sum(&y1[0] - &y2[0], None, false);
-            let grad_value = &diff / (2.0 * eps);
-            grad.push(grad_value);
-
-            // 次のループに向けて元に戻しておく。
-            values[j] = origin_value;
-        }
-    }
-
-    // 数値微分した結果について、入力値ごとの形状に直して返却する。
-    let mut start_pos = 0;
-    let mut result: Vec<Variable<f64>> = vec![];
-
-    // 数値微分の結果ベクトルを入力値の形状に合わせる。
-    for input in inputs {
+    // 入力の各変数について処理（インデックスも取得するためにenumerateを使用）
+    for (i, input) in inputs.iter().enumerate() {
         let shape = input.borrow().get_data().shape().to_vec();
-        let value_len = input.borrow().get_data().len();
-        println!(
-            "shape: {:?}, value len: {}, start_pos: {}",
-            shape, value_len, start_pos
-        );
+        let values = input.borrow().get_data().flatten().to_vec();
+        let value_len = values.len();
 
-        let mut grad_values: Vec<f64> = vec![];
-        for pos in start_pos..(start_pos + value_len) {
-            grad_values.push(grad[pos].borrow().get_data().flatten().to_vec()[0]);
+        // この入力の勾配値を格納するベクトルを事前に確保
+        let mut grad_values: Vec<f64> = Vec::with_capacity(value_len);
+
+        // 各要素について数値微分を計算
+        for j in 0..value_len {
+            // 現在の入力値のコピーを一度だけ作成
+            let mut inputs_plus = inputs.clone();
+            let mut inputs_minus = inputs.clone();
+
+            // j番目の要素にepsを加えた入力を作成
+            {
+                let mut values_plus = values.clone();
+                values_plus[j] += eps;
+                inputs_plus[i] =
+                    Variable::new(RawVariable::from_shape_vec(shape.clone(), values_plus));
+            }
+
+            // j番目の要素からepsを引いた入力を作成
+            {
+                let mut values_minus = values.clone();
+                values_minus[j] -= eps;
+                inputs_minus[i] =
+                    Variable::new(RawVariable::from_shape_vec(shape.clone(), values_minus));
+            }
+
+            // 順伝播を一度だけ実行
+            let y_plus = function.forward(inputs_plus);
+            let y_minus = function.forward(inputs_minus);
+
+            // 中心差分を計算
+            let diff = sum(&y_plus[0] - &y_minus[0], None, false);
+            let grad_value = diff.borrow().get_data().flatten().to_vec()[0] / (2.0 * eps);
+
+            grad_values.push(grad_value);
         }
 
-        let grad_var = Variable::new(RawVariable::from_shape_vec(shape, grad_values.clone()));
+        // 形状に合わせた勾配変数を作成して結果に追加
+        let grad_var = Variable::new(RawVariable::from_shape_vec(shape, grad_values));
         result.push(grad_var);
-        start_pos += value_len;
-        grad_values = vec![];
     }
+
     result
 }
 
@@ -570,6 +559,7 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
     let num_grads = numerical_grad(&mut func, inputs.clone());
 
     // テスト対象の関数について、順伝播と逆伝播を行う。
+    // let y = func.forward(inputs.clone());
     let y = func.forward(inputs.clone());
     y[0].backward();
 
@@ -578,21 +568,52 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
         let bp_grad = inputs[i].borrow().get_grad().unwrap().borrow().get_data();
         let num_grad = num_grads[i].borrow().get_data();
 
-        // 形状が一致すること
-        dbg!(&num_grad);
-        dbg!(&bp_grad);
+        // // 形状が一致すること
+        // dbg!(&num_grad);
+        // dbg!(&bp_grad);
         assert_eq!(num_grad.shape(), bp_grad.shape());
 
         // 近似していること
         // assert!(bp_grad.abs_diff_eq(&num_grad, 0.0000001));
         assert!(bp_grad.abs_diff_eq(&num_grad, 1e-4));
     }
+
     true
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    use ndarray::Array;
+    use ndarray_rand::RandomExt;
+    // use rand::prelude::*;
+    use rand::{distributions::Uniform, SeedableRng};
+    use rand_isaac::Isaac64Rng;
+
+    // use std::time::{Duration, Instant};
+
+    #[test]
+    fn test_perform_1() {
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let x_var = Array::random_using((10, 20), Uniform::new(0., 10.), &mut rng);
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 20],
+            x_var.flatten().to_vec(),
+        ));
+
+        let w_var = Array::random_using((20, 30), Uniform::new(0., 10.), &mut rng);
+        let w = Variable::new(RawVariable::from_shape_vec(
+            vec![20, 30],
+            w_var.flatten().to_vec(),
+        ));
+
+        let mut linear: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(LinearFunction {})));
+        utils::gradient_check(&mut linear, vec![x.clone(), w.clone()]);
+    }
 
     #[test]
     fn test_num_grad() {
