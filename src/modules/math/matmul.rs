@@ -4,8 +4,7 @@ use crate::modules::math::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Array1, Array2, Ix0, IxDyn};
-use ndarray::{Ix1, Ix2};
+use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
