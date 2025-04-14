@@ -91,8 +91,8 @@ pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
 /// * x1 (Array<V, IxDyn>)
 ///
 /// Return
-/// * Vec<Array<V, IxDyn>>
-pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V, IxDyn>> {
+/// * Array<V, IxDyn>
+pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxDyn> {
     debug!("dot x ndim: {:?}, w ndim: {:?}", x0.ndim(), x1.ndim());
 
     debug!(
@@ -120,7 +120,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            vec![Array::from_elem(IxDyn(&[]), result_value)]
+            Array::from_elem(IxDyn(&[]), result_value)
         }
         (0, 1) => {
             info!("dot for shape (0, 1)");
@@ -133,7 +133,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 .zip(x_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            vec![Array::from_shape_vec(vec![1], vec![result_value]).unwrap()]
+            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
         }
         (1, 0) => {
             info!("dot for shape (1, 0)");
@@ -146,7 +146,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            vec![Array::from_shape_vec(vec![1], vec![result_value]).unwrap()]
+            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
         }
         (1, 1) => {
             info!("dot for shape (1, 1)");
@@ -159,7 +159,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            vec![Array::from_elem(IxDyn(&[]), result_value)]
+            Array::from_elem(IxDyn(&[]), result_value)
         }
         (1, 2) => {
             info!("dot for shape (1, 2)");
@@ -192,7 +192,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
 
             dbg!(&result);
 
-            vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            result.into_dimensionality::<IxDyn>().unwrap()
         }
         (2, 1) => {
             info!("dot for shape (2, 1)");
@@ -223,7 +223,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 result[i] = sum;
             }
 
-            vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            result.into_dimensionality::<IxDyn>().unwrap()
         }
         (2, 2) => {
             info!("dot for shape (2, 2)");
@@ -250,7 +250,7 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Vec<Array<V,
                 }
             }
 
-            vec![result.into_dimensionality::<IxDyn>().unwrap()]
+            result.into_dimensionality::<IxDyn>().unwrap()
         }
         _ => {
             error!("dot for invalid shape");

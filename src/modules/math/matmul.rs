@@ -27,7 +27,7 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         let x_data = inputs[0].clone();
         let w_data = inputs[1].clone();
 
-        function_libs::dot(x_data, w_data)
+        vec![function_libs::dot(x_data, w_data)]
     }
 
     /// 逆伝播
