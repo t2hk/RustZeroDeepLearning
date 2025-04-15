@@ -290,6 +290,18 @@ pub fn linear_simple<V: MathOps>(
     return t;
 }
 
+/// シグモイド関数
+///
+/// Arguments:
+/// * x (Variable<V>): 入力値
+///
+/// Retrun:
+/// * Variable<V>
+pub fn sigmoid_simple<V: MathOps>(x: Variable<V>) -> Variable<V> {
+    let y = 1.0 / &(1 + &exp(-x));
+    y
+}
+
 fn type_of<T>(_: T) -> String {
     let a = std::any::type_name::<T>();
     return a.to_string();
@@ -300,6 +312,53 @@ mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+
+    use plotters::chart::ChartBuilder;
+    use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
+    use plotters::series::{LineSeries, PointSeries};
+    use plotters::style::{Color, IntoFont, BLACK, BLUE, GREEN, MAGENTA, RED, WHITE};
+
+    /// シグモイド関数のグラフ描画
+    #[test]
+    fn test_sigmoid_simple() {
+        // グラフ描画
+        // 描画先の Backend を初期化する。
+        let root =
+            BitMapBackend::new("graph/step43_simple_sigmoid.png", (640, 480)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        // グラフの軸の設定など
+        let mut chart = ChartBuilder::on(&root)
+            .caption("y=1 / (1 + exp(-x))", ("sans-serif", 50).into_font())
+            .margin(10)
+            .x_label_area_size(30)
+            .y_label_area_size(30)
+            .build_cartesian_2d(-5.0..5.0, 0.0..1.0)
+            .unwrap();
+        chart.configure_mesh().draw().unwrap();
+
+        // sigmoid_simple(Variable::new(RawVariable::new(x)))
+        // 元データのプロット
+        // 折れ線グラフ（関数グラフ）を描画
+        // 折れ線グラフ（関数グラフ）を描画
+        chart
+            .draw_series(LineSeries::new(
+                (-500..=500).map(|i| {
+                    let x = i as f64 / 100.0;
+                    let y = sigmoid_simple(Variable::new(RawVariable::new(x)));
+                    (x, y.clone().borrow().get_data().flatten().to_vec()[0])
+                }),
+                &RED,
+            ))
+            .unwrap();
+
+        chart
+            .configure_series_labels()
+            .background_style(&WHITE.mix(0.8))
+            .border_style(&BLACK)
+            .draw()
+            .unwrap();
+    }
 
     /// ステップ29 ニュートン法による最適化の実装
     #[test]
