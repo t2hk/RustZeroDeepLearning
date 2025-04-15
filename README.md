@@ -225,3 +225,4 @@ cargo run
 * シンプルなシグモイド関数 (function_libs::simple_sigmoid) を追加し、グラフ描画を実装した。
 * 純伝播、逆伝播に対応したシグモイド関数を追加し、グラフ描画を実装した。
 * グラフ描画用の関数を utils に追加した。
+* Variable に直接 Raw データを更新できる set_data を追加した。
