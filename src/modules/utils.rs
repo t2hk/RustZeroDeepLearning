@@ -3,6 +3,10 @@ use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
+use plotters::chart::ChartBuilder;
+use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
+use plotters::series::{LineSeries, PointSeries};
+use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
 use std::cell::RefCell;
 use std::fs::File;
 use std::io::{Result, Write};
@@ -579,6 +583,66 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
     }
 
     true
+}
+
+/// グラフ描画
+///
+/// Arguments
+/// * caption (&str): 図のタイトル
+/// * file_path (&str): グラフファイルのパス
+/// * plot_x (Vec<f64>): 学習データの X 軸の値
+/// * plot_y (Vec<f64>): 学習データの Y 軸の値
+/// * pred_xy (Vec<(f64, f64)>): 推論結果
+/// * legend (&str): 凡例
+pub fn draw_graph(
+    caption: &str,
+    file_path: &str,
+    plot_x: Vec<f64>,
+    plot_y: Vec<f64>,
+    pred_xy: Vec<(f64, f64)>,
+    legend: &str,
+) {
+    // グラフ描画
+    // 描画先の Backend を初期化する。
+    let root = BitMapBackend::new(&file_path, (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption(&caption, ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0.0..1.0, -1.0..2.0)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    let mut plot_data_vec = vec![];
+    for i in 0..plot_x.len() {
+        plot_data_vec.push(vec![plot_x[i], plot_y[i]]);
+    }
+
+    // 点グラフの定義＆描画
+    let point_series = PointSeries::<_, _, Circle<_, _>, _>::new(
+        plot_data_vec.iter().map(|xy| (xy[0], xy[1])),
+        2,     // Circleのサイズ
+        &BLUE, // 色を指定
+    );
+    chart.draw_series(point_series).unwrap();
+
+    // 折れ線グラフ（関数グラフ）を描画
+    chart
+        .draw_series(LineSeries::new(pred_xy.iter().map(|(x, y)| (*x, *y)), &RED))
+        .unwrap()
+        .label(legend)
+        .legend(move |(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 }
 
 #[cfg(test)]
