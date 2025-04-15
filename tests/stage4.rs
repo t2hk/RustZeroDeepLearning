@@ -3,6 +3,8 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
+use std::f64::consts::PI;
+
 use ndarray_rand::RandomExt;
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
@@ -430,4 +432,64 @@ fn predict(x: Variable<f64>) -> Variable<f64> {
     b.borrow_mut().clear_grad();
 
     return y_pred;
+}
+
+#[test]
+fn test_non_linear_dataset() {
+    let seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    // let x = Variable::new(RawVariable::from_shape_vec(
+    //     vec![100, 1],
+    //     x_var.flatten().to_vec(),
+    // ));
+
+    let b_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    // let b = Variable::new(RawVariable::from_shape_vec(
+    //     vec![100, 1],
+    //     b_var.flatten().to_vec(),
+    // ));
+
+    let y = (2.0 * PI * x_var.clone()).sin() + b_var;
+    dbg!(&y);
+
+    // グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step43_non_linear_sin.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("y=sin(2 * PI * x) + b", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0.0..1.0, -1.0..2.0)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 元データのプロット
+    let mut plot_data_vec = vec![];
+    let x_var_vec = x_var.flatten().to_vec();
+    let y_var_vec = y.flatten().to_vec();
+
+    for i in 0..100 {
+        plot_data_vec.push(vec![x_var_vec[i], y_var_vec[i]]);
+    }
+    // 点グラフの定義＆描画
+    let point_series = PointSeries::<_, _, Circle<_, _>, _>::new(
+        plot_data_vec.iter().map(|(xy)| (xy[0], xy[1])),
+        2,     // Circleのサイズ
+        &BLUE, // 色を指定
+    );
+    chart.draw_series(point_series).unwrap();
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 }
