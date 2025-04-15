@@ -218,3 +218,12 @@ cargo run
 * utils に数値微分による近似テストを追加(utils::gradient_check, utils::numerical_grad)
 * Variable に from_vec を追加し、ベクトルからも作成できるように対応した。
 * 各関数に数値微分による近似テストを追加した。
+
+### ステップ43 ニューラルネットワーク
+* linear 関数を追加した。
+* 数値微分 utils::numerical_grad の処理を少し見直し、少し性能改善した。
+* シンプルなシグモイド関数 (function_libs::simple_sigmoid) を追加し、グラフ描画を実装した。
+* 純伝播、逆伝播に対応したシグモイド関数を追加し、グラフ描画を実装した。
+* グラフ描画用の関数を utils に追加した。
+* Variable に直接 Raw データを更新できる set_data を追加した。
+* ニューラルネットワークによる学習と推論を追加し、学習過程をグラフ出力するように実装した。

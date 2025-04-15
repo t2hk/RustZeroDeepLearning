@@ -25,6 +25,8 @@ pub use crate::modules::math::exp::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::factorial::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::linear::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::matmul::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::mean_squared_error::*;
@@ -36,6 +38,8 @@ pub use crate::modules::math::neg::*;
 pub use crate::modules::math::pow::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::reshape::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::sigmoid::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sin::*;
 #[allow(unused_imports)]

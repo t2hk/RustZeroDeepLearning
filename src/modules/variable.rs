@@ -250,6 +250,10 @@ impl<V: MathOps> RawVariable<V> {
         self.creator.as_ref().unwrap().borrow().get_generation()
     }
 
+    pub fn set_data(&mut self, data: Array<V, IxDyn>) {
+        self.data = data;
+    }
+
     /// 値を取得する。
     ///
     /// Return

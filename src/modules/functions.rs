@@ -216,7 +216,6 @@ impl<V: MathOps> FunctionExecutor<V> {
             .iter()
             .map(|input| input.borrow().get_data().clone().flatten().to_vec())
             .collect();
-        info!("  [creator inputs] {:?}", input_values);
 
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         let mut gys: Vec<Variable<V>> = vec![];
@@ -225,10 +224,6 @@ impl<V: MathOps> FunctionExecutor<V> {
             .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
-                info!(
-                    "  [creator outputs] {:?}",
-                    output.borrow().get_data().flatten().to_vec()
-                );
                 if output.borrow().get_grad().is_none() {
                     let grad_one = Variable::new(RawVariable::new(Array::ones(
                         output.borrow().get_data().shape(),

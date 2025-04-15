@@ -3,15 +3,18 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
+use std::env;
+use std::f64::consts::PI;
+
 use ndarray_rand::RandomExt;
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
-use plotters::style::{Color, IntoFont, BLACK, BLUE, GREEN, MAGENTA, RED, WHITE};
+use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
 use rand::distributions::Uniform;
+use rust_zero_deeplearning::modules::math::sin;
 use rust_zero_deeplearning::modules::*;
-use rust_zero_deeplearning::modules::{math::sin, utils::*};
-use rust_zero_deeplearning::*;
+
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -382,7 +385,7 @@ fn test_linear_regression() {
     }
     // 点グラフの定義＆描画
     let point_series = PointSeries::<_, _, Circle<_, _>, _>::new(
-        plot_data_vec.iter().map(|(xy)| (xy[0], xy[1])),
+        plot_data_vec.iter().map(|xy| (xy[0], xy[1])),
         2,     // Circleのサイズ
         &BLUE, // 色を指定
     );
@@ -430,4 +433,189 @@ fn predict(x: Variable<f64>) -> Variable<f64> {
     b.borrow_mut().clear_grad();
 
     return y_pred;
+}
+
+#[test]
+fn test_non_linear_dataset() {
+    let seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    // let x = Variable::new(RawVariable::from_shape_vec(
+    //     vec![100, 1],
+    //     x_var.flatten().to_vec(),
+    // ));
+
+    let b_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    // let b = Variable::new(RawVariable::from_shape_vec(
+    //     vec![100, 1],
+    //     b_var.flatten().to_vec(),
+    // ));
+
+    let y = (2.0 * PI * x_var.clone()).sin() + b_var;
+    dbg!(&y);
+
+    // グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step43_non_linear_sin.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("y=sin(2 * PI * x) + b", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0.0..1.0, -1.0..2.0)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 元データのプロット
+    let mut plot_data_vec = vec![];
+    let x_var_vec = x_var.flatten().to_vec();
+    let y_var_vec = y.flatten().to_vec();
+
+    for i in 0..100 {
+        plot_data_vec.push(vec![x_var_vec[i], y_var_vec[i]]);
+    }
+    // 点グラフの定義＆描画
+    let point_series = PointSeries::<_, _, Circle<_, _>, _>::new(
+        plot_data_vec.iter().map(|xy| (xy[0], xy[1])),
+        2,     // Circleのサイズ
+        &BLUE, // 色を指定
+    );
+    chart.draw_series(point_series).unwrap();
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+}
+
+#[test]
+fn test_predict() {
+    //env::set_var("RUST_LOG", "info");
+
+    env_logger::init();
+
+    // 逆伝播を実行する。微分値を保持する。
+    Setting::set_retain_grad_disabled();
+    // バックプロパゲーションを行う。
+    Setting::set_backprop_enabled();
+
+    let seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    ////////////////////////////////////////////////////
+    // データセット
+    ////////////////////////////////////////////////////
+    let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    let x = Variable::new(RawVariable::from_shape_vec(
+        vec![100, 1],
+        x_var.flatten().to_vec(),
+    ));
+
+    let b_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+    let y_var = (2.0 * PI * x_var.clone()).sin() + b_var;
+    let y = Variable::new(RawVariable::from_shape_vec(
+        y_var.shape().to_vec(),
+        y_var.flatten().to_vec(),
+    ));
+
+    ////////////////////////////////////////////////////
+    // 重みの初期化
+    ////////////////////////////////////////////////////
+    let i = 1;
+    let h = 10;
+    let o = 1;
+
+    let w1_var = Array::random_using((i, h), Uniform::new(0., 1.), &mut rng) * 0.01;
+    let w1 = Variable::new(RawVariable::from_shape_vec(
+        vec![i, h],
+        w1_var.flatten().to_vec(),
+    ));
+
+    let b1 = Variable::new(RawVariable::from_vec(vec![0.0; h]));
+
+    let w2_var = Array::random_using((h, o), Uniform::new(0., 1.), &mut rng) * 0.01;
+    let w2 = Variable::new(RawVariable::from_shape_vec(
+        vec![h, o],
+        w2_var.flatten().to_vec(),
+    ));
+
+    let b2 = Variable::new(RawVariable::from_vec(vec![0.0; o]));
+
+    ////////////////////////////////////////////////////
+    // ニューラルネットワークの推論
+    ////////////////////////////////////////////////////
+    let lr = 0.2;
+    let iters = 10000;
+
+    ////////////////////////////////////////////////////
+    // ニューラルネットワークの学習
+    ////////////////////////////////////////////////////
+    for idx in 0..iters {
+        let y_pred = function_libs::predict(
+            x.clone(),
+            vec![w1.clone(), w2.clone()],
+            vec![b1.clone(), b2.clone()],
+        );
+        let loss = mean_squared_error(y.clone(), y_pred.clone());
+
+        w1.borrow_mut().clear_grad();
+        w2.borrow_mut().clear_grad();
+        b1.borrow_mut().clear_grad();
+        b2.borrow_mut().clear_grad();
+        // y.borrow_mut().clear_grad();
+
+        loss.backward();
+
+        let w1_udpate =
+            w1.borrow().get_data() - lr * w1.borrow().get_grad().unwrap().borrow().get_data();
+        let b1_udpate =
+            b1.borrow().get_data() - lr * b1.borrow().get_grad().unwrap().borrow().get_data();
+        let w2_udpate =
+            w2.borrow().get_data() - lr * w2.borrow().get_grad().unwrap().borrow().get_data();
+        let b2_udpate =
+            b2.borrow().get_data() - lr * b2.borrow().get_grad().unwrap().borrow().get_data();
+
+        w1.borrow_mut().set_data(w1_udpate);
+        w2.borrow_mut().set_data(w2_udpate);
+        b1.borrow_mut().set_data(b1_udpate);
+        b2.borrow_mut().set_data(b2_udpate);
+
+        ////////////////////////////////////////////////////
+        // 学習途中の状況をグラフ出力する。
+        ////////////////////////////////////////////////////
+        if idx % 1000 == 0 || idx == iters - 1 {
+            println!("[{}] loss: {:?}", idx, loss.borrow().get_data());
+            let plot_x = x_var.flatten().to_vec();
+            let plot_y = y_var.flatten().to_vec();
+
+            let test_x: Vec<f64> = (0..100).map(|i| i as f64 / 100.0).collect();
+            let test_y_var = function_libs::predict(
+                Variable::new(RawVariable::from_shape_vec(vec![100, 1], test_x.clone())),
+                vec![w1.clone(), w2.clone()],
+                vec![b1.clone(), b2.clone()],
+            );
+
+            let test_y = test_y_var.borrow().get_data().flatten().to_vec();
+
+            let mut test_xy = vec![];
+            for (i, tmp_x) in test_x.iter().enumerate() {
+                test_xy.push((*tmp_x, test_y[i]));
+            }
+            utils::draw_graph(
+                "y=sin(2 * pi * x) + b",
+                &format!("graph/step43_neural_network_pred_{}.png", idx),
+                plot_x,
+                plot_y,
+                test_xy,
+                &format!("loss: {}", loss.borrow().get_data().flatten().to_vec()[0]),
+            );
+        }
+    }
 }

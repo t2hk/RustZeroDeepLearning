@@ -6,6 +6,7 @@ use crate::modules::*;
 use core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+use ndarray::{Array, Array1, Array2, Ix0, Ix1, Ix2, IxDyn};
 
 /// Sphere 関数
 /// z = x^2 + y^2 を計算する。
@@ -83,6 +84,249 @@ pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     &lhs + &rhs
 }
 
+/// 行列積
+///
+/// Arguments:
+/// * x0 (Array<V, IxDyn>)
+/// * x1 (Array<V, IxDyn>)
+///
+/// Return
+/// * Array<V, IxDyn>
+pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxDyn> {
+    debug!("dot x ndim: {:?}, w ndim: {:?}", x0.ndim(), x1.ndim());
+
+    debug!(
+        "dot x0 ndim: {:?}, dim: {:?}, shape: {:?}",
+        x0.ndim(),
+        x0.dim(),
+        x0.shape()
+    );
+    debug!(
+        "dot x1 ndim: {:?}, dim: {:?}, shape: {:?}",
+        x1.ndim(),
+        x1.dim(),
+        x1.shape()
+    );
+
+    match (x0.ndim(), x1.ndim()) {
+        (0, 0) => {
+            info!("dot for shape (0, 0)");
+
+            let x_tmp = x0.into_dimensionality::<Ix0>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix0>().unwrap();
+
+            let result_value = x_tmp
+                .iter()
+                .zip(w_tmp.iter())
+                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+            Array::from_elem(IxDyn(&[]), result_value)
+        }
+        (0, 1) => {
+            info!("dot for shape (0, 1)");
+
+            let x_tmp = x0.into_dimensionality::<Ix0>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+
+            let result_value = w_tmp
+                .iter()
+                .zip(x_tmp.iter())
+                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
+        }
+        (1, 0) => {
+            info!("dot for shape (1, 0)");
+
+            let x_tmp = x0.into_dimensionality::<Ix1>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix0>().unwrap();
+
+            let result_value = x_tmp
+                .iter()
+                .zip(w_tmp.iter())
+                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
+        }
+        (1, 1) => {
+            info!("dot for shape (1, 1)");
+
+            let x_tmp = x0.into_dimensionality::<Ix1>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+
+            let result_value = x_tmp
+                .iter()
+                .zip(w_tmp.iter())
+                .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
+
+            Array::from_elem(IxDyn(&[]), result_value)
+        }
+        (1, 2) => {
+            info!("dot for shape (1, 2)");
+
+            if x0.shape()[0] != x1.shape()[0] {
+                panic!(
+                    "shapes {:?} and {:?} not aligned. {} != {}",
+                    x0.shape(),
+                    x1.shape(),
+                    x0.shape()[0],
+                    x1.shape()[0]
+                );
+            }
+
+            let x_tmp: Array1<V> = x0.into_dimensionality::<Ix1>().unwrap();
+            let w_tmp: Array2<V> = x1.into_dimensionality::<Ix2>().unwrap();
+
+            let x_len = x_tmp.len();
+            let w_cols = w_tmp.shape()[1];
+
+            let mut result = Array::zeros((w_cols,));
+
+            for j in 0..w_cols {
+                let mut sum = V::zero();
+                for i in 0..x_len {
+                    sum = sum + x_tmp[i].clone() * w_tmp[[i, j]].clone();
+                }
+                result[j] = sum;
+            }
+
+            dbg!(&result);
+
+            result.into_dimensionality::<IxDyn>().unwrap()
+        }
+        (2, 1) => {
+            info!("dot for shape (2, 1)");
+
+            if x0.shape()[0] != x1.shape()[0] {
+                panic!(
+                    "shapes {:?} and {:?} not aligned. {} != {}",
+                    x0.shape(),
+                    x1.shape(),
+                    x0.shape()[0],
+                    x1.shape()[0]
+                );
+            }
+            let x_tmp = x0.into_dimensionality::<Ix2>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+
+            let x_rows = x_tmp.shape()[0];
+            let x_cols = x_tmp.shape()[1];
+
+            // 結果は x_rows 長のベクトルになる
+            let mut result = Array::zeros((x_rows,));
+
+            for i in 0..x_rows {
+                let mut sum = V::zero();
+                for j in 0..x_cols {
+                    sum = sum + x_tmp[[i, j]].clone() * w_tmp[j].clone();
+                }
+                result[i] = sum;
+            }
+
+            result.into_dimensionality::<IxDyn>().unwrap()
+        }
+        (2, 2) => {
+            info!("dot for shape (2, 2)");
+            let x_tmp = x0.into_dimensionality::<Ix2>().unwrap();
+            let w_tmp = x1.into_dimensionality::<Ix2>().unwrap();
+
+            let x_rows = x_tmp.shape()[0];
+            let x_cols = x_tmp.shape()[1];
+            let w_cols = w_tmp.shape()[1];
+
+            // x_cols と w_rows（= x_tmp.shape()[1]とw_tmp.shape()[0]）は同じサイズであることを確認
+            assert_eq!(x_cols, w_tmp.shape()[0], "行列の次元が不一致です");
+
+            // 結果は x_rows x w_cols の行列になる
+            let mut result = Array::zeros((x_rows, w_cols));
+
+            for i in 0..x_rows {
+                for j in 0..w_cols {
+                    let mut sum = V::zero();
+                    for k in 0..x_cols {
+                        sum = sum + x_tmp[[i, k]].clone() * w_tmp[[k, j]].clone();
+                    }
+                    result[[i, j]] = sum;
+                }
+            }
+
+            result.into_dimensionality::<IxDyn>().unwrap()
+        }
+        _ => {
+            error!("dot for invalid shape");
+            debug!("x ndim: {} w ndim: {}", x0.ndim(), x1.ndim());
+            debug!(
+                "x : {:?} w : {:?}",
+                x0.flatten().to_vec(),
+                x1.flatten().to_vec()
+            );
+            panic!("error: invalid dimension. x: {:?}, w: {:?}", x0, x1);
+        }
+    }
+}
+
+/// linear 関数 (線形変換)
+/// y = w * x + b
+///
+/// Arguments:
+/// * x (Variable<V>): 入力値
+/// * w (Variable<V>): 重み
+/// * b (Option<Variable<V>>): バイアス
+///
+/// Retrun
+/// * Variable<V>: 線形変換の結果
+pub fn linear_simple<V: MathOps>(
+    x: Variable<V>,
+    w: Variable<V>,
+    b: Option<Variable<V>>,
+) -> Variable<V> {
+    let t = matmul(x, w);
+    if let Some(b_var) = b {
+        let y = &t + &b_var;
+        std::mem::drop(t);
+        return y;
+    }
+
+    return t;
+}
+
+/// シグモイド関数
+///
+/// Arguments:
+/// * x (Variable<V>): 入力値
+///
+/// Retrun:
+/// * Variable<V>
+pub fn sigmoid_simple<V: MathOps>(x: Variable<V>) -> Variable<V> {
+    let y = 1.0 / &(1 + &exp(-x));
+    y
+}
+
+/// ニューラルネットワークの推論
+///
+/// Arguments:
+/// * x (Variable<V>): 入力値
+/// * ws (Vec<Variable<V>>): 重み w1 と w2 を保持するベクタ
+/// * bs (Vec<Variable<V>>): バイアス b1 と b2 を保持するベクタ
+/// Return
+/// * Variable<V>: 推論値
+pub fn predict<V: MathOps>(
+    x: Variable<V>,
+    ws: Vec<Variable<V>>,
+    bs: Vec<Variable<V>>,
+) -> Variable<V> {
+    let w1 = ws[0].clone();
+    let w2 = ws[1].clone();
+
+    let b1 = bs[0].clone();
+    let b2 = bs[1].clone();
+
+    let y = linear(x.clone(), w1, Some(b1));
+    let y2 = sigmoid(y);
+    let y3 = linear(y2, w2, Some(b2));
+    y3
+}
+
 fn type_of<T>(_: T) -> String {
     let a = std::any::type_name::<T>();
     return a.to_string();
@@ -93,6 +337,52 @@ mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
     use rand::prelude::*;
+
+    use plotters::chart::ChartBuilder;
+    use plotters::prelude::{BitMapBackend, IntoDrawingArea};
+    use plotters::series::LineSeries;
+    use plotters::style::{Color, IntoFont, BLACK, RED, WHITE};
+
+    /// シグモイド関数のグラフ描画
+    #[test]
+    fn test_sigmoid_simple() {
+        // グラフ描画
+        // 描画先の Backend を初期化する。
+        let root =
+            BitMapBackend::new("graph/step43_simple_sigmoid.png", (640, 480)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+
+        // グラフの軸の設定など
+        let mut chart = ChartBuilder::on(&root)
+            .caption("y=1 / (1 + exp(-x))", ("sans-serif", 50).into_font())
+            .margin(10)
+            .x_label_area_size(30)
+            .y_label_area_size(30)
+            .build_cartesian_2d(-5.0..5.0, 0.0..1.0)
+            .unwrap();
+        chart.configure_mesh().draw().unwrap();
+
+        // sigmoid_simple(Variable::new(RawVariable::new(x)))
+        // 元データのプロット
+        // 折れ線グラフ（関数グラフ）を描画
+        chart
+            .draw_series(LineSeries::new(
+                (-500..=500).map(|i| {
+                    let x = i as f64 / 100.0;
+                    let y = sigmoid_simple(Variable::new(RawVariable::new(x)));
+                    (x, y.clone().borrow().get_data().flatten().to_vec()[0])
+                }),
+                &RED,
+            ))
+            .unwrap();
+
+        chart
+            .configure_series_labels()
+            .background_style(&WHITE.mix(0.8))
+            .border_style(&BLACK)
+            .draw()
+            .unwrap();
+    }
 
     /// ステップ29 ニュートン法による最適化の実装
     #[test]
@@ -285,6 +575,30 @@ mod tests {
                 .expect("No grad exist.")
                 .borrow()
                 .get_data()
+        );
+    }
+
+    /// linear_simple のテスト
+    #[test]
+    fn test_linear_simple() {
+        let w = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![1., 2., 3., 4.],
+        ));
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![2., 2., 2., 2.],
+        ));
+        let b = Variable::new(RawVariable::from_shape_vec(
+            vec![2, 2],
+            vec![10., 10., 10., 10.],
+        ));
+
+        let y = linear_simple(x, w, Some(b));
+        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
+        assert_eq!(
+            vec![18., 22., 18., 22.,],
+            y.borrow().get_data().flatten().to_vec()
         );
     }
 }
