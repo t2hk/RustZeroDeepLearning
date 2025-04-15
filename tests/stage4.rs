@@ -493,3 +493,43 @@ fn test_non_linear_dataset() {
         .draw()
         .unwrap();
 }
+
+#[test]
+fn test_step43_neural_network_predict() {
+    let seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    let w1_var = Array::random_using((1, 1), Uniform::new(0., 1.), &mut rng);
+    let w1 = Variable::new(RawVariable::from_shape_vec(
+        vec![1, 1],
+        w1_var.flatten().to_vec(),
+    ));
+    let w2_var = Array::random_using((1, 1), Uniform::new(0., 1.), &mut rng);
+    let w2 = Variable::new(RawVariable::from_shape_vec(
+        vec![1, 1],
+        w2_var.flatten().to_vec(),
+    ));
+    let b1_var = Array::random_using((1, 1), Uniform::new(0., 1.), &mut rng);
+    let b1 = Variable::new(RawVariable::from_shape_vec(
+        vec![1, 1],
+        b1_var.flatten().to_vec(),
+    ));
+    let b2_var = Array::random_using((1, 1), Uniform::new(0., 1.), &mut rng);
+    let b2 = Variable::new(RawVariable::from_shape_vec(
+        vec![1, 1],
+        b2_var.flatten().to_vec(),
+    ));
+
+    let x_var = Array::random_using((1, 1), Uniform::new(0., 1.), &mut rng);
+    let x = Variable::new(RawVariable::from_shape_vec(
+        vec![1, 1],
+        x_var.flatten().to_vec(),
+    ));
+
+    let y = linear(x.clone(), w1.clone(), Some(b1.clone()));
+    let y2 = sigmoid(y.clone());
+    let y3 = linear(y2.clone(), w2.clone(), Some(b2.clone()));
+
+    dbg!(x.clone());
+    dbg!(y3.clone());
+}
