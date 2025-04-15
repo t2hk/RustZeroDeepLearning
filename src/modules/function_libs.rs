@@ -314,9 +314,9 @@ mod tests {
     use rand::prelude::*;
 
     use plotters::chart::ChartBuilder;
-    use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
-    use plotters::series::{LineSeries, PointSeries};
-    use plotters::style::{Color, IntoFont, BLACK, BLUE, GREEN, MAGENTA, RED, WHITE};
+    use plotters::prelude::{BitMapBackend, IntoDrawingArea};
+    use plotters::series::LineSeries;
+    use plotters::style::{Color, IntoFont, BLACK, RED, WHITE};
 
     /// シグモイド関数のグラフ描画
     #[test]
