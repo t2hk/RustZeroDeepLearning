@@ -166,38 +166,38 @@ mod tests {
         utils::gradient_check(&mut linear, vec![x.clone(), w.clone(), b.clone()]);
     }
 
-    // #[test]
-    // fn test_backward2() {
-    //     // env::set_var("RUST_LOG", "info");
-    //     // env_logger::init();
+    #[test]
+    fn test_backward2() {
+        // env::set_var("RUST_LOG", "info");
+        // env_logger::init();
 
-    //     let seed = 0;
-    //     let mut rng = Isaac64Rng::seed_from_u64(seed);
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-    //     let x_var = Array::random_using((100, 200), Uniform::new(0., 10.), &mut rng);
-    //     let x = Variable::new(RawVariable::from_shape_vec(
-    //         vec![100, 200],
-    //         x_var.flatten().to_vec(),
-    //     ));
+        let x_var = Array::random_using((10, 100), Uniform::new(0., 10.), &mut rng);
+        let x = Variable::new(RawVariable::from_shape_vec(
+            vec![10, 100],
+            x_var.flatten().to_vec(),
+        ));
 
-    //     let w_var = Array::random_using((200, 300), Uniform::new(0., 10.), &mut rng);
-    //     let w = Variable::new(RawVariable::from_shape_vec(
-    //         vec![200, 300],
-    //         w_var.flatten().to_vec(),
-    //     ));
+        let w_var = Array::random_using((100, 30), Uniform::new(0., 10.), &mut rng);
+        let w = Variable::new(RawVariable::from_shape_vec(
+            vec![100, 30],
+            w_var.flatten().to_vec(),
+        ));
 
-    //     // let y = linear(x.clone(), w.clone(), None);
-    //     // y.backward();
+        // let y = linear(x.clone(), w.clone(), None);
+        // y.backward();
 
-    //     let mut linear: FunctionExecutor<_> =
-    //         FunctionExecutor::new(Rc::new(RefCell::new(LinearFunction {})));
+        let mut linear: FunctionExecutor<_> =
+            FunctionExecutor::new(Rc::new(RefCell::new(LinearFunction {})));
 
-    //     utils::gradient_check(&mut linear, vec![x.clone(), w.clone()]);
+        utils::gradient_check(&mut linear, vec![x.clone(), w.clone()]);
 
-    //     // x = np.random.randn(100, 200)
-    //     // W = np.random.randn(200, 300)
-    //     // b = None
-    //     // f = lambda x: F.linear(x, W, b)
-    //     // self.assertTrue(gradient_check(f, x))
-    // }
+        // x = np.random.randn(100, 200)
+        // W = np.random.randn(200, 300)
+        // b = None
+        // f = lambda x: F.linear(x, W, b)
+        // self.assertTrue(gradient_check(f, x))
+    }
 }
