@@ -39,6 +39,8 @@ pub use crate::modules::math::pow::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::reshape::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::sigmoid::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::sin::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::square::*;

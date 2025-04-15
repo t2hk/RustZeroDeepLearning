@@ -11,6 +11,7 @@ pub mod mul;
 pub mod neg;
 pub mod pow;
 pub mod reshape;
+pub mod sigmoid;
 pub mod sin;
 pub mod square;
 pub mod sub;

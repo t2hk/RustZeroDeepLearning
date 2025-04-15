@@ -222,4 +222,5 @@ cargo run
 ### ステップ43 ニューラルネットワーク
 * linear 関数を追加した。
 * 数値微分 utils::numerical_grad の処理を少し見直し、少し性能改善した。
-* シグモイド関数 (function_libs::simple_sigmoid) を追加し、グラフ描画を実装した。
+* シンプルなシグモイド関数 (function_libs::simple_sigmoid) を追加し、グラフ描画を実装した。
+* 純伝播、逆伝播に対応したシグモイド関数を追加し、グラフ描画を実装した。
