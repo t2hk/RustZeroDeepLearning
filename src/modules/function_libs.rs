@@ -302,6 +302,31 @@ pub fn sigmoid_simple<V: MathOps>(x: Variable<V>) -> Variable<V> {
     y
 }
 
+/// ニューラルネットワークの推論
+///
+/// Arguments:
+/// * x (Variable<V>): 入力値
+/// * ws (Vec<Variable<V>>): 重み w1 と w2 を保持するベクタ
+/// * bs (Vec<Variable<V>>): バイアス b1 と b2 を保持するベクタ
+/// Return
+/// * Variable<V>: 推論値
+pub fn predict<V: MathOps>(
+    x: Variable<V>,
+    ws: Vec<Variable<V>>,
+    bs: Vec<Variable<V>>,
+) -> Variable<V> {
+    let w1 = ws[0].clone();
+    let w2 = ws[1].clone();
+
+    let b1 = bs[0].clone();
+    let b2 = bs[1].clone();
+
+    let y = linear(x.clone(), w1, Some(b1));
+    let y2 = sigmoid(y);
+    let y3 = linear(y2, w2, Some(b2));
+    y3
+}
+
 fn type_of<T>(_: T) -> String {
     let a = std::any::type_name::<T>();
     return a.to_string();
@@ -339,7 +364,6 @@ mod tests {
 
         // sigmoid_simple(Variable::new(RawVariable::new(x)))
         // 元データのプロット
-        // 折れ線グラフ（関数グラフ）を描画
         // 折れ線グラフ（関数グラフ）を描画
         chart
             .draw_series(LineSeries::new(
