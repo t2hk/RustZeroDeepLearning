@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, Axis, IxDyn};

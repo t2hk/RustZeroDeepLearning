@@ -4,7 +4,7 @@ mod modules;
 use rust_zero_deeplearning::*;
 
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 use env_logger;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};

@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 #[allow(unused_imports)]
 use crate::modules::*;
-use core::ops::{Add, Div, Mul, Rem, Sub};
+use ::core::ops::{Add, Div, Mul, Rem, Sub};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use num_bigint::BigInt;

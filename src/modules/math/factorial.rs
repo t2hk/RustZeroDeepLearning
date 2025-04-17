@@ -4,7 +4,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use num_bigint::{BigInt, ToBigInt};

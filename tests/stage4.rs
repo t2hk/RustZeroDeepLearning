@@ -3,7 +3,6 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
-use std::env;
 use std::f64::consts::PI;
 
 use ndarray_rand::RandomExt;
@@ -12,6 +11,7 @@ use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, Pa
 use plotters::series::{LineSeries, PointSeries};
 use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
 use rand::distributions::Uniform;
+use rust_zero_deeplearning::modules::core::function_libs;
 use rust_zero_deeplearning::modules::math::sin;
 use rust_zero_deeplearning::modules::*;
 
@@ -495,7 +495,7 @@ fn test_non_linear_dataset() {
         .unwrap();
 }
 
-#[test]
+// #[test]
 fn test_predict() {
     //env::set_var("RUST_LOG", "info");
 

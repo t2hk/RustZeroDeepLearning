@@ -2,8 +2,9 @@
 pub mod modules;
 
 pub use modules::big_int_wrapper::*;
-pub use modules::function_libs::*;
-pub use modules::functions::*;
+pub use modules::core::function_libs::*;
+pub use modules::core::functions::*;
+pub use modules::core::variable::*;
 pub use modules::math::add::*;
 pub use modules::math::broadcast_to::*;
 pub use modules::math::cos::*;
@@ -27,4 +28,3 @@ pub use modules::math::tanh::*;
 pub use modules::math::transpose::*;
 pub use modules::settings::*;
 pub use modules::utils::*;
-pub use modules::variable::*;
