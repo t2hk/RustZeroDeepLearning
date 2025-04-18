@@ -40,8 +40,8 @@ impl<V: MathOps> Function<V> for SinFunction {
         info!("sin(backward)");
         debug!(
             "sin(backward): cos({:?}) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
         let gxs = vec![&cos(inputs[0].clone()) * &gys[0]];
         gxs
@@ -101,11 +101,8 @@ mod tests {
         result.backward();
 
         // sin 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
         // 逆伝播結果
-        assert_eq!(
-            expected_output_data,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expected_output_data, x.get_grad().unwrap().get_data());
     }
 }

@@ -46,13 +46,12 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
         info!("reshape(backward)");
         debug!(
             "reshape(backward) {:?} -> {:?}",
-            gys[0].borrow().get_data().shape(),
+            gys[0].get_data().shape(),
             &self.x_shape
         );
 
         dbg!(&gys[0]);
         let reshaped_data = gys[0]
-            .borrow()
             .get_data()
             .into_shape_clone(self.x_shape.clone())
             .unwrap();
@@ -73,7 +72,7 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
 /// Return
 /// * Variable<V>: リシェイプ語の結果
 pub fn reshape<V: MathOps>(input: Variable<V>, shape: Vec<usize>) -> Variable<V> {
-    let x_shape = input.borrow().get_data().shape().to_vec();
+    let x_shape = input.get_data().shape().to_vec();
 
     let mut reshape = FunctionExecutor::new(Rc::new(RefCell::new(ReshapeFunction {
         x_shape: x_shape,
@@ -100,22 +99,16 @@ mod tests {
         let y = reshape(x.clone(), vec![6]);
 
         // 形状変更後の確認
-        assert_eq!(vec![6], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 2, 3, 4, 5, 6],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![6], y.get_data().shape().to_vec());
+        assert_eq!(vec![1, 2, 3, 4, 5, 6], y.get_data().flatten().to_vec());
 
         y.backward();
 
-        let x_grad = x.borrow().get_grad().unwrap();
+        let x_grad = x.get_grad().unwrap();
         // dbg!(&x_grad);
 
         // 微分値が入力値と同じ形状で、全て1であることを確認する。
-        assert_eq!(input_shape, x_grad.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 1, 1, 1, 1, 1],
-            x_grad.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(input_shape, x_grad.get_data().shape().to_vec());
+        assert_eq!(vec![1, 1, 1, 1, 1, 1], x_grad.get_data().flatten().to_vec());
     }
 }

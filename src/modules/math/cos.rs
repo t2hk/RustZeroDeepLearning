@@ -40,8 +40,8 @@ impl<V: MathOps> Function<V> for CosFunction {
         info!("cos(backward)");
         debug!(
             "cos(backward): -sin({:?}) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         let minus_sin_x = &sin(inputs[0].clone()) * -1;
@@ -107,14 +107,14 @@ mod tests {
         let result = cos(x.clone());
 
         // Cos 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
 
         result.backward();
 
         // 逆伝播結果
         assert_eq!(
             expected_output_data * -1.0,
-            x.borrow().get_grad().unwrap().borrow().get_data()
+            x.get_grad().unwrap().get_data()
         );
     }
 }

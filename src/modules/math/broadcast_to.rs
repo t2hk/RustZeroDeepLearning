@@ -43,8 +43,8 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
         let gx = sum_to(gys[0].clone(), self.x_shape.clone());
         debug!(
             "broadcast_to(backward) {:?} -> {:?}",
-            gys[0].borrow().get_data().shape(),
-            gx.borrow().get_data().shape()
+            gys[0].get_data().shape(),
+            gx.get_data().shape()
         );
 
         vec![gx]
@@ -60,7 +60,7 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
 /// Return
 /// * : 結果
 pub fn broadcast_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V> {
-    let x_shape = x.borrow().get_data().shape().to_vec();
+    let x_shape = x.get_data().shape().to_vec();
     let mut broadcasto_to = FunctionExecutor::new(Rc::new(RefCell::new(BroadcastToFunction {
         x_shape: x_shape,
         shape: shape,
@@ -104,10 +104,7 @@ mod tests {
     /// broadcast_to 関数のテスト。
     #[test]
     fn test_broadcast_to_1() {
-        let x = Variable::new(RawData::from_shape_vec(
-            vec![1, 6],
-            vec![1, 2, 3, 4, 5, 6],
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![1, 6], vec![1, 2, 3, 4, 5, 6]));
 
         let y = broadcast_to(x, vec![6, 6]);
         dbg!(&y);

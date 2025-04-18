@@ -96,8 +96,8 @@ impl<V: MathOps> Function<V> for SumFunction {
 
         debug!(
             "sum(backward) {:?} -> {:?}",
-            gys[0].borrow().get_data().flatten().to_vec(),
-            gx.borrow().get_data().flatten().to_vec()
+            gys[0].get_data().flatten().to_vec(),
+            gx.get_data().flatten().to_vec()
         );
         vec![gx]
     }
@@ -113,7 +113,7 @@ impl<V: MathOps> Function<V> for SumFunction {
 /// Return
 /// * Variable<V>: 結果
 pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Vec<isize>>, keepdims: bool) -> Variable<V> {
-    let x_shape = x.borrow().get_data().shape().to_vec();
+    let x_shape = x.get_data().shape().to_vec();
     let mut sum = FunctionExecutor::new(Rc::new(RefCell::new(SumFunction {
         x_shape: x_shape,
         axis: axis,
@@ -141,7 +141,7 @@ mod tests {
             x0_var.flatten().to_vec(),
         ));
 
-        let x_shape = x0.borrow().get_data().shape().to_vec();
+        let x_shape = x0.get_data().shape().to_vec();
 
         let mut sum: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(SumFunction {
@@ -160,38 +160,20 @@ mod tests {
         let y = sum(x.clone(), None, false);
         y.backward();
 
-        assert_eq!(vec![21], y.borrow().get_data().flatten().to_vec());
+        assert_eq!(vec![21], y.get_data().flatten().to_vec());
 
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
     }
 
@@ -203,24 +185,15 @@ mod tests {
         y.backward();
 
         // 順伝播結果
-        assert_eq!(vec![5, 7, 9], y.borrow().get_data().flatten().to_vec());
-        assert_eq!(vec![3], y.borrow().get_data().shape().to_vec());
+        assert_eq!(vec![5, 7, 9], y.get_data().flatten().to_vec());
+        assert_eq!(vec![3], y.get_data().shape().to_vec());
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![2, 3],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![2, 3], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
     }
 
@@ -230,7 +203,7 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), None, true);
 
-        let tmp = y.borrow().get_data();
+        let tmp = y.get_data();
 
         assert_eq!(vec![276], tmp.flatten().to_vec());
         assert_eq!(vec![1, 1, 1], tmp.shape().to_vec());
@@ -242,7 +215,7 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![0]), false);
 
-        let tmp = y.borrow().get_data();
+        let tmp = y.get_data();
         dbg!(&tmp);
 
         assert_eq!(
@@ -258,7 +231,7 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![0]), true);
 
-        let tmp = y.borrow().get_data();
+        let tmp = y.get_data();
         dbg!(&tmp);
 
         assert_eq!(
@@ -270,23 +243,11 @@ mod tests {
         y.backward();
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![2, 3, 4],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![2, 3, 4], x.get_grad().unwrap().get_data().shape());
 
         let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
-        assert_eq!(
-            grad,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(grad, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 
     /// keepdims を指定しない Axis(1) の和
@@ -295,7 +256,7 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![1]), false);
 
-        let tmp = y.borrow().get_data();
+        let tmp = y.get_data();
         dbg!(&tmp);
 
         assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
@@ -304,23 +265,11 @@ mod tests {
         y.backward();
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![2, 3, 4],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![2, 3, 4], x.get_grad().unwrap().get_data().shape());
 
         let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
-        assert_eq!(
-            grad,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(grad, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 
     /// keepdims を指定した Axis(1) の和
@@ -329,7 +278,7 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![1]), true);
 
-        let tmp = y.borrow().get_data();
+        let tmp = y.get_data();
         dbg!(&tmp);
 
         assert_eq!(vec![12, 15, 18, 21, 48, 51, 54, 57], tmp.flatten().to_vec());
@@ -338,22 +287,10 @@ mod tests {
         y.backward();
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![2, 3, 4],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![2, 3, 4], x.get_grad().unwrap().get_data().shape());
 
         let grad: Vec<i32> = std::iter::repeat(1).take(24).collect();
-        assert_eq!(
-            grad,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(grad, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 }

@@ -36,7 +36,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("exp(backward)");
 
-        // let x = inputs[0].borrow().get_data();
+        // let x = inputs[0].get_data();
         // let gys_val = gys[0].clone();
         let x_exp = exp(inputs[0].clone());
         // let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
@@ -44,8 +44,8 @@ impl<V: MathOps> Function<V> for ExpFunction {
         let gxs = vec![&x_exp * &gys[0].clone()];
         debug!(
             "exp(backward): (e ^ {:?}) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         gxs
@@ -102,6 +102,6 @@ mod tests {
         let result = exp(x);
 
         // exp 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
     }
 }

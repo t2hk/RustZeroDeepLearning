@@ -59,9 +59,9 @@ impl<V: MathOps> Function<V> for PowFunction {
         debug!(
             "pow(backward) {:?} * ({:?} ^ ({:?} - 1)) * {:?}",
             self.exp,
-            inputs[0].borrow().get_data().flatten().to_vec(),
+            inputs[0].get_data().flatten().to_vec(),
             self.exp,
-            gys[0].borrow().get_data().flatten().to_vec()
+            gys[0].get_data().flatten().to_vec()
         );
 
         let mut result = vec![];
@@ -80,15 +80,14 @@ impl<V: MathOps> Function<V> for PowFunction {
             let input_pow_exp = &inputs[0] ^ (inv_exp);
             let inv_input_pow_exp = &Variable::new(RawData::new(V::one())) / &input_pow_exp;
 
-            let tmp =
-                &inv_input_pow_exp * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
+            let tmp = &inv_input_pow_exp * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
 
             let gxs = &tmp * &gys[0].clone();
             result.push(gxs);
         }
         debug!(
             "pow(backward) result: {:?}",
-            result[0].borrow().get_data().flatten().to_vec()
+            result[0].get_data().flatten().to_vec()
         );
         result
     }
@@ -132,10 +131,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawData::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let mut pow: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: 3 })));
@@ -159,7 +155,7 @@ mod tests {
         ));
         let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 8.0, 27.0, 64.0]).unwrap();
         let result = pow(x.clone(), 3);
-        assert_eq!(expect, result.borrow().get_data());
+        assert_eq!(expect, result.get_data());
 
         //result.borrow_mut().clear_grad();
         // 微分
@@ -168,10 +164,7 @@ mod tests {
         // dbg!(&result);
         // dbg!(&x);
         let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
-        assert_eq!(
-            expect_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
     /// 累乗のテスト(i32)
@@ -190,7 +183,7 @@ mod tests {
         ));
         let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
         let result = pow(x.clone(), 3);
-        assert_eq!(expect, result.borrow().get_data());
+        assert_eq!(expect, result.get_data());
 
         // 微分
         // [[3, 12], [27, 48]]
@@ -199,10 +192,7 @@ mod tests {
         // dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
-        assert_eq!(
-            expect_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
     /// オーバーロードした累乗のテスト(i32)
@@ -222,7 +212,7 @@ mod tests {
         let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
 
         let result = &x ^ 3;
-        assert_eq!(expect, result.borrow().get_data());
+        assert_eq!(expect, result.get_data());
 
         // 微分
         // [[3, 12], [27, 48]]
@@ -231,10 +221,7 @@ mod tests {
         // dbg!(&x);
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
-        assert_eq!(
-            expect_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
     /// 累乗のテスト(f64)
@@ -253,7 +240,7 @@ mod tests {
         ));
         let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 1.0, 1.0, 1.0]).unwrap();
         let result = pow(x.clone(), 0);
-        assert_eq!(expect, result.borrow().get_data());
+        assert_eq!(expect, result.get_data());
 
         //result.borrow_mut().clear_grad();
         // 微分
@@ -262,10 +249,7 @@ mod tests {
         // dbg!(&result);
         // dbg!(&x);
         let expect_grad = Array::from_shape_vec(vec![2, 2], vec![0.0, 0.0, 0.0, 0.0]).unwrap();
-        assert_eq!(
-            expect_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
     /// 累乗のテスト(f64)
@@ -285,7 +269,7 @@ mod tests {
         let expect =
             Array::from_shape_vec(vec![2, 2], vec![1.0, 0.5, 0.3333333333333333, 0.25]).unwrap();
         let result = pow(x.clone(), -1);
-        assert_eq!(expect, result.borrow().get_data());
+        assert_eq!(expect, result.get_data());
 
         //result.borrow_mut().clear_grad();
         // 微分
@@ -296,9 +280,6 @@ mod tests {
         let expect_grad =
             Array::from_shape_vec(vec![2, 2], vec![-1.0, -0.25, -0.1111111111111111, -0.0625])
                 .unwrap();
-        assert_eq!(
-            expect_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 }

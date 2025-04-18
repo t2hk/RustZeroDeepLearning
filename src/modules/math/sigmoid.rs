@@ -161,7 +161,7 @@ mod tests {
                 (-500..=500).map(|i| {
                     let x = i as f64 / 100.0;
                     let y = sigmoid(Variable::new(RawData::new(x)));
-                    (x, y.clone().borrow().get_data().flatten().to_vec()[0])
+                    (x, y.clone().get_data().flatten().to_vec()[0])
                 }),
                 &RED,
             ))

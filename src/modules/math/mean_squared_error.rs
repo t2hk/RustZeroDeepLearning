@@ -39,8 +39,8 @@ impl<V: MathOps> Function<V> for MeanSquaredErrorFunction {
         let x1 = inputs[1].clone();
 
         let diff = &x0 - &x1;
-        let gy = broadcast_to(gys[0].clone(), diff.borrow().get_data().shape().to_vec());
-        let gx0 = &(&gy * &diff) * (2.0 / diff.borrow().get_data().len() as f64);
+        let gy = broadcast_to(gys[0].clone(), diff.get_data().shape().to_vec());
+        let gx0 = &(&gy * &diff) * (2.0 / diff.get_data().len() as f64);
         let gx1 = -gx0.clone();
 
         vec![gx0, gx1]
@@ -84,7 +84,7 @@ mod tests {
 
         let result = mean_squared_error(x0.clone(), x1.clone());
         // 書籍と同じ結果であることを確認する。
-        assert_eq!(0.0, result.borrow().get_data()[[]]);
+        assert_eq!(0.0, result.get_data()[[]]);
     }
 
     /// 数値微分による近似テスト

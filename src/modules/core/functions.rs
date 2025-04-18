@@ -93,7 +93,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         let inputs_detail: Vec<String> = self
             .inputs
             .iter()
-            .map(|input| format!("{:?}", input.borrow().get_data()))
+            .map(|input| format!("{:?}", input.get_data()))
             .collect();
 
         let outputs_detail: Vec<String> = self
@@ -161,16 +161,14 @@ impl<V: MathOps> FunctionExecutor<V> {
         info!("[forward {}]", &self.creator.borrow().get_name());
 
         // 入力値からデータを取り出す。
-        let xs_data: Vec<Array<V, IxDyn>> = inputs
-            .iter()
-            .map(|variable| variable.borrow().get_data())
-            .collect();
+        let xs_data: Vec<Array<V, IxDyn>> =
+            inputs.iter().map(|variable| variable.get_data()).collect();
 
         // 逆伝播を有効にする場合、世代を設定する。
         if Setting::is_enable_backprop() {
             self.generation = inputs
                 .iter()
-                .map(|variable| variable.borrow().get_generation())
+                .map(|variable| variable.get_generation())
                 .max()
                 .unwrap_or(0);
         }
@@ -195,9 +193,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             .collect();
 
         for output in &outputs {
-            output
-                .borrow_mut()
-                .set_creator(Rc::new(RefCell::new(self.clone())));
+            output.set_creator(Rc::new(RefCell::new(self.clone())));
         }
 
         outputs
@@ -211,11 +207,6 @@ impl<V: MathOps> FunctionExecutor<V> {
             &self.creator.borrow().get_name(),
             &self.generation
         );
-        let input_values: Vec<Vec<V>> = self
-            .inputs
-            .iter()
-            .map(|input| input.borrow().get_data().clone().flatten().to_vec())
-            .collect();
 
         // 逆伝播の最初の関数の微分値として 1 を設定する。
         let mut gys: Vec<Variable<V>> = vec![];
@@ -241,12 +232,13 @@ impl<V: MathOps> FunctionExecutor<V> {
         // 逆伝播の結果を入力値に設定する。
         // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。
         for (i, input) in self.inputs.iter().enumerate() {
-            if input.borrow_mut().get_grad().is_none() {
-                input.borrow_mut().set_grad(gxs[i].clone());
-            } else {
-                let input_grad = input.borrow().get_grad().clone().unwrap();
-                input.borrow_mut().set_grad(&input_grad + &gxs[i]);
+            let mut new_grad = gxs[i].clone();
+
+            if input.get_grad().is_some() {
+                let input_grad = input.get_grad().clone().unwrap();
+                new_grad = &input_grad + &new_grad;
             }
+            input.set_grad(new_grad);
         }
 
         // 微分値を保持しない場合、中間変数の微分値を削除する。
@@ -281,7 +273,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             let mut local_creators = vec![];
             local_variables.iter().for_each(|variable| {
                 // すでに発見している creator は対象としないように、ハッシュマップで重複を排除する。重複の判断はポインタを使う。
-                if let Some(creator) = variable.borrow().get_creator() {
+                if let Some(creator) = variable.get_creator() {
                     if !creators_map.contains_key(&format!("{:p}", creator.as_ptr())) {
                         creators.push((creator.borrow().get_generation(), Rc::clone(&creator)));
                         creators_map.insert(format!("{:p}", creator.as_ptr()), "");

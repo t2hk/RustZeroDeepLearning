@@ -71,8 +71,8 @@ impl<V: MathOps> Function<V> for TransposeFunction {
 
             debug!(
                 "transpose(backward) {:?} -> {:?}",
-                gys[0].borrow().get_data().shape(),
-                t_gy.borrow().get_data().shape(),
+                gys[0].get_data().shape(),
+                t_gy.get_data().shape(),
             );
 
             vec![t_gy]
@@ -150,7 +150,7 @@ mod tests {
         let y = transpose_axes(x.clone(), vec![1, 0, 2]);
         // dbg!(&y);
 
-        let y_data = y.borrow().get_data();
+        let y_data = y.get_data();
         // 正しく軸が入れ替わっていることを確認 (4, 3, 2) -> (3, 4, 2)
         assert_eq!(vec![3, 4, 2], y_data.shape().to_vec());
 
@@ -179,7 +179,7 @@ mod tests {
         }
 
         y.backward();
-        let x_grad = x.borrow().get_grad().unwrap().borrow().get_data();
+        let x_grad = x.get_grad().unwrap().get_data();
 
         // 逆伝播後の勾配が入力値の形状と一致することを確認する。
         assert_eq!(vec![4, 3, 2], x_grad.shape().to_vec());
@@ -199,22 +199,16 @@ mod tests {
         let y = transpose(x.clone());
 
         // 転置後の確認
-        assert_eq!(vec![3, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 4, 2, 5, 3, 6],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![3, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![1, 4, 2, 5, 3, 6], y.get_data().flatten().to_vec());
 
         y.backward();
 
-        let x_grad = x.borrow().get_grad().unwrap();
+        let x_grad = x.get_grad().unwrap();
         dbg!(&x_grad);
 
         // 微分値が入力値と同じ形状で、全て1であることを確認する。
-        assert_eq!(input_shape, x_grad.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 1, 1, 1, 1, 1],
-            x_grad.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(input_shape, x_grad.get_data().shape().to_vec());
+        assert_eq!(vec![1, 1, 1, 1, 1, 1], x_grad.get_data().flatten().to_vec());
     }
 }

@@ -40,8 +40,8 @@ impl<V: MathOps> Function<V> for SubFunction {
         info!("sub(backward)");
         debug!(
             "sub(backward): dy/dx0 = 1 * {:?}, dy/dx1 = -1 * {:?}",
-            gys[0].borrow().get_data().flatten().to_vec(),
-            gys[0].borrow().get_data().flatten().to_vec()
+            gys[0].get_data().flatten().to_vec(),
+            gys[0].get_data().flatten().to_vec()
         );
         let neg_gys = &gys[0] * -1;
         vec![gys[0].clone(), neg_gys]
@@ -186,7 +186,7 @@ mod tests {
         let result = sub(x1, x2);
 
         // 足し算の結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
     }
 
     /// オーバーロードのテスト
@@ -220,47 +220,30 @@ mod tests {
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-        //     &result.borrow().get_grad(),
-        //     // &a.borrow().get_grad(),
-        //     &a.borrow().get_grad(),
-        //     &b.borrow().get_grad(),
-        //     &c.borrow().get_grad(),
+        //     &result.get_grad(),
+        //     // &a.get_grad(),
+        //     &a.get_grad(),
+        //     &b.get_grad(),
+        //     &c.get_grad(),
         // );
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -2.0),
-            b.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            b.get_grad().expect("No grad exist.").get_data()
         );
 
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            c.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            c.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -295,37 +278,24 @@ mod tests {
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-        //     &result.borrow().get_grad(),
-        //     &a.borrow().get_grad(),
-        //     // &b.borrow().get_grad(),
-        //     &c.borrow().get_grad(),
+        //     &result.get_grad(),
+        //     &a.get_grad(),
+        //     // &b.get_grad(),
+        //     &c.get_grad(),
         // );
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            c.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            c.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -347,27 +317,27 @@ mod tests {
 
         assert_eq!(
             RawData::new(4i32).get_data(),
-            result_val_i32_mul_val_i32.borrow().get_data()
+            result_val_i32_mul_val_i32.get_data()
         );
 
         assert_eq!(
             RawData::new(20u32).get_data(),
-            result_val_u32_mul_scalar_u32.borrow().get_data()
+            result_val_u32_mul_scalar_u32.get_data()
         );
 
         assert_eq!(
             RawData::new(20.0f64).get_data(),
-            result_scalar_f64_mul_val_f64.borrow().get_data()
+            result_scalar_f64_mul_val_f64.get_data()
         );
 
         assert_eq!(
             RawData::new(4.0f32).get_data(),
-            result_val_f32_mul_array_f32.borrow().get_data()
+            result_val_f32_mul_array_f32.get_data()
         );
 
         assert_eq!(
             RawData::new(4.0f32).get_data(),
-            result_array_f32_mul_val_f32.borrow().get_data()
+            result_array_f32_mul_val_f32.get_data()
         );
     }
 
@@ -390,29 +360,26 @@ mod tests {
         let result_val_f32_sub_array_f32 = &val_f32_5 - &array_f32_2;
         let result_array_f32_sub_val_f32 = &array_f32_5 - &val_f32_2;
 
-        assert_eq!(
-            RawData::new(3i64).get_data(),
-            result_val_i64_sub.borrow().get_data()
-        );
+        assert_eq!(RawData::new(3i64).get_data(), result_val_i64_sub.get_data());
 
         assert_eq!(
             RawData::new(2u64).get_data(),
-            result_val_u64_sub_scalar_u64.borrow().get_data()
+            result_val_u64_sub_scalar_u64.get_data()
         );
 
         assert_eq!(
             RawData::new(8.0f64).get_data(),
-            result_scalar_f64_sub_val_f64.borrow().get_data()
+            result_scalar_f64_sub_val_f64.get_data()
         );
 
         assert_eq!(
             RawData::new(3.0f32).get_data(),
-            result_val_f32_sub_array_f32.borrow().get_data()
+            result_val_f32_sub_array_f32.get_data()
         );
 
         assert_eq!(
             RawData::new(3.0f32).get_data(),
-            result_array_f32_sub_val_f32.borrow().get_data()
+            result_array_f32_sub_val_f32.get_data()
         );
     }
 }

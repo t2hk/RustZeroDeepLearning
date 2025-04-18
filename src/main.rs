@@ -49,23 +49,23 @@ fn main() {
 
     // 順伝播の結果を確認する。
     // x1^2^2 + x1^2^2 + x2 = 35
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
 
     // 各変数の世代を確認する。
-    assert_eq!(0, x1.borrow().get_generation());
-    assert_eq!(0, x2.borrow().get_generation());
-    assert_eq!(1, a.borrow().get_generation());
-    assert_eq!(2, b.borrow().get_generation());
-    assert_eq!(2, c.borrow().get_generation());
-    assert_eq!(3, d.borrow().get_generation());
-    assert_eq!(4, y.borrow().get_generation());
+    assert_eq!(0, x1.get_generation());
+    assert_eq!(0, x2.get_generation());
+    assert_eq!(1, a.get_generation());
+    assert_eq!(2, b.get_generation());
+    assert_eq!(2, c.get_generation());
+    assert_eq!(3, d.get_generation());
+    assert_eq!(4, y.get_generation());
 
     // 各関数の世代を確認する。
-    assert_eq!(0, a.borrow().get_creator_generation());
-    assert_eq!(1, b.borrow().get_creator_generation());
-    assert_eq!(1, c.borrow().get_creator_generation());
-    assert_eq!(2, d.borrow().get_creator_generation());
-    assert_eq!(3, y.borrow().get_creator_generation());
+    assert_eq!(0, a.get_creator_generation().unwrap());
+    assert_eq!(1, b.get_creator_generation().unwrap());
+    assert_eq!(1, c.get_creator_generation().unwrap());
+    assert_eq!(2, d.get_creator_generation().unwrap());
+    assert_eq!(3, y.get_creator_generation().unwrap());
 
     // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
     let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
@@ -73,73 +73,45 @@ fn main() {
     assert_eq!(5, creators.len());
 
     // 逆伝播を実行する。
-    // y.as_ref().clone().borrow().backward();
+    // y.as_ref().clone().backward();
     y.backward();
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 64.0),
-        x1.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        x1.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        x2.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        x2.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 16.0),
-        a.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        a.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        b.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        b.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        c.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        c.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        d.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        d.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.borrow().get_data());
+    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
     assert_eq!(
         Array::from_elem(IxDyn(&[]), 1.0),
-        y.borrow()
-            .get_grad()
-            .expect("No grad exist.")
-            .borrow()
-            .get_data()
+        y.get_grad().expect("No grad exist.").get_data()
     );
 
     // 階乗

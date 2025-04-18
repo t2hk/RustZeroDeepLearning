@@ -35,15 +35,15 @@ impl<V: MathOps> Function<V> for SquareFunction {
         info!("square(backward)");
         debug!(
             "square(backward): 2 * {:?} * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
-        // let x = inputs[0].borrow().get_data();
+        // let x = inputs[0].get_data();
         //let x_gys = &gys[0].clone() * &x;
         let x_gys = &gys[0] * &inputs[0];
         let gxs = vec![&x_gys * &Variable::new(RawData::new(V::from(2).unwrap()))];
         // let gxs = vec![Variable::new(RawData::new(
-        //     x_gys.borrow().get_data().mapv(|x| x * V::from(2).unwrap()),
+        //     x_gys.get_data().mapv(|x| x * V::from(2).unwrap()),
         // ))];
         gxs
     }
@@ -99,6 +99,6 @@ mod tests {
         let result = square(x);
 
         // 二乗の結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
     }
 }

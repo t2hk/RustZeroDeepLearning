@@ -81,10 +81,10 @@ impl<V: MathOps> Function<V> for SumToFunction {
 
         debug!(
             "sum_to(backward) {:?} {:?} -> {:?} {:?}",
-            gys[0].borrow().get_data().shape().to_vec(),
-            gys[0].borrow().get_data().flatten().to_vec(),
-            result.borrow().get_data().shape().to_vec(),
-            result.borrow().get_data().flatten().to_vec()
+            gys[0].get_data().shape().to_vec(),
+            gys[0].get_data().flatten().to_vec(),
+            result.get_data().shape().to_vec(),
+            result.get_data().flatten().to_vec()
         );
         vec![result]
     }
@@ -98,7 +98,7 @@ impl<V: MathOps> Function<V> for SumToFunction {
 /// Return
 /// * Variable<V>: 結果
 pub fn sum_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V> {
-    let x_shape = x.borrow().get_data().shape().to_vec();
+    let x_shape = x.get_data().shape().to_vec();
     let mut sum_to = FunctionExecutor::new(Rc::new(RefCell::new(SumToFunction {
         x_shape: x_shape,
         shape: shape,
@@ -126,7 +126,7 @@ mod tests {
             x0_var.flatten().to_vec(),
         ));
 
-        let x_shape = x0.borrow().get_data().shape().to_vec();
+        let x_shape = x0.get_data().shape().to_vec();
 
         let mut sum_to: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(SumToFunction {
@@ -143,10 +143,10 @@ mod tests {
         let y = sum_to(x.clone(), vec![1]);
 
         let expected = sum(x, None, false);
-        assert_eq!(1, y.borrow().get_data().shape().to_vec()[0]);
+        assert_eq!(1, y.get_data().shape().to_vec()[0]);
         assert_eq!(
-            expected.borrow().get_data().flatten().to_vec(),
-            y.borrow().get_data().flatten().to_vec()
+            expected.get_data().flatten().to_vec(),
+            y.get_data().flatten().to_vec()
         );
     }
 
@@ -158,11 +158,8 @@ mod tests {
         let expected = sum(x.clone(), Some(vec![0]), true);
         dbg!(&expected);
 
-        assert_eq!(
-            expected.borrow().get_data().shape(),
-            y.borrow().get_data().shape()
-        );
-        assert_eq!(expected.borrow().get_data(), y.borrow().get_data());
+        assert_eq!(expected.get_data().shape(), y.get_data().shape());
+        assert_eq!(expected.get_data(), y.get_data());
     }
 
     #[test]
@@ -170,8 +167,8 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![10], (1..11).collect()));
         let y = sum_to(x.clone(), vec![10]);
 
-        assert_eq!(x.borrow().get_data().shape(), y.borrow().get_data().shape());
-        assert_eq!(x.borrow().get_data(), y.borrow().get_data());
+        assert_eq!(x.get_data().shape(), y.get_data().shape());
+        assert_eq!(x.get_data(), y.get_data());
     }
 
     #[test]
@@ -181,61 +178,25 @@ mod tests {
         let y = sum_to(x.clone(), vec![1]);
         y.backward();
 
-        assert_eq!(
-            vec![10],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
-        );
+        assert_eq!(vec![10], x.get_grad().unwrap().get_data().shape().to_vec());
         let expect: Vec<i32> = std::iter::repeat(1).take(10).collect();
-        assert_eq!(
-            expect,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(expect, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 
     #[test]
     fn test_sum_to_backward2() {
-        let x = Variable::new(RawData::from_shape_vec(
-            vec![10, 10],
-            (1..101).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![10, 10], (1..101).collect()));
 
         let y = sum_to(x.clone(), vec![1]);
         y.backward();
 
         assert_eq!(
             vec![10, 10],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            x.get_grad().unwrap().get_data().shape().to_vec()
         );
 
         let expect: Vec<i32> = std::iter::repeat(1).take(100).collect();
-        assert_eq!(
-            expect,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(expect, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 
     #[test]
@@ -250,25 +211,10 @@ mod tests {
 
         assert_eq!(
             vec![10, 20, 20],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            x.get_grad().unwrap().get_data().shape().to_vec()
         );
 
         let expect: Vec<i32> = std::iter::repeat(1).take(4000).collect();
-        assert_eq!(
-            expect,
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
-        );
+        assert_eq!(expect, x.get_grad().unwrap().get_data().flatten().to_vec());
     }
 }

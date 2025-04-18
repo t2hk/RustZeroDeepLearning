@@ -2,8 +2,8 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
-use std::cell::{Ref, RefCell, RefMut};
+use ndarray::{Array, IxDyn};
+use std::cell::RefCell;
 use std::rc::Rc;
 
 use super::math::{reshape, transpose};
@@ -16,7 +16,9 @@ use super::math::{reshape, transpose};
 pub struct Variable<V: MathOps> {
     raw: Rc<RefCell<RawData<V>>>,
 }
-impl<V: MathOps> Variable<V> {
+
+impl<V: MathOps> RawDataProcessor<V> for Variable<V> {
+    //impl<V: MathOps> Variable<V> {
     /// コンストラクタ
     ///
     /// Arguments:
@@ -24,66 +26,21 @@ impl<V: MathOps> Variable<V> {
     ///
     /// Return:
     /// * Variable<V>: RawData をラップしたインスタンス
-    pub fn new(raw: RawData<V>) -> Self {
+    fn new(raw: RawData<V>) -> Self {
         Variable {
             raw: Rc::new(RefCell::new(raw)),
         }
     }
 
     /// Rc、RefCell による参照の共有や内部可変に対応した RawData を取得する。
-    pub fn raw(&self) -> Rc<RefCell<RawData<V>>> {
+    fn raw(&self) -> Rc<RefCell<RawData<V>>> {
         // self.raw.clone()
         Rc::clone(&self.raw)
     }
 
-    /// RawData の borrow を返す。
-    pub fn borrow(&self) -> Ref<RawData<V>> {
-        self.raw.borrow()
-    }
-
-    /// RawData の borrow_mut を返す。
-    pub fn borrow_mut(&self) -> RefMut<RawData<V>> {
-        self.raw.borrow_mut()
-    }
-
     /// RawData の as_ref を返す。
-    pub fn as_ref(&self) -> &RefCell<RawData<V>> {
+    fn as_ref(&self) -> &RefCell<RawData<V>> {
         self.raw.as_ref()
-    }
-
-    /// 変数を設定する。
-    ///
-    /// Arguments:
-    /// * data (Array<V, IxDyn>): 変数
-    pub fn set_data(&mut self, data: Array<V, IxDyn>) {
-        self.raw().borrow_mut().set_data(data);
-    }
-
-    /// 逆伝播を実行する。
-    pub fn backward(&self) {
-        self.raw.as_ref().clone().borrow().backward();
-    }
-
-    pub fn detail(&self) -> String {
-        let data_detail = format!("data: {:?}", self.raw().borrow().get_data());
-        let grad_detail = format!(
-            "grad: {:?}",
-            match self.raw().borrow().get_grad() {
-                Some(grad) => format!("{:?}", grad.borrow().get_data()),
-                None => "None".to_string(),
-            }
-        );
-        let detail = format!(
-            "variable name: {},generation: {}, data:{:?}, grad: {:?}",
-            match self.raw().borrow().get_name() {
-                Some(name) => name,
-                None => "None".to_string(),
-            },
-            self.raw().borrow().get_generation(),
-            data_detail,
-            grad_detail
-        );
-        detail.to_string()
     }
 
     /// リシェイプ
@@ -93,7 +50,7 @@ impl<V: MathOps> Variable<V> {
     ///
     /// Return:
     /// * Variable<RawData<V>>
-    pub fn reshape(&self, shape: Vec<usize>) -> Self {
+    fn reshape(&self, shape: Vec<usize>) -> Self {
         return reshape(self.clone(), shape.clone());
     }
 
@@ -101,28 +58,8 @@ impl<V: MathOps> Variable<V> {
     ///
     /// Return:
     /// * Variable<RawData<V>>: 転値結果
-    pub fn transpose(&self) -> Self {
+    fn transpose(&self) -> Self {
         return transpose(self.clone());
-    }
-}
-
-/// RawData 構造体を生成するためのトレイト
-/// * create_variable: RawData 構造体を生成する
-pub trait CreateVariable<V: MathOps> {
-    fn create_variable(&self) -> RawData<V>;
-}
-
-/// CreateVariable トレイトの Array<f64, IxDyn> 用の実装
-impl<V: MathOps> CreateVariable<V> for Array<V, IxDyn> {
-    fn create_variable(&self) -> RawData<V> {
-        RawData::new(self.clone())
-    }
-}
-
-/// CreateVariable トレイトの 数値用の実装
-impl<V: MathOps> CreateVariable<V> for V {
-    fn create_variable(&self) -> RawData<V> {
-        RawData::new(Array::from_elem(IxDyn(&[]), self.clone()))
     }
 }
 
@@ -163,8 +100,6 @@ mod tests {
         let a: [usize; 0] = [];
         assert_eq!(&a, var0.get_shape());
         assert_eq!(0, var0.get_ndim());
-
-        let var1 = RawData::from_shape_vec(vec![1], vec![1.0]);
 
         let sh2x2 = vec![2, 2];
         let val2x2 = vec![1., 2., 3., 4.];
@@ -226,17 +161,20 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
 
         let r1 = x.reshape(vec![6]);
-        assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
+        // assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
+        assert_eq!(vec![6], r1.get_data().shape().to_vec());
         assert_eq!(
             vec![1, 2, 3, 4, 5, 6],
-            r1.borrow().get_data().flatten().to_vec()
+            // r1.borrow().get_data().flatten().to_vec()
+            r1.get_data().flatten().to_vec()
         );
 
         let r2 = r1.reshape(vec![3, 2]);
-        assert_eq!(vec![3, 2], r2.borrow().get_data().shape().to_vec());
+        assert_eq!(vec![3, 2], r2.get_data().shape().to_vec());
         assert_eq!(
             vec![1, 2, 3, 4, 5, 6],
-            r2.borrow().get_data().flatten().to_vec()
+            // r2.borrow().get_data().flatten().to_vec()
+            r2.get_data().flatten().to_vec()
         );
     }
 
@@ -253,22 +191,16 @@ mod tests {
         let y = x.transpose();
 
         // 転値後の確認
-        assert_eq!(vec![3, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 4, 2, 5, 3, 6],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![3, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![1, 4, 2, 5, 3, 6], y.get_data().flatten().to_vec());
 
         y.backward();
 
-        let x_grad = x.borrow().get_grad().unwrap();
+        let x_grad = x.get_grad().unwrap();
         dbg!(&x_grad);
 
         // 微分値が入力値と同じ形状で、全て1であることを確認する。
-        assert_eq!(input_shape, x_grad.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 1, 1, 1, 1, 1],
-            x_grad.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(input_shape, x_grad.clone().get_data().shape().to_vec());
+        assert_eq!(vec![1, 1, 1, 1, 1, 1], x_grad.get_data().flatten().to_vec());
     }
 }

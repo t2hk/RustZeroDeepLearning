@@ -62,7 +62,7 @@ impl<V: MathOps> Function<V> for LinearFunction {
 
         if inputs.len() > 2 {
             let b = inputs[2].clone();
-            let gb = sum_to(gys[0].clone(), b.borrow().get_data().shape().to_vec());
+            let gb = sum_to(gys[0].clone(), b.get_data().shape().to_vec());
             return vec![gx, gw, gb];
         }
 
@@ -134,11 +134,8 @@ mod tests {
         let b = None;
         let y = linear(x.clone(), w.clone(), b);
 
-        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![14., 32., 32., 77.],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![2, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![14., 32., 32., 77.], y.get_data().flatten().to_vec());
     }
 
     #[test]

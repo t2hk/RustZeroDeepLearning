@@ -29,7 +29,7 @@ fn test_basic() {
     // スカラ
     let x1 = Variable::new(RawData::new(1.0f64));
     let y1 = sin(x1);
-    assert_eq!(0.8414709848078965, y1.borrow().get_data()[[]]);
+    assert_eq!(0.8414709848078965, y1.get_data()[[]]);
 
     // 行列に対する Sin
     let x2 = Variable::new(RawData::from_shape_vec(
@@ -40,7 +40,7 @@ fn test_basic() {
     // dbg!(&x2);
     let y2 = sin(x2);
     // dbg!(&y2);
-    assert_eq!(vec![2, 3], y2.borrow().get_data().shape().to_vec());
+    assert_eq!(vec![2, 3], y2.get_data().shape().to_vec());
     let expect_y2 = vec![
         0.8414709848078965,
         0.9092974268256817,
@@ -50,7 +50,7 @@ fn test_basic() {
         -0.27941549819892586,
     ];
 
-    assert_eq!(expect_y2, y2.borrow().get_data().flatten().to_vec());
+    assert_eq!(expect_y2, y2.get_data().flatten().to_vec());
 
     // 行列同士の和
     let x3 = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
@@ -62,8 +62,8 @@ fn test_basic() {
     let x3_c = &x3 + &c;
     //dbg!(&x3_c);
     let expect_x3_c = vec![11, 22, 33, 44, 55, 66];
-    assert_eq!(vec![2, 3], x3_c.borrow().get_data().shape().to_vec());
-    assert_eq!(expect_x3_c, x3_c.borrow().get_data().flatten().to_vec());
+    assert_eq!(vec![2, 3], x3_c.get_data().shape().to_vec());
+    assert_eq!(expect_x3_c, x3_c.get_data().flatten().to_vec());
 }
 
 #[test]
@@ -121,18 +121,12 @@ fn test_variable_reshape() {
     let x = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
 
     let r1 = x.reshape(vec![6]);
-    assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
-    assert_eq!(
-        vec![1, 2, 3, 4, 5, 6],
-        r1.borrow().get_data().flatten().to_vec()
-    );
+    assert_eq!(vec![6], r1.get_data().shape().to_vec());
+    assert_eq!(vec![1, 2, 3, 4, 5, 6], r1.get_data().flatten().to_vec());
 
     let r2 = r1.reshape(vec![3, 2]);
-    assert_eq!(vec![3, 2], r2.borrow().get_data().shape().to_vec());
-    assert_eq!(
-        vec![1, 2, 3, 4, 5, 6],
-        r2.borrow().get_data().flatten().to_vec()
-    );
+    assert_eq!(vec![3, 2], r2.get_data().shape().to_vec());
+    assert_eq!(vec![1, 2, 3, 4, 5, 6], r2.get_data().flatten().to_vec());
 }
 
 #[test]
@@ -266,16 +260,16 @@ fn test_step40_sum1() {
     let y = &x0 + &x1;
 
     // 行列の和の形状と値が一致することを確認する。
-    assert_eq!(vec![1, 3], y.borrow().get_data().shape().to_vec());
-    assert_eq!(vec![11, 12, 13], y.borrow().get_data().flatten().to_vec());
+    assert_eq!(vec![1, 3], y.get_data().shape().to_vec());
+    assert_eq!(vec![11, 12, 13], y.get_data().flatten().to_vec());
 
     //dbg!(&y);
 
     y.backward();
 
     // 逆伝播による勾配の形状と値が一致することを確認する。
-    let gx0 = x0.borrow().get_grad().unwrap().borrow().get_data();
-    let gx1 = x1.borrow().get_grad().unwrap().borrow().get_data();
+    let gx0 = x0.get_grad().unwrap().get_data();
+    let gx1 = x1.get_grad().unwrap().get_data();
 
     assert_eq!(vec![1, 3], gx0.shape().to_vec());
     assert_eq!(vec![1, 1, 1], gx0.flatten().to_vec());
@@ -332,25 +326,23 @@ fn test_linear_regression() {
         let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
         let loss = mean_squared_error(y.clone(), y_pred.clone());
 
-        w.borrow_mut().clear_grad();
-        b.borrow_mut().clear_grad();
+        w.clear_grad();
+        b.clear_grad();
         loss.backward();
 
-        let w_new_data =
-            w.borrow().get_data() - w.borrow().get_grad().unwrap().borrow().get_data() * lr;
+        let w_new_data = w.get_data() - w.get_grad().unwrap().get_data() * lr;
         w.set_data(w_new_data);
 
-        let b_new_data =
-            b.borrow().get_data() - b.borrow().get_grad().unwrap().borrow().get_data() * lr;
+        let b_new_data = b.get_data() - b.get_grad().unwrap().get_data() * lr;
         b.set_data(b_new_data);
 
         println!(
             "w: {:?}, b: {:?}, loss: {:?}",
-            w.borrow().get_data(),
-            b.borrow().get_data(),
-            loss.borrow().get_data()
+            w.get_data(),
+            b.get_data(),
+            loss.get_data()
         );
-        loss_data = loss.borrow().get_data().flatten().to_vec()[0];
+        loss_data = loss.get_data().flatten().to_vec()[0];
     }
 
     // グラフ描画
@@ -387,8 +379,8 @@ fn test_linear_regression() {
 
     // 線形回帰による予測線の描画
     let pred_x = vec![0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-    let w_data = w.borrow().get_data().flatten().to_vec()[0];
-    let b_data = b.borrow().get_data().flatten().to_vec()[0];
+    let w_data = w.get_data().flatten().to_vec()[0];
+    let b_data = b.get_data().flatten().to_vec()[0];
 
     chart
         .draw_series(LineSeries::new(
@@ -423,8 +415,8 @@ fn predict(x: Variable<f64>) -> Variable<f64> {
 
     let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
 
-    w.borrow_mut().clear_grad();
-    b.borrow_mut().clear_grad();
+    w.clear_grad();
+    b.clear_grad();
 
     return y_pred;
 }
@@ -559,33 +551,29 @@ fn test_predict() {
         );
         let loss = mean_squared_error(y.clone(), y_pred.clone());
 
-        w1.borrow_mut().clear_grad();
-        w2.borrow_mut().clear_grad();
-        b1.borrow_mut().clear_grad();
-        b2.borrow_mut().clear_grad();
-        // y.borrow_mut().clear_grad();
+        w1.clear_grad();
+        w2.clear_grad();
+        b1.clear_grad();
+        b2.clear_grad();
+        // y.clear_grad();
 
         loss.backward();
 
-        let w1_udpate =
-            w1.borrow().get_data() - lr * w1.borrow().get_grad().unwrap().borrow().get_data();
-        let b1_udpate =
-            b1.borrow().get_data() - lr * b1.borrow().get_grad().unwrap().borrow().get_data();
-        let w2_udpate =
-            w2.borrow().get_data() - lr * w2.borrow().get_grad().unwrap().borrow().get_data();
-        let b2_udpate =
-            b2.borrow().get_data() - lr * b2.borrow().get_grad().unwrap().borrow().get_data();
+        let w1_udpate = w1.get_data() - lr * w1.get_grad().unwrap().get_data();
+        let b1_udpate = b1.get_data() - lr * b1.get_grad().unwrap().get_data();
+        let w2_udpate = w2.get_data() - lr * w2.get_grad().unwrap().get_data();
+        let b2_udpate = b2.get_data() - lr * b2.get_grad().unwrap().get_data();
 
-        w1.borrow_mut().set_data(w1_udpate);
-        w2.borrow_mut().set_data(w2_udpate);
-        b1.borrow_mut().set_data(b1_udpate);
-        b2.borrow_mut().set_data(b2_udpate);
+        w1.set_data(w1_udpate);
+        w2.set_data(w2_udpate);
+        b1.set_data(b1_udpate);
+        b2.set_data(b2_udpate);
 
         ////////////////////////////////////////////////////
         // 学習途中の状況をグラフ出力する。
         ////////////////////////////////////////////////////
         if idx % 1000 == 0 || idx == iters - 1 {
-            println!("[{}] loss: {:?}", idx, loss.borrow().get_data());
+            println!("[{}] loss: {:?}", idx, loss.get_data());
             let plot_x = x_var.flatten().to_vec();
             let plot_y = y_var.flatten().to_vec();
 
@@ -596,7 +584,7 @@ fn test_predict() {
                 vec![b1.clone(), b2.clone()],
             );
 
-            let test_y = test_y_var.borrow().get_data().flatten().to_vec();
+            let test_y = test_y_var.get_data().flatten().to_vec();
 
             let mut test_xy = vec![];
             for (i, tmp_x) in test_x.iter().enumerate() {
@@ -608,7 +596,7 @@ fn test_predict() {
                 plot_x,
                 plot_y,
                 test_xy,
-                &format!("loss: {}", loss.borrow().get_data().flatten().to_vec()[0]),
+                &format!("loss: {}", loss.get_data().flatten().to_vec()[0]),
             );
         }
     }

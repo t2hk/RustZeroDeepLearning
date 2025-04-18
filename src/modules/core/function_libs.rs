@@ -370,7 +370,7 @@ mod tests {
                 (-500..=500).map(|i| {
                     let x = i as f64 / 100.0;
                     let y = sigmoid_simple(Variable::new(RawData::new(x)));
-                    (x, y.clone().borrow().get_data().flatten().to_vec()[0])
+                    (x, y.get_data().flatten().to_vec()[0])
                 }),
                 &RED,
             ))
@@ -403,32 +403,32 @@ mod tests {
         let iters = 10;
 
         for i in 0..iters {
-            println!("i: {} x: {:?}", i, x.borrow().get_data());
+            println!("i: {} x: {:?}", i, x.get_data());
             // 書籍と同じ値になるかテストする。
             match i {
-                0 => assert_eq!(2.0, x.borrow().get_data()[[]]),
-                1 => assert_eq!(1.4545454545454546, x.borrow().get_data()[[]]),
-                2 => assert_eq!(1.1510467893775467, x.borrow().get_data()[[]]),
-                3 => assert_eq!(1.0253259289766978, x.borrow().get_data()[[]]),
-                4 => assert_eq!(1.0009084519430513, x.borrow().get_data()[[]]),
-                5 => assert_eq!(1.0000012353089454, x.borrow().get_data()[[]]),
-                6 => assert_eq!(1.000000000002289, x.borrow().get_data()[[]]),
-                7 => assert_eq!(1.0, x.borrow().get_data()[[]]),
-                8 => assert_eq!(1.0, x.borrow().get_data()[[]]),
-                9 => assert_eq!(1.0, x.borrow().get_data()[[]]),
+                0 => assert_eq!(2.0, x.get_data()[[]]),
+                1 => assert_eq!(1.4545454545454546, x.get_data()[[]]),
+                2 => assert_eq!(1.1510467893775467, x.get_data()[[]]),
+                3 => assert_eq!(1.0253259289766978, x.get_data()[[]]),
+                4 => assert_eq!(1.0009084519430513, x.get_data()[[]]),
+                5 => assert_eq!(1.0000012353089454, x.get_data()[[]]),
+                6 => assert_eq!(1.000000000002289, x.get_data()[[]]),
+                7 => assert_eq!(1.0, x.get_data()[[]]),
+                8 => assert_eq!(1.0, x.get_data()[[]]),
+                9 => assert_eq!(1.0, x.get_data()[[]]),
                 _ => {}
             }
 
             let y = f(x.clone());
-            x.borrow_mut().clear_grad();
+            x.clear_grad();
 
             y.backward();
-            let x_data = Variable::new(RawData::new(x.borrow().get_data()));
-            let x_grad = x.borrow().get_grad().unwrap().borrow().get_data()[[]];
+            let x_data = Variable::new(RawData::new(x.get_data()));
+            let x_grad = x.get_grad().unwrap().get_data()[[]];
 
             let new_data: Variable<f64> = &x_data - &(x_grad / &gx2(x_data.clone()));
 
-            x.set_data(new_data.borrow().get_data());
+            x.set_data(new_data.get_data());
         }
     }
 
@@ -444,14 +444,8 @@ mod tests {
         let expected_x0_grad = Array::from_elem(IxDyn(&[]), -2.0);
         let expected_x1_grad = Array::from_elem(IxDyn(&[]), 400.0);
 
-        assert_eq!(
-            expected_x0_grad,
-            x0.borrow().get_grad().unwrap().borrow().get_data()
-        );
-        assert_eq!(
-            expected_x1_grad,
-            x1.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expected_x0_grad, x0.get_grad().unwrap().get_data());
+        assert_eq!(expected_x1_grad, x1.get_grad().unwrap().get_data());
     }
 
     /// ローゼンブロック関数の勾配降下法
@@ -463,21 +457,20 @@ mod tests {
         let iters = 10000;
 
         for _i in 0..iters {
-            println!(
-                "x0: {:?} x1: {:?}",
-                x0.borrow().get_data(),
-                x1.borrow().get_data()
-            );
+            println!("x0: {:?} x1: {:?}", x0.get_data(), x1.get_data());
 
             let y = rosenblock(x0.clone(), x1.clone());
-            x0.borrow_mut().clear_grad();
-            x1.borrow_mut().clear_grad();
+            x0.clear_grad();
+            x1.clear_grad();
             y.backward();
 
-            let x0_data = x0.borrow().get_data();
-            let x1_data = x1.borrow().get_data();
-            let x0_grad = x0.borrow().get_grad().unwrap().borrow().get_data()[[]];
-            let x1_grad = x1.borrow().get_grad().unwrap().borrow().get_data()[[]];
+            let x0_data = x0.get_data();
+            let x1_data: ndarray::ArrayBase<
+                ndarray::OwnedRepr<_>,
+                ndarray::Dim<ndarray::IxDynImpl>,
+            > = x1.get_data();
+            let x0_grad = x0.get_grad().unwrap().get_data()[[]];
+            let x1_grad = x1.get_grad().unwrap().get_data()[[]];
 
             x0.set_data(x0_data - lr * x0_grad);
             x1.set_data(x1_data - lr * x1_grad);
@@ -496,22 +489,14 @@ mod tests {
         let expected = Array::from_elem(IxDyn(&[]), 2);
         let expect_x_grad = Array::from_elem(IxDyn(&[]), 2);
         let expect_y_grad = Array::from_elem(IxDyn(&[]), 2);
-        assert_eq!(expected, z.borrow().get_data());
+        assert_eq!(expected, z.get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            x.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            y.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -527,22 +512,14 @@ mod tests {
         let expected = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
         let expect_x_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
         let expect_y_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
-        assert_eq!(expected, z.borrow().get_data());
+        assert_eq!(expected, z.get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            x.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            y.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -559,22 +536,14 @@ mod tests {
         let expect_x_grad = Array::from_elem(IxDyn(&[]), -5376);
         let expect_y_grad = Array::from_elem(IxDyn(&[]), 8064);
 
-        assert_eq!(expected, z.borrow().get_data());
+        assert_eq!(expected, z.get_data());
         assert_eq!(
             expect_x_grad,
-            x.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            x.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             expect_y_grad,
-            y.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            y.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -589,10 +558,7 @@ mod tests {
         ));
 
         let y = linear_simple(x, w, Some(b));
-        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![18., 22., 18., 22.,],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![2, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![18., 22., 18., 22.,], y.get_data().flatten().to_vec());
     }
 }

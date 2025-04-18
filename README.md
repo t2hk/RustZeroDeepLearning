@@ -231,3 +231,5 @@ cargo run
 ### ステップ44 パラメータをまとめるレイヤ
 * パッケージ構成を見直し、function や variable などを core パッケージに移動させ、その影響によるコード修正を実施した。
 * Variable と類似する Parameter を追加するため、Variable の実データを扱っていた RawVariable を Parameter でも扱えるように RawData に名前を変更し、別モジュールとして切り出した。
+* RawData に関する処理をトレイト RawDataProcessor に定義し、Variable は RawDataProcessor を実装するように変更した。
+* Variable や RawData のアクセサの実装を見直し、borrow() などの実行をアクセサ側で実行するようにし、呼び出し元での記述が最小限になるように修正した。

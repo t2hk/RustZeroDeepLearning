@@ -38,8 +38,8 @@ impl<V: MathOps> Function<V> for TanhFunction {
         info!("tanh(backward)");
         debug!(
             "tanh(backward): (1 - {:?} ^2) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         let tanh_x_pow_2 = &tanh(inputs[0].clone()) ^ 2;
@@ -108,14 +108,11 @@ mod tests {
         let result = tanh(x.clone());
 
         // Tanh 結果
-        assert_eq!(expected_data, result.borrow().get_data());
+        assert_eq!(expected_data, result.get_data());
 
         result.backward();
 
         // 逆伝播結果
-        assert_eq!(
-            expected_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expected_grad, x.get_grad().unwrap().get_data());
     }
 }

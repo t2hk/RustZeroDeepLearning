@@ -38,8 +38,8 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         let x = inputs[0].clone();
         let w = inputs[1].clone();
 
-        dbg!(&gys[0].borrow().get_data());
-        dbg!(&w.borrow().get_data());
+        dbg!(&gys[0].get_data());
+        dbg!(&w.get_data());
 
         let gx = matmul(gys[0].clone(), w.transpose());
         let gw = matmul(x.transpose(), gys[0].clone());
@@ -151,7 +151,7 @@ mod tests {
         let w = Variable::new(RawData::from_vec(vec![4., 5., 6.]));
 
         let y = matmul(x, w);
-        assert_eq!(32., y.borrow().get_data().flatten().to_vec()[0]);
+        assert_eq!(32., y.get_data().flatten().to_vec()[0]);
     }
 
     #[test]
@@ -208,7 +208,7 @@ mod tests {
         let w = Variable::new(RawData::from_shape_vec(vec![1, 1], vec![20.]));
 
         let y = matmul(x, w);
-        assert_eq!(200., y.borrow().get_data().flatten().to_vec()[0]);
+        assert_eq!(200., y.get_data().flatten().to_vec()[0]);
 
         y.backward();
     }
@@ -221,11 +221,8 @@ mod tests {
         let w = Variable::new(RawData::from_shape_vec(vec![2, 2], (5..=8).collect()));
 
         let y = matmul(x, w);
-        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![19, 22, 43, 50],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![2, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![19, 22, 43, 50], y.get_data().flatten().to_vec());
     }
 
     /// シンプルな行列の積
@@ -235,38 +232,20 @@ mod tests {
         let y = sum(x.clone(), None, false);
         y.backward();
 
-        assert_eq!(vec![21], y.borrow().get_data().flatten().to_vec());
+        assert_eq!(vec![21], y.get_data().flatten().to_vec());
 
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
     }
 
@@ -281,23 +260,11 @@ mod tests {
 
         assert_eq!(
             vec![2, 3],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            x.get_grad().unwrap().get_data().shape().to_vec()
         );
         assert_eq!(
             vec![3, 4],
-            w.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            w.get_grad().unwrap().get_data().shape().to_vec()
         );
     }
 

@@ -32,10 +32,10 @@ macro_rules! dot_var {
         let mut v_name = "".to_string();
         let temp_raw_v = $variable.raw().borrow().clone();
         if $verbose {
-            if let Some(tmp_v_name) = $variable.raw().borrow().get_name() {
-                v_name = format!("{}({}): ", tmp_v_name, $variable.raw().borrow().get_data());
+            if let Some(tmp_v_name) = $variable.get_name() {
+                v_name = format!("{}({}): ", tmp_v_name, $variable.get_data());
             } else {
-                v_name = format!("({})", $variable.raw().borrow().get_data());
+                v_name = format!("({})", $variable.get_data());
             }
             let v_shape = &temp_raw_v.get_shape();
             let v_dtype = &temp_raw_v.get_dtype();
@@ -135,9 +135,9 @@ macro_rules! get_dot_graph {
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
 
-            // let outputs = creator.1.borrow().get_outputs();
+            // let outputs = creator.1.get_outputs();
             // outputs.iter().for_each(|output| {
-            //     let name = output.upgrade().unwrap().borrow().get_name();
+            //     let name = output.upgrade().unwrap().get_name();
             //     let ptr = output.upgrade().unwrap().as_ptr();
             // });
 
@@ -215,18 +215,18 @@ pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
     let indent = format!("{}", "  ".repeat(indent_num));
 
     println!("{}variable", indent);
-    println!("{}  name: {:?}", indent, x.borrow().get_name());
-    println!("{}  data: {:?}", indent, x.borrow().get_data());
-    println!("{}  generation: {:?}", indent, x.borrow().get_generation());
+    println!("{}  name: {:?}", indent, x.get_name());
+    println!("{}  data: {:?}", indent, x.get_data());
+    println!("{}  generation: {:?}", indent, x.get_generation());
 
-    match x.borrow().get_grad() {
+    match x.get_grad() {
         Some(grad) => {
             println!("{}  grad", indent);
             debug_variable(grad.clone(), indent_num + 2usize);
         }
         _ => println!("{}  grad is None", indent),
     }
-    let creator = x.borrow().get_creator();
+    let creator = x.get_creator();
     match creator {
         Some(creator) => {
             println!(
@@ -238,7 +238,7 @@ pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
             println!("{}  inputs", indent);
             let inputs = creator.borrow().get_inputs();
             for input in inputs {
-                println!("{}    {:?}", indent, input.borrow().get_data());
+                println!("{}    {:?}", indent, input.get_data());
                 debug_variable(input.clone(), indent_num + 2usize);
             }
             println!("{}  outputs", indent);
@@ -247,7 +247,7 @@ pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
                 let tmp_output = output.upgrade().unwrap();
                 println!("{}    {:?}", indent, tmp_output.borrow().get_data());
                 // debug_variable(
-                //     Variable::new(tmp_output.borrow().clone()),
+                //     Variable::new(tmp_output.clone()),
                 //     format!("{}{}", indent, indent),
                 // );
             }
@@ -262,22 +262,18 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
     let indent = format!("{}", "  ".repeat(indent_num));
 
     result.push(format!("{}variable", indent));
-    result.push(format!("{}  name: {:?}", indent, x.borrow().get_name()));
-    result.push(format!("{}  data: {:?}", indent, x.borrow().get_data()));
-    result.push(format!(
-        "{}  generation: {:?}",
-        indent,
-        x.borrow().get_generation()
-    ));
+    result.push(format!("{}  name: {:?}", indent, x.get_name()));
+    result.push(format!("{}  data: {:?}", indent, x.get_data()));
+    result.push(format!("{}  generation: {:?}", indent, x.get_generation()));
 
-    match x.borrow().get_grad() {
+    match x.get_grad() {
         Some(_grad) => {
             result.push(format!("{}  grad", indent));
             // result.append(&mut detail_variable(grad.clone(), indent_num + 2usize));
         }
         _ => result.push(format!("{}  grad is None", indent)),
     }
-    let creator = x.borrow().get_creator();
+    let creator = x.get_creator();
     match creator {
         Some(creator) => {
             result.push(format!(
@@ -292,8 +288,8 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
                 result.push(format!(
                     "{}    name: {}, data: {:?}",
                     indent,
-                    input.borrow().get_name().unwrap_or("None".to_string()),
-                    input.borrow().get_data()
+                    input.get_name().unwrap_or("None".to_string()),
+                    input.get_data()
                 ));
                 //result.append(&mut detail_variable(input.clone(), indent_num + 2usize));
             }
@@ -308,7 +304,7 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
                     tmp_output.borrow().get_data()
                 ));
                 // debug_variable(
-                //     Variable::new(tmp_output.borrow().clone()),
+                //     Variable::new(tmp_output.clone()),
                 //     format!("{}{}", indent, indent),
                 // );
             }
@@ -330,16 +326,11 @@ pub fn dump_detail_variable<V: MathOps>(
     let mut file = File::create(&path)?;
 
     writeln!(file, "{}variable", indent)?;
-    writeln!(file, "{}  name: {:?}", indent, x.borrow().get_name())?;
-    writeln!(file, "{}  data: {:?}", indent, x.borrow().get_data())?;
-    writeln!(
-        file,
-        "{}  generation: {:?}",
-        indent,
-        x.borrow().get_generation()
-    )?;
+    writeln!(file, "{}  name: {:?}", indent, x.get_name())?;
+    writeln!(file, "{}  data: {:?}", indent, x.get_data())?;
+    writeln!(file, "{}  generation: {:?}", indent, x.get_generation())?;
 
-    match x.borrow().get_grad() {
+    match x.get_grad() {
         Some(grad) => {
             writeln!(file, "{}  grad", indent)?;
             let tmp = detail_variable(grad.clone(), indent_num + 2usize);
@@ -349,7 +340,7 @@ pub fn dump_detail_variable<V: MathOps>(
         }
         _ => writeln!(file, "{}  grad is None", indent)?,
     }
-    let creator = x.borrow().get_creator();
+    let creator = x.get_creator();
     match creator {
         Some(creator) => {
             writeln!(
@@ -366,8 +357,8 @@ pub fn dump_detail_variable<V: MathOps>(
                     file,
                     "{}    name: {}, data: {:?}",
                     indent,
-                    input.borrow().get_name().unwrap_or("None".to_string()),
-                    input.borrow().get_data()
+                    input.get_name().unwrap_or("None".to_string()),
+                    input.get_data()
                 )?;
                 let tmp = detail_variable(input.clone(), indent_num + 2usize);
                 for line in tmp {
@@ -387,7 +378,7 @@ pub fn dump_detail_variable<V: MathOps>(
                 )
                 .unwrap();
                 // debug_variable(
-                //     Variable::new(tmp_output.borrow().clone()),
+                //     Variable::new(tmp_output.clone()),
                 //     format!("{}{}", indent, indent),
                 // );
             }
@@ -433,7 +424,7 @@ pub fn reshape_sum_backward<V: MathOps>(
         None => Vec::new(),
     };
     // Start with the current shape of gy
-    let mut shape = gy.borrow().get_data().shape().to_vec();
+    let mut shape = gy.get_data().shape().to_vec();
 
     // Insert 1s at the appropriate positions
     actual_axis.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -443,11 +434,7 @@ pub fn reshape_sum_backward<V: MathOps>(
     }
 
     // Reshape gy to the new shape
-    let reshape_gy = gy
-        .borrow()
-        .get_data()
-        .into_shape_with_order(IxDyn(&shape))
-        .unwrap();
+    let reshape_gy = gy.get_data().into_shape_with_order(IxDyn(&shape)).unwrap();
     let mut gy_clone = gy.clone();
     gy_clone.set_data(reshape_gy);
     gy_clone
@@ -501,8 +488,8 @@ pub fn numerical_grad(
 
     // 入力の各変数について処理（インデックスも取得するためにenumerateを使用）
     for (i, input) in inputs.iter().enumerate() {
-        let shape = input.borrow().get_data().shape().to_vec();
-        let values = input.borrow().get_data().flatten().to_vec();
+        let shape = input.get_data().shape().to_vec();
+        let values = input.get_data().flatten().to_vec();
         let value_len = values.len();
 
         // この入力の勾配値を格納するベクトルを事前に確保
@@ -518,8 +505,7 @@ pub fn numerical_grad(
             {
                 let mut values_plus = values.clone();
                 values_plus[j] += eps;
-                inputs_plus[i] =
-                    Variable::new(RawData::from_shape_vec(shape.clone(), values_plus));
+                inputs_plus[i] = Variable::new(RawData::from_shape_vec(shape.clone(), values_plus));
             }
 
             // j番目の要素からepsを引いた入力を作成
@@ -536,7 +522,7 @@ pub fn numerical_grad(
 
             // 中心差分を計算
             let diff = sum(&y_plus[0] - &y_minus[0], None, false);
-            let grad_value = diff.borrow().get_data().flatten().to_vec()[0] / (2.0 * eps);
+            let grad_value = diff.get_data().flatten().to_vec()[0] / (2.0 * eps);
 
             grad_values.push(grad_value);
         }
@@ -569,8 +555,8 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
 
     // 入力値ごとに数値微分と逆伝播の結果が近似するか確認する。
     for i in 0..inputs.len() {
-        let bp_grad = inputs[i].borrow().get_grad().unwrap().borrow().get_data();
-        let num_grad = num_grads[i].borrow().get_data();
+        let bp_grad = inputs[i].get_grad().unwrap().get_data();
+        let num_grad = num_grads[i].get_data();
 
         // // 形状が一致すること
         // dbg!(&num_grad);
@@ -715,11 +701,11 @@ mod test {
     #[test]
     fn test_debug_variable() {
         let x1 = Variable::new(RawData::new(5.0f32));
-        x1.borrow_mut().set_name("x1".to_string());
+        x1.set_name("x1".to_string());
         let x2 = Variable::new(RawData::new(10.0f32));
-        x2.borrow_mut().set_name("x2".to_string());
+        x2.set_name("x2".to_string());
         let x3 = Variable::new(RawData::new(15.0f32));
-        x3.borrow_mut().set_name("x3".to_string());
+        x3.set_name("x3".to_string());
 
         let result = &(&x1 * &x2) + &x3;
         debug_variable(result, 1);
@@ -728,9 +714,9 @@ mod test {
     #[test]
     fn test_plot_dot_graph_1() {
         let x = Variable::new(RawData::new(1));
-        x.borrow_mut().set_name("x".to_string());
+        x.set_name("x".to_string());
         let y = Variable::new(RawData::new(1));
-        y.borrow_mut().set_name("y".to_string());
+        y.set_name("y".to_string());
         let z = matyas(x.clone(), y.clone());
 
         let file_name = "test_plot_dot_graph_1.png";
@@ -743,11 +729,11 @@ mod test {
     #[test]
     fn test_get_dot_graph_1() {
         let x1 = Variable::new(RawData::new(5.0f32));
-        x1.borrow_mut().set_name("x1".to_string());
+        x1.set_name("x1".to_string());
         let x2 = Variable::new(RawData::new(10.0f32));
-        x2.borrow_mut().set_name("x2".to_string());
+        x2.set_name("x2".to_string());
         let x3 = Variable::new(RawData::new(15.0f32));
-        x3.borrow_mut().set_name("x3".to_string());
+        x3.set_name("x3".to_string());
 
         let result = &(&x1 * &x2) + &x3;
         let dot_txt = get_dot_graph!(result, true);
@@ -759,9 +745,9 @@ mod test {
     #[test]
     fn test_get_dot_graph_sphere() {
         let x = Variable::new(RawData::new(1));
-        x.borrow_mut().set_name("x".to_string());
+        x.set_name("x".to_string());
         let y = Variable::new(RawData::new(1));
-        y.borrow_mut().set_name("y".to_string());
+        y.set_name("y".to_string());
         let z = sphere(x.clone(), y.clone());
 
         let dot_txt = get_dot_graph!(z, true);
@@ -773,9 +759,9 @@ mod test {
     #[test]
     fn test_get_dot_graph_matyas() {
         let x = Variable::new(RawData::new(1));
-        x.borrow_mut().set_name("x".to_string());
+        x.set_name("x".to_string());
         let y = Variable::new(RawData::new(1));
-        y.borrow_mut().set_name("y".to_string());
+        y.set_name("y".to_string());
         let z = matyas(x.clone(), y.clone());
 
         let dot_txt = get_dot_graph!(z, true);
@@ -787,9 +773,9 @@ mod test {
     #[test]
     fn test_get_dot_graph_goldstein() {
         let x = Variable::new(RawData::new(1));
-        x.borrow_mut().set_name("x".to_string());
+        x.set_name("x".to_string());
         let y = Variable::new(RawData::new(1));
-        y.borrow_mut().set_name("y".to_string());
+        y.set_name("y".to_string());
         let z = goldstein(x.clone(), y.clone());
 
         let dot_txt = get_dot_graph!(z, true);
@@ -804,7 +790,7 @@ mod test {
         let x2 = Variable::new(RawData::new(10.0f32));
 
         let result = &x1 * &x2;
-        let txt = dot_func(result.borrow().get_creator().unwrap());
+        let txt = dot_func(result.get_creator().unwrap());
         println!("{}", txt);
     }
 
@@ -829,7 +815,7 @@ mod test {
     #[test]
     fn test_dot_var_1() {
         let var = Variable::new(RawData::new(2.0));
-        var.borrow_mut().set_name("x".to_string());
+        var.set_name("x".to_string());
         let result = dot_var!(var, true);
         println!("{}", result);
     }
@@ -838,11 +824,8 @@ mod test {
     /// 行列、詳細情報を出力
     #[test]
     fn test_dot_var_2() {
-        let var = Variable::new(RawData::from_shape_vec(
-            vec![2, 2],
-            vec![10, 20, 30, 40],
-        ));
-        var.borrow_mut().set_name("2x2dim".to_string());
+        let var = Variable::new(RawData::from_shape_vec(vec![2, 2], vec![10, 20, 30, 40]));
+        var.set_name("2x2dim".to_string());
         let result = dot_var!(var, true);
         println!("{}", result);
     }
@@ -851,11 +834,8 @@ mod test {
     /// 行列、詳細情報なし
     #[test]
     fn test_dot_var_3() {
-        let var = Variable::new(RawData::from_shape_vec(
-            vec![2, 2],
-            vec![10, 20, 30, 40],
-        ));
-        var.borrow_mut().set_name("2x2dim".to_string());
+        let var = Variable::new(RawData::from_shape_vec(vec![2, 2], vec![10, 20, 30, 40]));
+        var.set_name("2x2dim".to_string());
         let result = dot_var!(var);
         println!("{}", result);
     }

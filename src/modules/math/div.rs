@@ -43,11 +43,11 @@ impl<V: MathOps> Function<V> for DivFunction {
 
         debug!(
             "div(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
-            &inputs[1].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec(),
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &inputs[1].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[1].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec(),
+            &inputs[0].get_data().flatten().to_vec(),
+            &inputs[1].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         let gxs = vec![gx_x0, gx_x1];
@@ -188,7 +188,7 @@ mod tests {
         let expected = RawData::new(5.0f32);
 
         let result = div(x1, x2);
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
         let expected = RawData::new(5);
 
         let result = div(x1, x2);
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
     }
 
     /// オーバーロードのテスト
@@ -234,46 +234,29 @@ mod tests {
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, b grad: {:?}, c grad: {:?}",
-        //     &result.borrow().get_grad(),
-        //     // &a.borrow().get_grad(),
-        //     &a.borrow().get_grad(),
-        //     &b.borrow().get_grad(),
-        //     &c.borrow().get_grad(),
+        //     &result.get_grad(),
+        //     // &a.get_grad(),
+        //     &a.get_grad(),
+        //     &b.get_grad(),
+        //     &c.get_grad(),
         // );
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -0.75),
-            b.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            b.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            c.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            c.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -308,38 +291,25 @@ mod tests {
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, b grad: {:?}",
-        //     &result.borrow().get_grad(),
-        //     // &a.borrow().get_grad(),
-        //     &a.borrow().get_grad(),
-        //     &b.borrow().get_grad(),
-        //     // &c.borrow().get_grad(),
+        //     &result.get_grad(),
+        //     // &a.get_grad(),
+        //     &a.get_grad(),
+        //     &b.get_grad(),
+        //     // &c.get_grad(),
         // );
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), -1.5),
-            b.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            b.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -378,42 +348,29 @@ mod tests {
 
         // println!(
         //     "result grad: {:?}, a grad: {:?}, c grad: {:?}",
-        //     &result.borrow().get_grad(),
-        //     // &a.borrow().get_grad(),
-        //     &a.borrow().get_grad(),
-        //     // &b.borrow().get_grad(),
-        //     &c.borrow().get_grad(),
+        //     &result.get_grad(),
+        //     // &a.get_grad(),
+        //     &a.get_grad(),
+        //     // &b.get_grad(),
+        //     &c.get_grad(),
         // );
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 0.5),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            c.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            c.get_grad().expect("No grad exist.").get_data()
         );
         // assert_eq!(
         //     Array::from_elem(IxDyn(&[]), 3),
-        //     b.borrow().get_grad().expect("No grad exist.")
+        //     b.get_grad().expect("No grad exist.")
         // );
     }
 
@@ -438,32 +395,32 @@ mod tests {
 
         assert_eq! {
           RawData::new(3i64).get_data(),
-          result_val_i64_div.borrow().get_data()
+          result_val_i64_div.get_data()
         };
 
         assert_eq! {
           RawData::new(2u64).get_data(),
-          result_val_u64_div_scalar_u64.borrow().get_data()
+          result_val_u64_div_scalar_u64.get_data()
         };
 
         assert_eq! {
           RawData::new(5.0f64).get_data(),
-          result_scalar_f64_div_val_f64.borrow().get_data()
+          result_scalar_f64_div_val_f64.get_data()
         };
 
         assert_eq! {
           RawData::new(3.0f32).get_data(),
-          result_val_f32_div_array_f32.borrow().get_data()
+          result_val_f32_div_array_f32.get_data()
         };
 
         assert_eq! {
           RawData::new(3.0f32).get_data(),
-          result_array_f32_div_val_f32.borrow().get_data()
+          result_array_f32_div_val_f32.get_data()
         };
 
         assert_eq! {
           RawData::new(3.0f32).get_data(),
-          result_array_f32_div_val_f32.borrow().get_data()
+          result_array_f32_div_val_f32.get_data()
         };
     }
 }
