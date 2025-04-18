@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -39,8 +39,8 @@ impl<V: MathOps> Function<V> for MeanSquaredErrorFunction {
         let x1 = inputs[1].clone();
 
         let diff = &x0 - &x1;
-        let gy = broadcast_to(gys[0].clone(), diff.borrow().get_data().shape().to_vec());
-        let gx0 = &(&gy * &diff) * (2.0 / diff.borrow().get_data().len() as f64);
+        let gy = broadcast_to(gys[0].clone(), diff.get_data().shape().to_vec());
+        let gx0 = &(&gy * &diff) * (2.0 / diff.get_data().len() as f64);
         let gx1 = -gx0.clone();
 
         vec![gx0, gx1]
@@ -79,12 +79,12 @@ mod tests {
 
     #[test]
     fn test_mse_forward1() {
-        let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
-        let x1 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
 
         let result = mean_squared_error(x0.clone(), x1.clone());
         // 書籍と同じ結果であることを確認する。
-        assert_eq!(0.0, result.borrow().get_data()[[]]);
+        assert_eq!(0.0, result.get_data()[[]]);
     }
 
     /// 数値微分による近似テスト
@@ -95,11 +95,11 @@ mod tests {
         let x0_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
         let x1_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x0_var.flatten().to_vec(),
         ));
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x1_var.flatten().to_vec(),
         ));
@@ -117,11 +117,11 @@ mod tests {
         let x0_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
         let x1_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x0_var.flatten().to_vec(),
         ));
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x1_var.flatten().to_vec(),
         ));

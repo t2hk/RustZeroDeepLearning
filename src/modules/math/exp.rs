@@ -2,7 +2,7 @@
 use crate::modules::math::*;
 
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -36,7 +36,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
         info!("exp(backward)");
 
-        // let x = inputs[0].borrow().get_data();
+        // let x = inputs[0].get_data();
         // let gys_val = gys[0].clone();
         let x_exp = exp(inputs[0].clone());
         // let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
@@ -44,8 +44,8 @@ impl<V: MathOps> Function<V> for ExpFunction {
         let gxs = vec![&x_exp * &gys[0].clone()];
         debug!(
             "exp(backward): (e ^ {:?}) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         gxs
@@ -55,10 +55,10 @@ impl<V: MathOps> Function<V> for ExpFunction {
 /// Exp 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn exp<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
     // EXP の順伝播
@@ -80,7 +80,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 10],
             x0_var.flatten().to_vec(),
         ));
@@ -93,7 +93,7 @@ mod tests {
     /// Exp 関数のテスト。
     #[test]
     fn test_exp() {
-        let x = Variable::new(RawVariable::new(2.0));
+        let x = Variable::new(RawData::new(2.0));
 
         let e = std::f64::consts::E;
         let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
@@ -102,6 +102,6 @@ mod tests {
         let result = exp(x);
 
         // exp 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
     }
 }

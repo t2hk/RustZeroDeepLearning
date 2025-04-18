@@ -2,7 +2,7 @@
 use crate::modules::math::*;
 
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -40,8 +40,8 @@ impl<V: MathOps> Function<V> for CosFunction {
         info!("cos(backward)");
         debug!(
             "cos(backward): -sin({:?}) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         let minus_sin_x = &sin(inputs[0].clone()) * -1;
@@ -54,10 +54,10 @@ impl<V: MathOps> Function<V> for CosFunction {
 /// Cos 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn cos<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut cos = FunctionExecutor::new(Rc::new(RefCell::new(CosFunction)));
     // Cos の順伝播
@@ -80,7 +80,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
             x0_var.flatten().to_vec(),
         ));
@@ -99,7 +99,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::new(PIf32 / 4.0f32));
+        let x = Variable::new(RawData::new(PIf32 / 4.0f32));
 
         let expected_output_data = Array::from_elem(IxDyn(&[]), 0.7071067811865475f32);
 
@@ -107,14 +107,14 @@ mod tests {
         let result = cos(x.clone());
 
         // Cos 結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
 
         result.backward();
 
         // 逆伝播結果
         assert_eq!(
             expected_output_data * -1.0,
-            x.borrow().get_grad().unwrap().borrow().get_data()
+            x.get_grad().unwrap().get_data()
         );
     }
 }

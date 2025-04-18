@@ -227,3 +227,9 @@ cargo run
 * グラフ描画用の関数を utils に追加した。
 * Variable に直接 Raw データを更新できる set_data を追加した。
 * ニューラルネットワークによる学習と推論を追加し、学習過程をグラフ出力するように実装した。
+
+### ステップ44 パラメータをまとめるレイヤ
+* パッケージ構成を見直し、function や variable などを core パッケージに移動させ、その影響によるコード修正を実施した。
+* Variable と類似する Parameter を追加するため、Variable の実データを扱っていた RawVariable を Parameter でも扱えるように RawData に名前を変更し、別モジュールとして切り出した。
+* RawData に関する処理をトレイト RawDataProcessor に定義し、Variable は RawDataProcessor を実装するように変更した。
+* Variable や RawData のアクセサの実装を見直し、borrow() などの実行をアクセサ側で実行するようにし、呼び出し元での記述が最小限になるように修正した。

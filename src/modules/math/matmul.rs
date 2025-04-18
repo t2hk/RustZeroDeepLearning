@@ -1,7 +1,8 @@
 // ライブラリを一括でインポート
+use crate::modules::core::*;
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -37,8 +38,8 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         let x = inputs[0].clone();
         let w = inputs[1].clone();
 
-        dbg!(&gys[0].borrow().get_data());
-        dbg!(&w.borrow().get_data());
+        dbg!(&gys[0].get_data());
+        dbg!(&w.get_data());
 
         let gx = matmul(gys[0].clone(), w.transpose());
         let gw = matmul(x.transpose(), gys[0].clone());
@@ -80,8 +81,8 @@ mod tests {
         let rand_x0 = rand::random::<f64>();
         let rand_x1 = rand::random::<f64>();
 
-        let x0 = Variable::new(RawVariable::new(rand_x0));
-        let x1 = Variable::new(RawVariable::new(rand_x1));
+        let x0 = Variable::new(RawData::new(rand_x0));
+        let x1 = Variable::new(RawData::new(rand_x1));
 
         let mut matmul: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
@@ -93,16 +94,13 @@ mod tests {
     #[test]
     fn test_num_grad_check_0_1() {
         let rand_x0 = rand::random::<f64>();
-        let x0 = Variable::new(RawVariable::new(rand_x0));
+        let x0 = Variable::new(RawData::new(rand_x0));
 
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x1 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x1_var.flatten().to_vec(),
-        ));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
         let mut matmul: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
@@ -117,13 +115,10 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let rand_x1 = rand::random::<f64>();
-        let x1 = Variable::new(RawVariable::new(rand_x1));
+        let x1 = Variable::new(RawData::new(rand_x1));
 
         let mut matmul: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
@@ -138,17 +133,11 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x1 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x1_var.flatten().to_vec(),
-        ));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
         let mut matmul: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(MatmulFunction {})));
@@ -158,11 +147,11 @@ mod tests {
 
     #[test]
     fn test_forward1() {
-        let x = Variable::new(RawVariable::from_vec(vec![1., 2., 3.]));
-        let w = Variable::new(RawVariable::from_vec(vec![4., 5., 6.]));
+        let x = Variable::new(RawData::from_vec(vec![1., 2., 3.]));
+        let w = Variable::new(RawData::from_vec(vec![4., 5., 6.]));
 
         let y = matmul(x, w);
-        assert_eq!(32., y.borrow().get_data().flatten().to_vec()[0]);
+        assert_eq!(32., y.get_data().flatten().to_vec()[0]);
     }
 
     #[test]
@@ -171,14 +160,14 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
             x0_var.flatten().to_vec(),
         ));
 
         let x1_var = Array::random_using((100, 1), Uniform::new(0., 10.), &mut rng);
 
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x1_var.flatten().to_vec(),
         ));
@@ -195,14 +184,14 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((2, 100), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![2, 100],
             x0_var.flatten().to_vec(),
         ));
 
         let x1_var = Array::random_using((100, 2), Uniform::new(0., 10.), &mut rng);
 
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 2],
             x1_var.flatten().to_vec(),
         ));
@@ -215,76 +204,55 @@ mod tests {
 
     #[test]
     fn test_forward10() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![10.]));
-        let w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![20.]));
+        let x = Variable::new(RawData::from_shape_vec(vec![1, 1], vec![10.]));
+        let w = Variable::new(RawData::from_shape_vec(vec![1, 1], vec![20.]));
 
         let y = matmul(x, w);
-        assert_eq!(200., y.borrow().get_data().flatten().to_vec()[0]);
+        assert_eq!(200., y.get_data().flatten().to_vec()[0]);
 
         y.backward();
     }
 
     #[test]
     fn test_forward2() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 2], (1..=4).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 2], (1..=4).collect()));
         // let y = matmul(x.clone(), x.clone());
 
-        let w = Variable::new(RawVariable::from_shape_vec(vec![2, 2], (5..=8).collect()));
+        let w = Variable::new(RawData::from_shape_vec(vec![2, 2], (5..=8).collect()));
 
         let y = matmul(x, w);
-        assert_eq!(vec![2, 2], y.borrow().get_data().shape().to_vec());
-        assert_eq!(
-            vec![19, 22, 43, 50],
-            y.borrow().get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![2, 2], y.get_data().shape().to_vec());
+        assert_eq!(vec![19, 22, 43, 50], y.get_data().flatten().to_vec());
     }
 
     /// シンプルな行列の積
     #[test]
     fn test_simple_matmul() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![1, 6], (1..7).collect()));
         let y = sum(x.clone(), None, false);
         y.backward();
 
-        assert_eq!(vec![21], y.borrow().get_data().flatten().to_vec());
+        assert_eq!(vec![21], y.get_data().flatten().to_vec());
 
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
 
         // 逆伝播結果
-        // dbg!(&x.borrow().get_grad().unwrap());
-        assert_eq!(
-            vec![1, 6],
-            x.borrow().get_grad().unwrap().borrow().get_data().shape()
-        );
+        // dbg!(&x.get_grad().unwrap());
+        assert_eq!(vec![1, 6], x.get_grad().unwrap().get_data().shape());
         assert_eq!(
             vec![1, 1, 1, 1, 1, 1],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec()
+            x.get_grad().unwrap().get_data().flatten().to_vec()
         );
     }
 
     #[test]
     fn test_backward1() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 3], (1..=6).collect()));
-        let w = Variable::new(RawVariable::from_shape_vec(vec![3, 4], (1..=12).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3], (1..=6).collect()));
+        let w = Variable::new(RawData::from_shape_vec(vec![3, 4], (1..=12).collect()));
 
         let y = matmul(x.clone(), w.clone());
         dbg!(&y);
@@ -292,23 +260,11 @@ mod tests {
 
         assert_eq!(
             vec![2, 3],
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            x.get_grad().unwrap().get_data().shape().to_vec()
         );
         assert_eq!(
             vec![3, 4],
-            w.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .shape()
-                .to_vec()
+            w.get_grad().unwrap().get_data().shape().to_vec()
         );
     }
 
@@ -318,13 +274,13 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 3],
             x_var.flatten().to_vec(),
         ));
 
         let w_var = Array::random_using((3, 4), Uniform::new(0., 10.), &mut rng);
-        let w = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(
             vec![3, 4],
             w_var.flatten().to_vec(),
         ));
@@ -341,13 +297,13 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((10, 1), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x_var.flatten().to_vec(),
         ));
 
         let w_var = Array::random_using((1, 5), Uniform::new(0., 10.), &mut rng);
-        let w = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(
             vec![1, 5],
             w_var.flatten().to_vec(),
         ));

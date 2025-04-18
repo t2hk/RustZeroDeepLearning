@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -43,20 +43,20 @@ impl<V: MathOps> Function<V> for MulFunction {
         let gx_x1 = x0 * &gys[0];
         debug!(
             "mul(backward) dy/dx0 = {:?} * {:?}",
-            &x1.borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec(),
+            &x1.get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec(),
         );
         debug!(
             "mul(backward) dy/dx1 = {:?} * {:?}",
-            &x0.borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec(),
+            &x0.get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec(),
         );
         let gxs = vec![gx_x0, gx_x1];
 
         debug!(
             "mul(backward) result: {:?} {:?}",
-            gxs[0].borrow().get_data().flatten().to_vec(),
-            gxs[1].borrow().get_data().flatten().to_vec()
+            gxs[0].get_data().flatten().to_vec(),
+            gxs[1].get_data().flatten().to_vec()
         );
 
         gxs
@@ -107,7 +107,7 @@ impl<V: MathOps> Mul<&Array<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
     fn mul(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
         // 順伝播
-        let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
+        let rhs_val = Variable::new(RawData::new(rhs.clone()));
         self * &rhs_val
     }
 }
@@ -117,7 +117,7 @@ impl<V: MathOps> Mul<&Variable<V>> for &Array<V, IxDyn> {
     type Output = Variable<V>;
     fn mul(self, rhs: &Variable<V>) -> Variable<V> {
         // 順伝播
-        let lhs_val = Variable::new(RawVariable::new(self.clone()));
+        let lhs_val = Variable::new(RawData::new(self.clone()));
         &lhs_val * rhs
     }
 }
@@ -131,7 +131,7 @@ macro_rules! impl_variable_mul {
 
             fn mul(self, rhs: $scalar) -> Variable<V> {
                 // 順伝播
-                let rhs_val = Variable::new(RawVariable::new(V::from(rhs).unwrap()));
+                let rhs_val = Variable::new(RawData::new(V::from(rhs).unwrap()));
                 self * &rhs_val
             }
         }
@@ -142,7 +142,7 @@ macro_rules! impl_variable_mul {
 
             fn mul(self, rhs: &Variable<V>) -> Variable<V> {
                 // 順伝播
-                let lhs_val = Variable::new(RawVariable::new(V::from(self).unwrap()));
+                let lhs_val = Variable::new(RawData::new(V::from(self).unwrap()));
                 &lhs_val * rhs
             }
         }
@@ -170,17 +170,11 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x1 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x1_var.flatten().to_vec(),
-        ));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
         let mut mul: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(MulFunction {})));
@@ -192,24 +186,24 @@ mod tests {
     /// 乗算のテスト(f32)
     fn test_mul_2() {
         // 順伝播
-        let x1 = Variable::new(RawVariable::new(5.0f32));
-        let x2 = Variable::new(RawVariable::new(10.0f32));
-        let expected = RawVariable::new(50.0f32);
+        let x1 = Variable::new(RawData::new(5.0f32));
+        let x2 = Variable::new(RawData::new(10.0f32));
+        let expected = RawData::new(50.0f32);
 
         let result = mul(x1, x2);
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
     }
 
     #[test]
     /// 乗算のテスト(i32)
     fn test_mul_1() {
         // 順伝播
-        let x1 = Variable::new(RawVariable::new(5i32));
-        let x2 = Variable::new(RawVariable::new(10i32));
-        let expected = RawVariable::new(50);
+        let x1 = Variable::new(RawData::new(5i32));
+        let x2 = Variable::new(RawData::new(10i32));
+        let expected = RawData::new(50);
 
         let result = mul(x1, x2);
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
     }
 
     /// オーバーロードのテスト
@@ -222,50 +216,37 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 変数を用意する。
-        let mut raw_a = RawVariable::new(3.0f32);
+        let mut raw_a = RawData::new(3.0f32);
         raw_a.set_name("val_a".to_string());
         let a = Variable::new(raw_a);
 
-        let mut raw_b = RawVariable::new(2.0f32);
+        let mut raw_b = RawData::new(2.0f32);
         raw_b.set_name("val_b".to_string());
         let b = Variable::new(raw_b);
-        let mut raw_c = RawVariable::new(1.0f32);
+        let mut raw_c = RawData::new(1.0f32);
         raw_c.set_name("val_c".to_string());
         let c = Variable::new(raw_c);
 
         // 計算する。a * b + c
         let result = &(&a * &b) + &c;
 
-        let expected = RawVariable::new(7.0f32);
+        let expected = RawData::new(7.0f32);
 
         // 逆伝播を実行する。
         result.backward();
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1.0),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2.0),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 3.0),
-            b.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            b.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -279,11 +260,11 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 変数を用意する。
-        let mut raw_a = RawVariable::new(3i32);
+        let mut raw_a = RawData::new(3i32);
         raw_a.set_name("val_a".to_string());
         let a = Variable::new(raw_a);
 
-        let mut raw_b = RawVariable::new(2i32);
+        let mut raw_b = RawData::new(2i32);
         raw_b.set_name("val_b".to_string());
         let b = Variable::new(raw_b);
 
@@ -293,36 +274,23 @@ mod tests {
         // 計算する。a * b + c
         let result = &(&a * &b) + c;
 
-        let expected = RawVariable::new(7i32);
+        let expected = RawData::new(7i32);
 
         // 逆伝播を実行する。
         result.backward();
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 3),
-            b.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            b.get_grad().expect("No grad exist.").get_data()
         );
     }
 
@@ -336,50 +304,41 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 変数を用意する。
-        let mut raw_a = RawVariable::new(3i32);
+        let mut raw_a = RawData::new(3i32);
         raw_a.set_name("val_a".to_string());
         let a = Variable::new(raw_a);
 
-        // let mut raw_b = RawVariable::new(2i32);
+        // let mut raw_b = RawData::new(2i32);
         // raw_b.set_name("val_b".to_string());
         // let b = Variable::new(raw_b);
 
         // b は Array とする。
         let b = Array::from_elem(IxDyn(&[]), 2i32);
 
-        let mut raw_c = RawVariable::new(1i32);
+        let mut raw_c = RawData::new(1i32);
         raw_c.set_name("val_c".to_string());
         let c = Variable::new(raw_c);
 
         // 計算する。a * b + c
         let result = &(&a * &b) + &c;
 
-        let expected = RawVariable::new(7i32);
+        let expected = RawData::new(7i32);
 
         // 逆伝播を実行する。
         result.backward();
 
-        assert_eq!(expected.get_data(), result.borrow().get_data());
+        assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 1),
-            result
-                .borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
             Array::from_elem(IxDyn(&[]), 2),
-            a.borrow()
-                .get_grad()
-                .expect("No grad exist.")
-                .borrow()
-                .get_data()
+            a.get_grad().expect("No grad exist.").get_data()
         );
         // assert_eq!(
         //     Array::from_elem(IxDyn(&[]), 3),
-        //     b.borrow().get_grad().expect("No grad exist.")
+        //     b.get_grad().expect("No grad exist.")
         // );
     }
 
@@ -387,10 +346,10 @@ mod tests {
     /// 様々な型、および、左右オペランドを入れ替えたテスト
     #[test]
     fn test_mul_overload_macro() {
-        let overload_val_i32 = Variable::new(RawVariable::new(2i32));
-        let overload_val_f32 = Variable::new(RawVariable::new(2.0f32));
-        let overload_val_f64 = Variable::new(RawVariable::new(2.0f64));
-        let overload_val_u32 = Variable::new(RawVariable::new(2u32));
+        let overload_val_i32 = Variable::new(RawData::new(2i32));
+        let overload_val_f32 = Variable::new(RawData::new(2.0f32));
+        let overload_val_f64 = Variable::new(RawData::new(2.0f64));
+        let overload_val_u32 = Variable::new(RawData::new(2u32));
         let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
 
         let result_val_i32_mul_val_i32 = &overload_val_i32 * &overload_val_i32;
@@ -400,28 +359,28 @@ mod tests {
         let result_array_f32_mul_val_f32 = &overload_array_f32 * &overload_val_f32;
 
         assert_eq!(
-            RawVariable::new(4i32).get_data(),
-            result_val_i32_mul_val_i32.borrow().get_data()
+            RawData::new(4i32).get_data(),
+            result_val_i32_mul_val_i32.get_data()
         );
 
         assert_eq!(
-            RawVariable::new(20u32).get_data(),
-            result_val_u32_mul_scalar_u32.borrow().get_data()
+            RawData::new(20u32).get_data(),
+            result_val_u32_mul_scalar_u32.get_data()
         );
 
         assert_eq!(
-            RawVariable::new(20.0f64).get_data(),
-            result_scalar_f64_mul_val_f64.borrow().get_data()
+            RawData::new(20.0f64).get_data(),
+            result_scalar_f64_mul_val_f64.get_data()
         );
 
         assert_eq!(
-            RawVariable::new(4.0f32).get_data(),
-            result_val_f32_mul_array_f32.borrow().get_data()
+            RawData::new(4.0f32).get_data(),
+            result_val_f32_mul_array_f32.get_data()
         );
 
         assert_eq!(
-            RawVariable::new(4.0f32).get_data(),
-            result_array_f32_mul_val_f32.borrow().get_data()
+            RawData::new(4.0f32).get_data(),
+            result_array_f32_mul_val_f32.get_data()
         );
     }
 }

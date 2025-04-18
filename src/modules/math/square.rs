@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -35,15 +35,15 @@ impl<V: MathOps> Function<V> for SquareFunction {
         info!("square(backward)");
         debug!(
             "square(backward): 2 * {:?} * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
-        // let x = inputs[0].borrow().get_data();
+        // let x = inputs[0].get_data();
         //let x_gys = &gys[0].clone() * &x;
         let x_gys = &gys[0] * &inputs[0];
-        let gxs = vec![&x_gys * &Variable::new(RawVariable::new(V::from(2).unwrap()))];
-        // let gxs = vec![Variable::new(RawVariable::new(
-        //     x_gys.borrow().get_data().mapv(|x| x * V::from(2).unwrap()),
+        let gxs = vec![&x_gys * &Variable::new(RawData::new(V::from(2).unwrap()))];
+        // let gxs = vec![Variable::new(RawData::new(
+        //     x_gys.get_data().mapv(|x| x * V::from(2).unwrap()),
         // ))];
         gxs
     }
@@ -75,10 +75,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let mut square: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(SquareFunction {})));
@@ -93,7 +90,7 @@ mod tests {
         //let mut rng = rand::rng();
         //let rand_x = rng.random::<f64>();
         let rand_x = rand::random::<f64>();
-        let x = Variable::new(RawVariable::new(rand_x));
+        let x = Variable::new(RawData::new(rand_x));
 
         // 2乗した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
@@ -102,6 +99,6 @@ mod tests {
         let result = square(x);
 
         // 二乗の結果
-        assert_eq!(expected_output_data, result.borrow().get_data());
+        assert_eq!(expected_output_data, result.get_data());
     }
 }

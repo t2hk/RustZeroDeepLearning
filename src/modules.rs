@@ -1,17 +1,21 @@
 pub mod big_int_wrapper;
-pub mod function_libs;
-pub mod functions;
+pub mod core;
 pub mod math;
 pub mod settings;
 pub mod utils;
-pub mod variable;
 
 #[allow(unused_imports)]
 pub use crate::modules::big_int_wrapper::*;
 #[allow(unused_imports)]
-pub use crate::modules::function_libs::*;
+pub use crate::modules::core::function_libs::*;
 #[allow(unused_imports)]
-pub use crate::modules::functions::*;
+pub use crate::modules::core::functions::*;
+#[allow(unused_imports)]
+pub use crate::modules::core::parameter::*;
+#[allow(unused_imports)]
+pub use crate::modules::core::raw_data::*;
+#[allow(unused_imports)]
+pub use crate::modules::core::variable::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
 #[allow(unused_imports)]
@@ -56,5 +60,3 @@ pub use crate::modules::math::transpose::*;
 pub use crate::modules::settings::*;
 #[allow(unused_imports)]
 pub use crate::modules::utils::*;
-#[allow(unused_imports)]
-pub use crate::modules::variable::*;

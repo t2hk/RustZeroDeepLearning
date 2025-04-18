@@ -1,7 +1,7 @@
 // ライブラリを一括でインポート
 use crate::modules::math::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
@@ -38,15 +38,14 @@ impl<V: MathOps> Function<V> for TanhFunction {
         info!("tanh(backward)");
         debug!(
             "tanh(backward): (1 - {:?} ^2) * {:?}",
-            &inputs[0].borrow().get_data().flatten().to_vec(),
-            &gys[0].borrow().get_data().flatten().to_vec()
+            &inputs[0].get_data().flatten().to_vec(),
+            &gys[0].get_data().flatten().to_vec()
         );
 
         let tanh_x_pow_2 = &tanh(inputs[0].clone()) ^ 2;
 
-        let gxs = vec![
-            &(&Variable::new(RawVariable::new(V::from(1.0).unwrap())) - &tanh_x_pow_2) * &gys[0],
-        ];
+        let gxs =
+            vec![&(&Variable::new(RawData::new(V::from(1.0).unwrap())) - &tanh_x_pow_2) * &gys[0]];
 
         gxs
     }
@@ -55,10 +54,10 @@ impl<V: MathOps> Function<V> for TanhFunction {
 /// Tanh 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn tanh<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut tanh = FunctionExecutor::new(Rc::new(RefCell::new(TanhFunction)));
     // Tanh の順伝播
@@ -80,7 +79,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),
         ));
@@ -100,7 +99,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::new(PIf32 / 4.0f32));
+        let x = Variable::new(RawData::new(PIf32 / 4.0f32));
 
         let expected_data = Array::from_elem(IxDyn(&[]), 0.6557942026326724f32);
         let expected_grad = Array::from_elem(IxDyn(&[]), 0.56993395f32);
@@ -109,14 +108,11 @@ mod tests {
         let result = tanh(x.clone());
 
         // Tanh 結果
-        assert_eq!(expected_data, result.borrow().get_data());
+        assert_eq!(expected_data, result.get_data());
 
         result.backward();
 
         // 逆伝播結果
-        assert_eq!(
-            expected_grad,
-            x.borrow().get_grad().unwrap().borrow().get_data()
-        );
+        assert_eq!(expected_grad, x.get_grad().unwrap().get_data());
     }
 }

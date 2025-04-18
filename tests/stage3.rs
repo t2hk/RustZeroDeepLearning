@@ -26,32 +26,29 @@ fn test_step33_second_differential() {
         y
     }
 
-    let mut x = Variable::new(RawVariable::new(2.0));
-    x.borrow_mut().set_name("x".to_string());
+    let mut x = Variable::new(RawData::new(2.0));
+    x.set_name("x".to_string());
 
     debug!("===== フォワード ======");
 
     let y = f(&x);
     let expected_y = Array::from_elem(IxDyn(&[]), 8.0);
-    assert_eq!(expected_y, y.borrow().get_data());
+    assert_eq!(expected_y, y.get_data());
 
     debug!("===== 1回目バックプロパゲーション======");
     y.backward();
 
     let expected_x_grad = Array::from_elem(IxDyn(&[]), 24.0);
-    assert_eq!(
-        expected_x_grad,
-        x.borrow().get_grad().unwrap().borrow().get_data()
-    );
+    assert_eq!(expected_x_grad, x.get_grad().unwrap().get_data());
 
     // バックプロパゲーションを行わないモードに切り替え。
     Setting::set_backprop_disabled();
     debug!("===== 2回目バックプロパゲーション======");
-    let gx = &x.borrow().get_grad().unwrap();
+    let gx = &x.get_grad().unwrap();
     let expected_2nd_grad = Array::from_elem(IxDyn(&[]), 44.0);
-    x.borrow_mut().clear_grad();
+    x.clear_grad();
     gx.backward();
-    let x_2nd_grad = x.borrow().get_grad().unwrap().borrow().get_data().clone();
+    let x_2nd_grad = x.get_grad().unwrap().get_data().clone();
     debug!("x 2nd grad: {:?}", x_2nd_grad);
     assert_eq!(expected_2nd_grad, x_2nd_grad);
 }
@@ -72,22 +69,22 @@ fn test_step33_newton_method() {
         y
     }
 
-    let mut x = Variable::new(RawVariable::new(2.0));
+    let mut x = Variable::new(RawData::new(2.0));
     let mut results: Vec<f64> = vec![];
     let iters = 10;
     for i in 0..iters {
-        debug!("i:{}, x:{:?}", i, x.borrow().get_data()[[]]);
-        results.push(x.borrow().get_data()[[]]);
+        debug!("i:{}, x:{:?}", i, x.get_data()[[]]);
+        results.push(x.get_data()[[]]);
         let y = f(&x);
-        x.borrow_mut().clear_grad();
+        x.clear_grad();
         y.backward();
 
-        let gx = &x.borrow().get_grad().unwrap();
-        x.borrow_mut().clear_grad();
+        let gx = &x.get_grad().unwrap();
+        x.clear_grad();
         gx.backward();
-        let gx2 = x.borrow().get_grad().unwrap();
+        let gx2 = x.get_grad().unwrap();
 
-        let new_x_data = x.borrow().get_data() - (gx.borrow().get_data() / gx2.borrow().get_data());
+        let new_x_data = x.get_data() - (gx.get_data() / gx2.get_data());
         x.set_data(new_x_data);
     }
     debug!("results: {:?}", results);
@@ -114,16 +111,16 @@ fn test_high_diffeential_sin() {
     // バックプロパゲーションを行う。
     Setting::set_backprop_enabled();
 
-    let x = Variable::new(RawVariable::new(1.0));
+    let x = Variable::new(RawData::new(1.0));
     let y = sin(x.clone());
     y.backward();
 
     let mut results: Vec<f64> = vec![];
     for _i in 0..3 {
-        let gx = &x.borrow().get_grad().unwrap();
-        x.borrow_mut().clear_grad();
+        let gx = &x.get_grad().unwrap();
+        x.clear_grad();
         gx.backward();
-        results.push(x.borrow().get_grad().unwrap().borrow().get_data()[[]]);
+        results.push(x.get_grad().unwrap().get_data()[[]]);
     }
     assert_eq!(-0.8414709848078965, results[0]);
     assert_eq!(-0.5403023058681398, results[1]);
@@ -146,25 +143,17 @@ fn test_step34_graph() {
     // y = sin(x) の x 範囲
     let start = -7.0;
     let end = 7.0;
-    let x = Variable::new(RawVariable::linspace(start, end, 200));
+    let x = Variable::new(RawData::linspace(start, end, 200));
     let y = sin(x.clone());
     y.backward();
-    let y_data = y.borrow().get_data();
+    let y_data = y.get_data();
     logs.push(y_data.flatten().to_vec());
 
     // 3階微分まで実行
     for _i in 0..3 {
-        logs.push(
-            x.borrow()
-                .get_grad()
-                .unwrap()
-                .borrow()
-                .get_data()
-                .flatten()
-                .to_vec(),
-        );
-        let gx = x.borrow().get_grad().unwrap();
-        x.borrow_mut().clear_grad();
+        logs.push(x.get_grad().unwrap().get_data().flatten().to_vec());
+        let gx = x.get_grad().unwrap();
+        x.clear_grad();
         gx.backward();
     }
 
@@ -192,12 +181,7 @@ fn test_step34_graph() {
         let plot_data: Vec<(f32, f32)> = values
             .iter()
             .enumerate()
-            .map(|(i, j)| {
-                (
-                    x.borrow().get_data().flatten().to_vec()[i] as f32,
-                    *j as f32,
-                )
-            })
+            .map(|(i, j)| (x.get_data().flatten().to_vec()[i] as f32, *j as f32))
             .collect();
         plot_data_vec.push(plot_data);
     }
@@ -239,25 +223,24 @@ fn test_step34_tanh() {
     let mut logs: Vec<Vec<f64>> = vec![];
 
     // y = tanh(x)
-    let x = Variable::new(RawVariable::new(1.0));
-    x.borrow_mut().set_name("x".to_string());
+    let x = Variable::new(RawData::new(1.0));
+    x.set_name("x".to_string());
     let y = tanh(x.clone());
-    y.borrow_mut().set_name("y".to_string());
+    y.set_name("y".to_string());
     y.backward();
 
     let iters = 2;
 
     for _i in 0..iters {
-        let gx = x.borrow().get_grad().unwrap();
+        let gx = x.get_grad().unwrap();
 
-        x.borrow_mut().clear_grad();
+        x.clear_grad();
         gx.backward();
     }
 
-    let gx = x.borrow().get_grad().unwrap();
+    let gx = x.get_grad().unwrap();
     let current = iters + 1;
-    gx.borrow_mut()
-        .set_name(format!("gx{}", current).to_string());
+    gx.set_name(format!("gx{}", current).to_string());
     let file_name = format!("test_step35_tanh_{}.png", current);
     plot_dot_graph!(gx, file_name, true);
 }
@@ -274,46 +257,46 @@ fn tests_stage36_double_backprop() {
 
     info!("===== y = x^2");
     // y = x ^2
-    let mut x = Variable::new(RawVariable::new(2.0));
-    x.borrow_mut().set_name("x".to_string());
+    let mut x = Variable::new(RawData::new(2.0));
+    x.set_name("x".to_string());
     let y = &x ^ 2;
-    y.borrow_mut().set_name("y".to_string());
-    println!("y = x^2 -> y:{:?}", y.borrow().get_data()[[]]);
+    y.set_name("y".to_string());
+    println!("y = x^2 -> y:{:?}", y.get_data()[[]]);
 
-    let dummy = Variable::new(RawVariable::new(-999.0));
+    let dummy = Variable::new(RawData::new(-999.0));
 
     info!("===== y backward");
 
     y.backward();
-    let gx = x.borrow().get_grad().unwrap();
-    gx.borrow_mut().set_name("gx".to_string());
+    let gx = x.get_grad().unwrap();
+    gx.set_name("gx".to_string());
     println!(
         "y backward x grad:{:?}",
-        x.borrow().get_grad().unwrap().borrow().get_data()[[]]
+        x.get_grad().unwrap().get_data()[[]]
     );
 
     info!("===== x clear grad");
-    x.borrow_mut().clear_grad();
+    x.clear_grad();
 
     // z = gx^3 + y
     let z = &(&gx ^ 3) + &y;
-    z.borrow_mut().set_name("z".to_string());
+    z.set_name("z".to_string());
     info!(
         "z = gx^3 + y -> z:{:?}, gx:{:?}, y:{:?}",
-        z.borrow().get_data()[[]],
-        gx.borrow().get_data()[[]],
-        y.borrow().get_data()[[]]
+        z.get_data()[[]],
+        gx.get_data()[[]],
+        y.get_data()[[]]
     );
 
     info!("===== z backward");
     z.backward();
 
-    let x_grad = x.borrow().get_grad().unwrap().borrow().get_data()[[]];
+    let x_grad = x.get_grad().unwrap().get_data()[[]];
     info!("x grad: {:?}", x_grad);
 
     assert_eq!(100.0, x_grad);
 
     let file_name = "test_step36_backprop.png";
-    let x_grad = x.borrow().get_grad().unwrap();
+    let x_grad = x.get_grad().unwrap();
     plot_dot_graph!(x_grad, file_name, true);
 }

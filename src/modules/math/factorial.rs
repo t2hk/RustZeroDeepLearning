@@ -4,7 +4,7 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
 #[allow(unused_imports)]
-use core::fmt::Debug;
+use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use num_bigint::{BigInt, ToBigInt};
@@ -112,13 +112,13 @@ pub fn factorial(n: u64) -> BigInt {
 pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
     let threshold = 0.0001;
 
-    let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
-    y.borrow_mut().set_name("y".to_string());
+    let mut y = Variable::new(RawData::new(V::from(0).unwrap()));
+    y.set_name("y".to_string());
 
     for i in 0..100000 {
         let factrial_value = factorial(2 * i + 1);
         println!("factrial_value: {:?}", factrial_value.clone());
-        let factrial_variable = Variable::new(RawVariable::new(
+        let factrial_variable = Variable::new(RawData::new(
             V::from(BigIntWrapper(Rc::new(factrial_value))).unwrap(),
         ));
 
@@ -126,7 +126,7 @@ pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
         let t = &c * &(&x ^ (2 * i + 1) as i32);
         y = &y + &t;
 
-        let th = t.borrow().get_data()[[]].clone();
+        let th = t.get_data()[[]].clone();
         if V::to_f64(&abs(th)).unwrap() < threshold {
             break;
         }
@@ -146,13 +146,13 @@ mod tests {
     /// テイラー展開による Sin 関数の近似テスト
     #[test]
     fn test_my_sin() {
-        let x = Variable::new(RawVariable::new(PI / 4.0));
-        x.borrow_mut().set_name("x".to_string());
+        let x = Variable::new(RawData::new(PI / 4.0));
+        x.set_name("x".to_string());
 
         let result = my_sin(x.clone());
         result.backward();
-        let y_data = result.borrow().get_data();
-        let x_grad = x.borrow().get_grad();
+        let y_data = result.get_data();
+        let x_grad = x.get_grad();
         // println!("y data: {:?}", y_data);
         // println!("x grad: {:?}", x_grad);
 
@@ -162,7 +162,7 @@ mod tests {
 
         // 書籍の結果と一致することを確認する。
         assert_eq!(0.7071064695751781, y_data[[]]);
-        assert_eq!(0.7071032148228457, x_grad.unwrap().borrow().get_data()[[]]);
+        assert_eq!(0.7071032148228457, x_grad.unwrap().get_data()[[]]);
     }
 
     #[test]
