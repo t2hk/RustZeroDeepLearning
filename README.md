@@ -230,3 +230,4 @@ cargo run
 
 ### ステップ44 パラメータをまとめるレイヤ
 * パッケージ構成を見直し、function や variable などを core パッケージに移動させ、その影響によるコード修正を実施した。
+* Variable と類似する Parameter を追加するため、Variable の実データを扱っていた RawVariable を Parameter でも圧開けるように RawData に名前を変更した。

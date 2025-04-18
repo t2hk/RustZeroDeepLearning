@@ -26,7 +26,7 @@ fn test_step33_second_differential() {
         y
     }
 
-    let mut x = Variable::new(RawVariable::new(2.0));
+    let mut x = Variable::new(RawData::new(2.0));
     x.borrow_mut().set_name("x".to_string());
 
     debug!("===== フォワード ======");
@@ -72,7 +72,7 @@ fn test_step33_newton_method() {
         y
     }
 
-    let mut x = Variable::new(RawVariable::new(2.0));
+    let mut x = Variable::new(RawData::new(2.0));
     let mut results: Vec<f64> = vec![];
     let iters = 10;
     for i in 0..iters {
@@ -114,7 +114,7 @@ fn test_high_diffeential_sin() {
     // バックプロパゲーションを行う。
     Setting::set_backprop_enabled();
 
-    let x = Variable::new(RawVariable::new(1.0));
+    let x = Variable::new(RawData::new(1.0));
     let y = sin(x.clone());
     y.backward();
 
@@ -146,7 +146,7 @@ fn test_step34_graph() {
     // y = sin(x) の x 範囲
     let start = -7.0;
     let end = 7.0;
-    let x = Variable::new(RawVariable::linspace(start, end, 200));
+    let x = Variable::new(RawData::linspace(start, end, 200));
     let y = sin(x.clone());
     y.backward();
     let y_data = y.borrow().get_data();
@@ -239,7 +239,7 @@ fn test_step34_tanh() {
     let mut logs: Vec<Vec<f64>> = vec![];
 
     // y = tanh(x)
-    let x = Variable::new(RawVariable::new(1.0));
+    let x = Variable::new(RawData::new(1.0));
     x.borrow_mut().set_name("x".to_string());
     let y = tanh(x.clone());
     y.borrow_mut().set_name("y".to_string());
@@ -274,13 +274,13 @@ fn tests_stage36_double_backprop() {
 
     info!("===== y = x^2");
     // y = x ^2
-    let mut x = Variable::new(RawVariable::new(2.0));
+    let mut x = Variable::new(RawData::new(2.0));
     x.borrow_mut().set_name("x".to_string());
     let y = &x ^ 2;
     y.borrow_mut().set_name("y".to_string());
     println!("y = x^2 -> y:{:?}", y.borrow().get_data()[[]]);
 
-    let dummy = Variable::new(RawVariable::new(-999.0));
+    let dummy = Variable::new(RawData::new(-999.0));
 
     info!("===== y backward");
 

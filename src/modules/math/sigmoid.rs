@@ -44,7 +44,7 @@ impl<V: MathOps> Function<V> for SigmoidFunction {
 
         let y = sigmoid(x);
         let gx = &(&gys[0].clone() * &y.clone())
-            * &(&Variable::new(RawVariable::new(V::from(1).unwrap())) - &y.clone());
+            * &(&Variable::new(RawData::new(V::from(1).unwrap())) - &y.clone());
 
         vec![gx]
     }
@@ -93,7 +93,7 @@ mod tests {
     fn test_num_grad_check_0() {
         let rand_x = rand::random::<f64>();
 
-        let x = Variable::new(RawVariable::new(rand_x));
+        let x = Variable::new(RawData::new(rand_x));
 
         let mut sigmoid: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(SigmoidFunction {})));
@@ -107,7 +107,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![3, 2],
             x_var.flatten().to_vec(),
         ));
@@ -124,7 +124,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((10, 10, 10), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 10, 10],
             x_var.flatten().to_vec(),
         ));
@@ -152,7 +152,7 @@ mod tests {
             .unwrap();
         chart.configure_mesh().draw().unwrap();
 
-        // sigmoid_simple(Variable::new(RawVariable::new(x)))
+        // sigmoid_simple(Variable::new(RawData::new(x)))
         // 元データのプロット
         // 折れ線グラフ（関数グラフ）を描画
         // 折れ線グラフ（関数グラフ）を描画
@@ -160,7 +160,7 @@ mod tests {
             .draw_series(LineSeries::new(
                 (-500..=500).map(|i| {
                     let x = i as f64 / 100.0;
-                    let y = sigmoid(Variable::new(RawVariable::new(x)));
+                    let y = sigmoid(Variable::new(RawData::new(x)));
                     (x, y.clone().borrow().get_data().flatten().to_vec()[0])
                 }),
                 &RED,

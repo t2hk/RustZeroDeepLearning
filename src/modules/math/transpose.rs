@@ -125,7 +125,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((4, 3, 2), Uniform::new(0., 10.), &mut rng);
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![4, 3, 2],
             x0_var.flatten().to_vec(),
         ));
@@ -141,7 +141,7 @@ mod tests {
     #[test]
     fn test_transpose_axes() {
         let input_shape = vec![4, 3, 2];
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             input_shape.clone(),
             (0..=23).collect::<Vec<i32>>(),
         ));
@@ -190,7 +190,7 @@ mod tests {
     #[test]
     fn test_transpose() {
         let input_shape = vec![2, 3];
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             input_shape.clone(),
             vec![1, 2, 3, 4, 5, 6],
         ));

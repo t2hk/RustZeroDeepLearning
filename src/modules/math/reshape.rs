@@ -92,7 +92,7 @@ mod tests {
     #[test]
     fn test_reshape() {
         let input_shape = vec![2, 3];
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             input_shape.clone(),
             vec![1, 2, 3, 4, 5, 6],
         ));

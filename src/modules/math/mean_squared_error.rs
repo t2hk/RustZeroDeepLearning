@@ -79,8 +79,8 @@ mod tests {
 
     #[test]
     fn test_mse_forward1() {
-        let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
-        let x1 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1, 3], vec![0.0, 1.0, 2.0]));
 
         let result = mean_squared_error(x0.clone(), x1.clone());
         // 書籍と同じ結果であることを確認する。
@@ -95,11 +95,11 @@ mod tests {
         let x0_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
         let x1_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x0_var.flatten().to_vec(),
         ));
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x1_var.flatten().to_vec(),
         ));
@@ -117,11 +117,11 @@ mod tests {
         let x0_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
         let x1_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x0_var.flatten().to_vec(),
         ));
-        let x1 = Variable::new(RawVariable::from_shape_vec(
+        let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x1_var.flatten().to_vec(),
         ));

@@ -55,10 +55,10 @@ impl<V: MathOps> Function<V> for ExpFunction {
 /// Exp 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn exp<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
     // EXP の順伝播
@@ -80,7 +80,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 10],
             x0_var.flatten().to_vec(),
         ));
@@ -93,7 +93,7 @@ mod tests {
     /// Exp 関数のテスト。
     #[test]
     fn test_exp() {
-        let x = Variable::new(RawVariable::new(2.0));
+        let x = Variable::new(RawData::new(2.0));
 
         let e = std::f64::consts::E;
         let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));

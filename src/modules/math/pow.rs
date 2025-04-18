@@ -69,7 +69,7 @@ impl<V: MathOps> Function<V> for PowFunction {
         // 指数がプラスの場合
         if self.exp > 0 {
             let tmp = &(&inputs[0] ^ (self.exp - 1))
-                * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
+                * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
             let gxs = &tmp * &gys[0].clone();
 
             // vec![gxs]
@@ -78,10 +78,10 @@ impl<V: MathOps> Function<V> for PowFunction {
             // 指数がマイナスの場合、指数をプラスに変換して累乗した結果を逆数にする。
             let inv_exp = abs(self.exp as i32 - 1);
             let input_pow_exp = &inputs[0] ^ (inv_exp);
-            let inv_input_pow_exp = &Variable::new(RawVariable::new(V::one())) / &input_pow_exp;
+            let inv_input_pow_exp = &Variable::new(RawData::new(V::one())) / &input_pow_exp;
 
             let tmp =
-                &inv_input_pow_exp * &Variable::new(RawVariable::new(V::from(self.exp).unwrap()));
+                &inv_input_pow_exp * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
 
             let gxs = &tmp * &gys[0].clone();
             result.push(gxs);
@@ -132,7 +132,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1],
             x0_var.flatten().to_vec(),
         ));
@@ -153,7 +153,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));
@@ -184,7 +184,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![1i32, 2i32, 3i32, 4i32],
         ));
@@ -215,7 +215,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![1i32, 2i32, 3i32, 4i32],
         ));
@@ -247,7 +247,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));
@@ -278,7 +278,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));

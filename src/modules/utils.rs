@@ -519,7 +519,7 @@ pub fn numerical_grad(
                 let mut values_plus = values.clone();
                 values_plus[j] += eps;
                 inputs_plus[i] =
-                    Variable::new(RawVariable::from_shape_vec(shape.clone(), values_plus));
+                    Variable::new(RawData::from_shape_vec(shape.clone(), values_plus));
             }
 
             // j番目の要素からepsを引いた入力を作成
@@ -527,7 +527,7 @@ pub fn numerical_grad(
                 let mut values_minus = values.clone();
                 values_minus[j] -= eps;
                 inputs_minus[i] =
-                    Variable::new(RawVariable::from_shape_vec(shape.clone(), values_minus));
+                    Variable::new(RawData::from_shape_vec(shape.clone(), values_minus));
             }
 
             // 順伝播を一度だけ実行
@@ -542,7 +542,7 @@ pub fn numerical_grad(
         }
 
         // 形状に合わせた勾配変数を作成して結果に追加
-        let grad_var = Variable::new(RawVariable::from_shape_vec(shape, grad_values));
+        let grad_var = Variable::new(RawData::from_shape_vec(shape, grad_values));
         result.push(grad_var);
     }
 
@@ -663,13 +663,13 @@ mod test {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((10, 20), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 20],
             x_var.flatten().to_vec(),
         ));
 
         let w_var = Array::random_using((20, 30), Uniform::new(0., 10.), &mut rng);
-        let w = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(
             vec![20, 30],
             w_var.flatten().to_vec(),
         ));
@@ -690,8 +690,8 @@ mod test {
             0.86462292, 0.25217713, 0.14296797,
         ];
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 10], x0_values));
-        let x1 = Variable::new(RawVariable::from_shape_vec(vec![1, 10], x1_values));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1, 10], x0_values));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1, 10], x1_values));
 
         let mut mean_squared_error =
             FunctionExecutor::new(Rc::new(RefCell::new(MeanSquaredErrorFunction {})));
@@ -714,11 +714,11 @@ mod test {
 
     #[test]
     fn test_debug_variable() {
-        let x1 = Variable::new(RawVariable::new(5.0f32));
+        let x1 = Variable::new(RawData::new(5.0f32));
         x1.borrow_mut().set_name("x1".to_string());
-        let x2 = Variable::new(RawVariable::new(10.0f32));
+        let x2 = Variable::new(RawData::new(10.0f32));
         x2.borrow_mut().set_name("x2".to_string());
-        let x3 = Variable::new(RawVariable::new(15.0f32));
+        let x3 = Variable::new(RawData::new(15.0f32));
         x3.borrow_mut().set_name("x3".to_string());
 
         let result = &(&x1 * &x2) + &x3;
@@ -727,9 +727,9 @@ mod test {
 
     #[test]
     fn test_plot_dot_graph_1() {
-        let x = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
         x.borrow_mut().set_name("x".to_string());
-        let y = Variable::new(RawVariable::new(1));
+        let y = Variable::new(RawData::new(1));
         y.borrow_mut().set_name("y".to_string());
         let z = matyas(x.clone(), y.clone());
 
@@ -742,11 +742,11 @@ mod test {
     /// 掛け算と足し算
     #[test]
     fn test_get_dot_graph_1() {
-        let x1 = Variable::new(RawVariable::new(5.0f32));
+        let x1 = Variable::new(RawData::new(5.0f32));
         x1.borrow_mut().set_name("x1".to_string());
-        let x2 = Variable::new(RawVariable::new(10.0f32));
+        let x2 = Variable::new(RawData::new(10.0f32));
         x2.borrow_mut().set_name("x2".to_string());
-        let x3 = Variable::new(RawVariable::new(15.0f32));
+        let x3 = Variable::new(RawData::new(15.0f32));
         x3.borrow_mut().set_name("x3".to_string());
 
         let result = &(&x1 * &x2) + &x3;
@@ -758,9 +758,9 @@ mod test {
     /// Sphere
     #[test]
     fn test_get_dot_graph_sphere() {
-        let x = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
         x.borrow_mut().set_name("x".to_string());
-        let y = Variable::new(RawVariable::new(1));
+        let y = Variable::new(RawData::new(1));
         y.borrow_mut().set_name("y".to_string());
         let z = sphere(x.clone(), y.clone());
 
@@ -772,9 +772,9 @@ mod test {
     /// matyas
     #[test]
     fn test_get_dot_graph_matyas() {
-        let x = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
         x.borrow_mut().set_name("x".to_string());
-        let y = Variable::new(RawVariable::new(1));
+        let y = Variable::new(RawData::new(1));
         y.borrow_mut().set_name("y".to_string());
         let z = matyas(x.clone(), y.clone());
 
@@ -786,9 +786,9 @@ mod test {
     /// goldstein
     #[test]
     fn test_get_dot_graph_goldstein() {
-        let x = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
         x.borrow_mut().set_name("x".to_string());
-        let y = Variable::new(RawVariable::new(1));
+        let y = Variable::new(RawData::new(1));
         y.borrow_mut().set_name("y".to_string());
         let z = goldstein(x.clone(), y.clone());
 
@@ -800,8 +800,8 @@ mod test {
     /// 掛け算１つのみ。
     #[test]
     fn test_dot_func_1() {
-        let x1 = Variable::new(RawVariable::new(5.0f32));
-        let x2 = Variable::new(RawVariable::new(10.0f32));
+        let x1 = Variable::new(RawData::new(5.0f32));
+        let x2 = Variable::new(RawData::new(10.0f32));
 
         let result = &x1 * &x2;
         let txt = dot_func(result.borrow().get_creator().unwrap());
@@ -812,9 +812,9 @@ mod test {
     /// 掛け算と足し算
     #[test]
     fn test_dot_func_2() {
-        let x1 = Variable::new(RawVariable::new(5.0f32));
-        let x2 = Variable::new(RawVariable::new(10.0f32));
-        let x3 = Variable::new(RawVariable::new(15.0f32));
+        let x1 = Variable::new(RawData::new(5.0f32));
+        let x2 = Variable::new(RawData::new(10.0f32));
+        let x3 = Variable::new(RawData::new(15.0f32));
 
         let result = &(&x1 * &x2) + &x3;
         let mut creators = FunctionExecutor::extract_creators(vec![result.clone()]);
@@ -828,7 +828,7 @@ mod test {
     /// スカラ値、詳細情報を出力
     #[test]
     fn test_dot_var_1() {
-        let var = Variable::new(RawVariable::new(2.0));
+        let var = Variable::new(RawData::new(2.0));
         var.borrow_mut().set_name("x".to_string());
         let result = dot_var!(var, true);
         println!("{}", result);
@@ -838,7 +838,7 @@ mod test {
     /// 行列、詳細情報を出力
     #[test]
     fn test_dot_var_2() {
-        let var = Variable::new(RawVariable::from_shape_vec(
+        let var = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![10, 20, 30, 40],
         ));
@@ -851,7 +851,7 @@ mod test {
     /// 行列、詳細情報なし
     #[test]
     fn test_dot_var_3() {
-        let var = Variable::new(RawVariable::from_shape_vec(
+        let var = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![10, 20, 30, 40],
         ));

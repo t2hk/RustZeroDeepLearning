@@ -112,13 +112,13 @@ pub fn factorial(n: u64) -> BigInt {
 pub fn my_sin<V: MathOps + Signed>(x: Variable<V>) -> Variable<V> {
     let threshold = 0.0001;
 
-    let mut y = Variable::new(RawVariable::new(V::from(0).unwrap()));
+    let mut y = Variable::new(RawData::new(V::from(0).unwrap()));
     y.borrow_mut().set_name("y".to_string());
 
     for i in 0..100000 {
         let factrial_value = factorial(2 * i + 1);
         println!("factrial_value: {:?}", factrial_value.clone());
-        let factrial_variable = Variable::new(RawVariable::new(
+        let factrial_variable = Variable::new(RawData::new(
             V::from(BigIntWrapper(Rc::new(factrial_value))).unwrap(),
         ));
 
@@ -146,7 +146,7 @@ mod tests {
     /// テイラー展開による Sin 関数の近似テスト
     #[test]
     fn test_my_sin() {
-        let x = Variable::new(RawVariable::new(PI / 4.0));
+        let x = Variable::new(RawData::new(PI / 4.0));
         x.borrow_mut().set_name("x".to_string());
 
         let result = my_sin(x.clone());

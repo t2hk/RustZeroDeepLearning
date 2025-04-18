@@ -49,10 +49,10 @@ impl<V: MathOps> Function<V> for NegFunction {
 /// 負数 Neg 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn neg<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut neg = FunctionExecutor::new(Rc::new(RefCell::new(NegFunction)));
     // NEG の順伝播
@@ -90,23 +90,23 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let pos_val_i32_1 = Variable::new(RawVariable::new(2i32));
-        let pos_val_i32_2 = Variable::new(RawVariable::new(3i32));
-        let pos_val_i32_3 = Variable::new(RawVariable::new(4i32));
+        let pos_val_i32_1 = Variable::new(RawData::new(2i32));
+        let pos_val_i32_2 = Variable::new(RawData::new(3i32));
+        let pos_val_i32_3 = Variable::new(RawData::new(4i32));
         let neg_val_i32 = &(&pos_val_i32_1 + &-pos_val_i32_2.clone()) + &-pos_val_i32_3.clone();
 
         assert_eq!(
-            RawVariable::new(-5).get_data(),
+            RawData::new(-5).get_data(),
             &neg_val_i32.borrow().get_data()
         );
 
-        let pos_val_f64_1 = Variable::new(RawVariable::new(2f64));
-        let pos_val_f64_2 = Variable::new(RawVariable::new(3f64));
-        let pos_val_f64_3 = Variable::new(RawVariable::new(4f64));
+        let pos_val_f64_1 = Variable::new(RawData::new(2f64));
+        let pos_val_f64_2 = Variable::new(RawData::new(3f64));
+        let pos_val_f64_3 = Variable::new(RawData::new(4f64));
         let neg_val_f64 = &(&pos_val_f64_1 + &-pos_val_f64_2) + &-pos_val_f64_3;
 
         assert_eq!(
-            RawVariable::new(-5f64).get_data(),
+            RawData::new(-5f64).get_data(),
             &neg_val_f64.borrow().get_data()
         );
     }

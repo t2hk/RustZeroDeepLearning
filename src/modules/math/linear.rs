@@ -114,8 +114,8 @@ mod tests {
         let rand_x0 = rand::random::<f64>();
         let rand_x1 = rand::random::<f64>();
 
-        let x0 = Variable::new(RawVariable::new(rand_x0));
-        let x1 = Variable::new(RawVariable::new(rand_x1));
+        let x0 = Variable::new(RawData::new(rand_x0));
+        let x1 = Variable::new(RawData::new(rand_x1));
 
         let mut linear: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(LinearFunction {})));
@@ -126,7 +126,7 @@ mod tests {
     /// 数値微分による近似チェック
     #[test]
     fn test_forward1() {
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![2, 3],
             vec![1., 2., 3., 4., 5., 6.],
         ));
@@ -147,19 +147,19 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![3, 2],
             x_var.flatten().to_vec(),
         ));
 
         let w_var = Array::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
-        let w = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(
             vec![2, 3],
             w_var.flatten().to_vec(),
         ));
 
         let b_var = Array::random_using(3, Uniform::new(0., 10.), &mut rng);
-        let b = Variable::new(RawVariable::from_vec(b_var.flatten().to_vec()));
+        let b = Variable::new(RawData::from_vec(b_var.flatten().to_vec()));
 
         let mut linear: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(LinearFunction {})));
@@ -176,13 +176,13 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         let x_var = Array::random_using((10, 100), Uniform::new(0., 10.), &mut rng);
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 100],
             x_var.flatten().to_vec(),
         ));
 
         let w_var = Array::random_using((100, 30), Uniform::new(0., 10.), &mut rng);
-        let w = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(
             vec![100, 30],
             w_var.flatten().to_vec(),
         ));

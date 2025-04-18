@@ -27,12 +27,12 @@ fn test_basic() {
     common::setup();
 
     // スカラ
-    let x1 = Variable::new(RawVariable::new(1.0f64));
+    let x1 = Variable::new(RawData::new(1.0f64));
     let y1 = sin(x1);
     assert_eq!(0.8414709848078965, y1.borrow().get_data()[[]]);
 
     // 行列に対する Sin
-    let x2 = Variable::new(RawVariable::from_shape_vec(
+    let x2 = Variable::new(RawData::from_shape_vec(
         vec![2, 3],
         vec![1., 2., 3., 4., 5., 6.],
     ));
@@ -53,11 +53,8 @@ fn test_basic() {
     assert_eq!(expect_y2, y2.borrow().get_data().flatten().to_vec());
 
     // 行列同士の和
-    let x3 = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3],
-        vec![1, 2, 3, 4, 5, 6],
-    ));
-    let c = Variable::new(RawVariable::from_shape_vec(
+    let x3 = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
+    let c = Variable::new(RawData::from_shape_vec(
         vec![2, 3],
         vec![10, 20, 30, 40, 50, 60],
     ));
@@ -121,10 +118,7 @@ fn test_ndarray_reshape_transpose() {
 fn test_variable_reshape() {
     common::setup();
 
-    let x = Variable::new(RawVariable::from_shape_vec(
-        vec![2, 3],
-        vec![1, 2, 3, 4, 5, 6],
-    ));
+    let x = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
 
     let r1 = x.reshape(vec![6]);
     assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
@@ -266,8 +260,8 @@ fn test_ndarray_sum_to() {
 #[test]
 fn test_step40_sum1() {
     common::setup();
-    let x0 = Variable::new(RawVariable::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
-    let x1 = Variable::new(RawVariable::from_shape_vec(vec![1], vec![10]));
+    let x0 = Variable::new(RawData::from_shape_vec(vec![1, 3], vec![1, 2, 3]));
+    let x1 = Variable::new(RawData::from_shape_vec(vec![1], vec![10]));
 
     let y = &x0 + &x1;
 
@@ -317,18 +311,18 @@ fn test_linear_regression() {
     let y_var: ndarray::ArrayBase<ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> =
         5.0 + 2.0 * x_var.clone() + Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
 
-    let x = Variable::new(RawVariable::from_shape_vec(
+    let x = Variable::new(RawData::from_shape_vec(
         x_var.shape(),
         x_var.flatten().to_vec(),
     ));
-    let y = Variable::new(RawVariable::from_shape_vec(
+    let y = Variable::new(RawData::from_shape_vec(
         y_var.shape(),
         y_var.flatten().to_vec(),
     ));
 
     // 線形回帰による予測
-    let mut w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![0.0]));
-    let mut b = Variable::new(RawVariable::from_shape_vec(vec![1], vec![0.0]));
+    let mut w = Variable::new(RawData::from_shape_vec(vec![1, 1], vec![0.0]));
+    let mut b = Variable::new(RawData::from_shape_vec(vec![1], vec![0.0]));
 
     let lr = 0.1;
     let iters = 100;
@@ -424,8 +418,8 @@ fn test_linear_regression() {
 }
 
 fn predict(x: Variable<f64>) -> Variable<f64> {
-    let w = Variable::new(RawVariable::from_shape_vec(vec![1, 1], vec![0.0]));
-    let b = Variable::new(RawVariable::from_shape_vec(vec![1], vec![0.0]));
+    let w = Variable::new(RawData::from_shape_vec(vec![1, 1], vec![0.0]));
+    let b = Variable::new(RawData::from_shape_vec(vec![1], vec![0.0]));
 
     let y_pred = &matmul(x.clone(), w.clone()) + &b.clone();
 
@@ -513,14 +507,14 @@ fn test_predict() {
     // データセット
     ////////////////////////////////////////////////////
     let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
-    let x = Variable::new(RawVariable::from_shape_vec(
+    let x = Variable::new(RawData::from_shape_vec(
         vec![100, 1],
         x_var.flatten().to_vec(),
     ));
 
     let b_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
     let y_var = (2.0 * PI * x_var.clone()).sin() + b_var;
-    let y = Variable::new(RawVariable::from_shape_vec(
+    let y = Variable::new(RawData::from_shape_vec(
         y_var.shape().to_vec(),
         y_var.flatten().to_vec(),
     ));
@@ -533,20 +527,20 @@ fn test_predict() {
     let o = 1;
 
     let w1_var = Array::random_using((i, h), Uniform::new(0., 1.), &mut rng) * 0.01;
-    let w1 = Variable::new(RawVariable::from_shape_vec(
+    let w1 = Variable::new(RawData::from_shape_vec(
         vec![i, h],
         w1_var.flatten().to_vec(),
     ));
 
-    let b1 = Variable::new(RawVariable::from_vec(vec![0.0; h]));
+    let b1 = Variable::new(RawData::from_vec(vec![0.0; h]));
 
     let w2_var = Array::random_using((h, o), Uniform::new(0., 1.), &mut rng) * 0.01;
-    let w2 = Variable::new(RawVariable::from_shape_vec(
+    let w2 = Variable::new(RawData::from_shape_vec(
         vec![h, o],
         w2_var.flatten().to_vec(),
     ));
 
-    let b2 = Variable::new(RawVariable::from_vec(vec![0.0; o]));
+    let b2 = Variable::new(RawData::from_vec(vec![0.0; o]));
 
     ////////////////////////////////////////////////////
     // ニューラルネットワークの推論
@@ -597,7 +591,7 @@ fn test_predict() {
 
             let test_x: Vec<f64> = (0..100).map(|i| i as f64 / 100.0).collect();
             let test_y_var = function_libs::predict(
-                Variable::new(RawVariable::from_shape_vec(vec![100, 1], test_x.clone())),
+                Variable::new(RawData::from_shape_vec(vec![100, 1], test_x.clone())),
                 vec![w1.clone(), w2.clone()],
                 vec![b1.clone(), b2.clone()],
             );

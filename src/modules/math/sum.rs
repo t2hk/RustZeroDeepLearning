@@ -89,7 +89,7 @@ impl<V: MathOps> Function<V> for SumFunction {
             self.keepdims,
         );
 
-        //let reshape_gy = Variable::new(RawVariable::new(gy));
+        //let reshape_gy = Variable::new(RawData::new(gy));
 
         let gx = broadcast_to(gy.clone(), self.x_shape.clone());
         println!("self axis: {:?}", self.axis);
@@ -136,7 +136,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),
         ));
@@ -156,7 +156,7 @@ mod tests {
     /// シンプルな全要素の和
     #[test]
     fn test_simple_sum() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 6], (1..7).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![1, 6], (1..7).collect()));
         let y = sum(x.clone(), None, false);
         y.backward();
 
@@ -198,7 +198,7 @@ mod tests {
     /// シンプルな全要素の和
     #[test]
     fn test_simple_sum2() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 3], (1..7).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3], (1..7).collect()));
         let y = sum(x.clone(), Some(vec![0]), false);
         y.backward();
 
@@ -227,10 +227,7 @@ mod tests {
     /// keepdims を指定した全要素の和
     #[test]
     fn test_sum_keepdims() {
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 3, 4],
-            (0..24).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), None, true);
 
         let tmp = y.borrow().get_data();
@@ -242,10 +239,7 @@ mod tests {
     /// keepdims を指定しない Axis(0) の和
     #[test]
     fn test_sum_axis0() {
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 3, 4],
-            (0..24).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![0]), false);
 
         let tmp = y.borrow().get_data();
@@ -261,10 +255,7 @@ mod tests {
     /// keepdims を指定した Axis(0) の和
     #[test]
     fn test_sum_keepdims_axis0() {
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 3, 4],
-            (0..24).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![0]), true);
 
         let tmp = y.borrow().get_data();
@@ -301,10 +292,7 @@ mod tests {
     /// keepdims を指定しない Axis(1) の和
     #[test]
     fn test_sum_axis1() {
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 3, 4],
-            (0..24).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![1]), false);
 
         let tmp = y.borrow().get_data();
@@ -338,10 +326,7 @@ mod tests {
     /// keepdims を指定した Axis(1) の和
     #[test]
     fn test_sum_keepdims_axis1() {
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 3, 4],
-            (0..24).collect(),
-        ));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3, 4], (0..24).collect()));
         let y = sum(x.clone(), Some(vec![1]), true);
 
         let tmp = y.borrow().get_data();

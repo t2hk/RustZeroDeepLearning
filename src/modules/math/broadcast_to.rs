@@ -88,7 +88,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
             x0_var.flatten().to_vec(),
         ));
@@ -104,7 +104,7 @@ mod tests {
     /// broadcast_to 関数のテスト。
     #[test]
     fn test_broadcast_to_1() {
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![1, 6],
             vec![1, 2, 3, 4, 5, 6],
         ));

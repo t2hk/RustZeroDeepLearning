@@ -31,8 +31,8 @@ fn main() {
     Setting::set_backprop_enabled();
 
     ///////////// 入力値を用意する。 /////////////
-    let x1 = Variable::new(RawVariable::new(2.0));
-    let x2 = Variable::new(RawVariable::new(3.0));
+    let x1 = Variable::new(RawData::new(2.0));
+    let x2 = Variable::new(RawData::new(3.0));
 
     ///////////// 計算する(順伝播)。 /////////////
     // 入力値を clone して計算用のメソッドに渡す。

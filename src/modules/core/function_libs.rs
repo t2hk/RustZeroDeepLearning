@@ -362,14 +362,14 @@ mod tests {
             .unwrap();
         chart.configure_mesh().draw().unwrap();
 
-        // sigmoid_simple(Variable::new(RawVariable::new(x)))
+        // sigmoid_simple(Variable::new(RawData::new(x)))
         // 元データのプロット
         // 折れ線グラフ（関数グラフ）を描画
         chart
             .draw_series(LineSeries::new(
                 (-500..=500).map(|i| {
                     let x = i as f64 / 100.0;
-                    let y = sigmoid_simple(Variable::new(RawVariable::new(x)));
+                    let y = sigmoid_simple(Variable::new(RawData::new(x)));
                     (x, y.clone().borrow().get_data().flatten().to_vec()[0])
                 }),
                 &RED,
@@ -399,7 +399,7 @@ mod tests {
             return y;
         }
 
-        let mut x = Variable::new(RawVariable::new(2.0));
+        let mut x = Variable::new(RawData::new(2.0));
         let iters = 10;
 
         for i in 0..iters {
@@ -423,7 +423,7 @@ mod tests {
             x.borrow_mut().clear_grad();
 
             y.backward();
-            let x_data = Variable::new(RawVariable::new(x.borrow().get_data()));
+            let x_data = Variable::new(RawData::new(x.borrow().get_data()));
             let x_grad = x.borrow().get_grad().unwrap().borrow().get_data()[[]];
 
             let new_data: Variable<f64> = &x_data - &(x_grad / &gx2(x_data.clone()));
@@ -435,8 +435,8 @@ mod tests {
     #[test]
     /// ローゼンブロック関数のテスト
     fn test_rosenblock() {
-        let x0 = Variable::new(RawVariable::new(0.0));
-        let x1 = Variable::new(RawVariable::new(2.0));
+        let x0 = Variable::new(RawData::new(0.0));
+        let x1 = Variable::new(RawData::new(2.0));
 
         let y = rosenblock(x0.clone(), x1.clone());
         y.backward();
@@ -457,8 +457,8 @@ mod tests {
     /// ローゼンブロック関数の勾配降下法
     #[test]
     fn test_step28() {
-        let mut x0 = Variable::new(RawVariable::new(0.0));
-        let mut x1 = Variable::new(RawVariable::new(2.0));
+        let mut x0 = Variable::new(RawData::new(0.0));
+        let mut x1 = Variable::new(RawData::new(2.0));
         let lr = 0.001;
         let iters = 10000;
 
@@ -487,8 +487,8 @@ mod tests {
     /// Sphere 関数のテスト
     #[test]
     fn test_sphere_1() {
-        let x = Variable::new(RawVariable::new(1));
-        let y = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
+        let y = Variable::new(RawData::new(1));
         let z = sphere(x.clone(), y.clone());
 
         z.backward();
@@ -518,8 +518,8 @@ mod tests {
     /// matyas 関数のテスト
     #[test]
     fn test_matyas_1() {
-        let x = Variable::new(RawVariable::new(1.0));
-        let y = Variable::new(RawVariable::new(1.0));
+        let x = Variable::new(RawData::new(1.0));
+        let y = Variable::new(RawData::new(1.0));
         let z = matyas(x.clone(), y.clone());
 
         z.backward();
@@ -549,8 +549,8 @@ mod tests {
     /// goldstein 関数のテスト
     #[test]
     fn test_goldstein_1() {
-        let x = Variable::new(RawVariable::new(1));
-        let y = Variable::new(RawVariable::new(1));
+        let x = Variable::new(RawData::new(1));
+        let y = Variable::new(RawData::new(1));
         let z = goldstein(x.clone(), y.clone());
 
         z.backward();
@@ -581,15 +581,9 @@ mod tests {
     /// linear_simple のテスト
     #[test]
     fn test_linear_simple() {
-        let w = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 2],
-            vec![1., 2., 3., 4.],
-        ));
-        let x = Variable::new(RawVariable::from_shape_vec(
-            vec![2, 2],
-            vec![2., 2., 2., 2.],
-        ));
-        let b = Variable::new(RawVariable::from_shape_vec(
+        let w = Variable::new(RawData::from_shape_vec(vec![2, 2], vec![1., 2., 3., 4.]));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 2], vec![2., 2., 2., 2.]));
+        let b = Variable::new(RawData::from_shape_vec(
             vec![2, 2],
             vec![10., 10., 10., 10.],
         ));

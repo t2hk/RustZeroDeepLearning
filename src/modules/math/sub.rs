@@ -55,7 +55,7 @@ impl<V: MathOps> Function<V> for SubFunction {
 /// * x1 (Variable<V>): 減算する変数
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 減算結果
+/// * Rc<RefCell<RawData>>: 減算結果
 pub fn sub<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut sub = FunctionExecutor::new(Rc::new(RefCell::new(SubFunction)));
     // 減算の順伝播
@@ -92,7 +92,7 @@ impl<V: MathOps> Sub<&Array<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
     fn sub(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
         // 順伝播
-        let rhs_val = Variable::new(RawVariable::new(rhs.clone()));
+        let rhs_val = Variable::new(RawData::new(rhs.clone()));
         self - &rhs_val
     }
 }
@@ -102,7 +102,7 @@ impl<V: MathOps> Sub<&Variable<V>> for &Array<V, IxDyn> {
     type Output = Variable<V>;
     fn sub(self, rhs: &Variable<V>) -> Variable<V> {
         // 順伝播
-        let lhs_val = Variable::new(RawVariable::new(self.clone()));
+        let lhs_val = Variable::new(RawData::new(self.clone()));
         &lhs_val - rhs
     }
 }
@@ -116,7 +116,7 @@ macro_rules! impl_variable_sub {
 
             fn sub(self, rhs: $scalar) -> Variable<V> {
                 // 順伝播
-                let rhs_val = Variable::new(RawVariable::new(V::from(rhs).unwrap()));
+                let rhs_val = Variable::new(RawData::new(V::from(rhs).unwrap()));
                 self - &rhs_val
             }
         }
@@ -127,7 +127,7 @@ macro_rules! impl_variable_sub {
 
             fn sub(self, rhs: &Variable<V>) -> Variable<V> {
                 // 順伝播
-                let lhs_val = Variable::new(RawVariable::new(V::from(self).unwrap()));
+                let lhs_val = Variable::new(RawData::new(V::from(self).unwrap()));
                 &lhs_val - rhs
             }
         }
@@ -155,16 +155,10 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
-        let x0 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x0_var.flatten().to_vec(),
-        ));
+        let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
         let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
-        let x1 = Variable::new(RawVariable::from_shape_vec(
-            vec![1],
-            x1_var.flatten().to_vec(),
-        ));
+        let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
         let mut sub: FunctionExecutor<_> =
             FunctionExecutor::new(Rc::new(RefCell::new(SubFunction {})));
@@ -181,8 +175,8 @@ mod tests {
         // let rand_x2 = rng.random::<f64>();
         let rand_x1 = rand::random::<f64>();
         let rand_x2 = rand::random::<f64>();
-        let x1 = Variable::new(RawVariable::new(rand_x1));
-        let x2 = Variable::new(RawVariable::new(rand_x2));
+        let x1 = Variable::new(RawData::new(rand_x1));
+        let x2 = Variable::new(RawData::new(rand_x2));
 
         // 減算した結果の期待値を計算する。
         let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 - rand_x2);
@@ -205,21 +199,21 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 変数を用意する。
-        let mut raw_a = RawVariable::new(5.0f32);
+        let mut raw_a = RawData::new(5.0f32);
         raw_a.set_name("val_a".to_string());
         let a = Variable::new(raw_a);
 
-        let mut raw_b = RawVariable::new(3.0f32);
+        let mut raw_b = RawData::new(3.0f32);
         raw_b.set_name("val_b".to_string());
         let b = Variable::new(raw_b);
-        let mut raw_c = RawVariable::new(2.0f32);
+        let mut raw_c = RawData::new(2.0f32);
         raw_c.set_name("val_c".to_string());
         let c = Variable::new(raw_c);
 
         // 計算する。(a - b) * c
         let result = &(&a - &b) * &c;
 
-        let expected = RawVariable::new(4.0f32);
+        let expected = RawData::new(4.0f32);
 
         // 逆伝播を実行する。
         result.backward();
@@ -280,21 +274,21 @@ mod tests {
         Setting::set_backprop_enabled();
 
         // 変数を用意する。
-        let mut raw_a = RawVariable::new(5i32);
+        let mut raw_a = RawData::new(5i32);
         raw_a.set_name("val_a".to_string());
         let a = Variable::new(raw_a);
 
         // b は Array とする。
         let b = Array::from_elem(IxDyn(&[]), 3i32);
 
-        let mut raw_c = RawVariable::new(2i32);
+        let mut raw_c = RawData::new(2i32);
         raw_c.set_name("val_c".to_string());
         let c = Variable::new(raw_c);
 
         // 計算する。(a - b) * c
         let result = &(&a - &b.clone()) * &c;
 
-        let expected = RawVariable::new(4i32);
+        let expected = RawData::new(4i32);
 
         // 逆伝播を実行する。
         result.backward();
@@ -339,10 +333,10 @@ mod tests {
     /// 様々な型、および、左右オペランドを入れ替えたテスト
     #[test]
     fn test_mul_overload_macro() {
-        let overload_val_i32 = Variable::new(RawVariable::new(2i32));
-        let overload_val_f32 = Variable::new(RawVariable::new(2.0f32));
-        let overload_val_f64 = Variable::new(RawVariable::new(2.0f64));
-        let overload_val_u32 = Variable::new(RawVariable::new(2u32));
+        let overload_val_i32 = Variable::new(RawData::new(2i32));
+        let overload_val_f32 = Variable::new(RawData::new(2.0f32));
+        let overload_val_f64 = Variable::new(RawData::new(2.0f64));
+        let overload_val_u32 = Variable::new(RawData::new(2u32));
         let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
 
         let result_val_i32_mul_val_i32 = &overload_val_i32 * &overload_val_i32;
@@ -352,27 +346,27 @@ mod tests {
         let result_array_f32_mul_val_f32 = &overload_array_f32 * &overload_val_f32;
 
         assert_eq!(
-            RawVariable::new(4i32).get_data(),
+            RawData::new(4i32).get_data(),
             result_val_i32_mul_val_i32.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(20u32).get_data(),
+            RawData::new(20u32).get_data(),
             result_val_u32_mul_scalar_u32.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(20.0f64).get_data(),
+            RawData::new(20.0f64).get_data(),
             result_scalar_f64_mul_val_f64.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(4.0f32).get_data(),
+            RawData::new(4.0f32).get_data(),
             result_val_f32_mul_array_f32.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(4.0f32).get_data(),
+            RawData::new(4.0f32).get_data(),
             result_array_f32_mul_val_f32.borrow().get_data()
         );
     }
@@ -381,12 +375,12 @@ mod tests {
     /// 様々な型、および、左右オペランドを入れ替えたテスト
     #[test]
     fn test_sub_overload_macro() {
-        let val_i64_5 = Variable::new(RawVariable::new(5i64));
-        let val_i64_2 = Variable::new(RawVariable::new(2i64));
-        let val_f32_5 = Variable::new(RawVariable::new(5.0f32));
-        let val_f32_2 = Variable::new(RawVariable::new(2.0f32));
-        let val_f64_2 = Variable::new(RawVariable::new(2.0f64));
-        let val_u64_5 = Variable::new(RawVariable::new(5u64));
+        let val_i64_5 = Variable::new(RawData::new(5i64));
+        let val_i64_2 = Variable::new(RawData::new(2i64));
+        let val_f32_5 = Variable::new(RawData::new(5.0f32));
+        let val_f32_2 = Variable::new(RawData::new(2.0f32));
+        let val_f64_2 = Variable::new(RawData::new(2.0f64));
+        let val_u64_5 = Variable::new(RawData::new(5u64));
         let array_f32_5 = Array::from_elem(IxDyn(&[]), 5.0f32);
         let array_f32_2 = Array::from_elem(IxDyn(&[]), 2.0f32);
 
@@ -397,27 +391,27 @@ mod tests {
         let result_array_f32_sub_val_f32 = &array_f32_5 - &val_f32_2;
 
         assert_eq!(
-            RawVariable::new(3i64).get_data(),
+            RawData::new(3i64).get_data(),
             result_val_i64_sub.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(2u64).get_data(),
+            RawData::new(2u64).get_data(),
             result_val_u64_sub_scalar_u64.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(8.0f64).get_data(),
+            RawData::new(8.0f64).get_data(),
             result_scalar_f64_sub_val_f64.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(3.0f32).get_data(),
+            RawData::new(3.0f32).get_data(),
             result_val_f32_sub_array_f32.borrow().get_data()
         );
 
         assert_eq!(
-            RawVariable::new(3.0f32).get_data(),
+            RawData::new(3.0f32).get_data(),
             result_array_f32_sub_val_f32.borrow().get_data()
         );
     }

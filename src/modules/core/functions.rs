@@ -30,7 +30,7 @@ where
     /// 継承して実装すること。
     ///
     /// Arguments
-    /// * inputs (Vec<Rc<RefCell<RawVariable>>>): 順伝播の入力値
+    /// * inputs (Vec<Rc<RefCell<RawData>>>): 順伝播の入力値
     /// * gys (Vec<Variable<V>>): 出力値に対する微分値
     ///
     /// Returns
@@ -42,10 +42,10 @@ where
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
 pub struct FunctionExecutor<V: MathOps> {
-    inputs: Vec<Variable<V>>,                    // 関数の入力値
-    outputs: Vec<Weak<RefCell<RawVariable<V>>>>, //関数の出力値
-    creator: Rc<RefCell<dyn Function<V>>>,       // 関数のトレイトオブジェクト
-    generation: i32,                             // 関数の世代
+    inputs: Vec<Variable<V>>,                // 関数の入力値
+    outputs: Vec<Weak<RefCell<RawData<V>>>>, //関数の出力値
+    creator: Rc<RefCell<dyn Function<V>>>,   // 関数のトレイトオブジェクト
+    generation: i32,                         // 関数の世代
 }
 
 /// 関数ラッパーの比較
@@ -130,7 +130,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * Vec<Weak<RefCell<Variable<V>>>>: 関数の出力値のベクタ
-    pub fn get_outputs(&self) -> Vec<Weak<RefCell<RawVariable<V>>>> {
+    pub fn get_outputs(&self) -> Vec<Weak<RefCell<RawData<V>>>> {
         self.outputs.clone()
     }
 
@@ -182,7 +182,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         let outputs: Vec<Variable<V>> = ys_data
             .into_iter()
             .map(|y_data| {
-                let val = RawVariable::new(y_data);
+                let val = RawData::new(y_data);
                 Variable::new(val)
             })
             .collect();
@@ -225,7 +225,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
                 if output.borrow().get_grad().is_none() {
-                    let grad_one = Variable::new(RawVariable::new(Array::ones(
+                    let grad_one = Variable::new(RawData::new(Array::ones(
                         output.borrow().get_data().shape(),
                     )));
                     output.borrow_mut().set_grad(grad_one);
@@ -264,7 +264,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     /// 逆伝播のために計算グラフ上の関数を取得する。
     ///
     /// Arguments
-    /// * outputs (Vec<Rc<RefCell<RawVariable>>>): 計算グラフの順伝播の出力値
+    /// * outputs (Vec<Rc<RefCell<RawData>>>): 計算グラフの順伝播の出力値
     pub fn extract_creators(
         outputs: Vec<Variable<V>>,
     ) -> BinaryHeap<(i32, Rc<RefCell<FunctionExecutor<V>>>)> {

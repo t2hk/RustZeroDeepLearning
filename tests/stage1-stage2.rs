@@ -18,7 +18,7 @@ fn test_bigint_variable() {
     common::setup();
 
     let big_int_variable =
-        Variable::new(RawVariable::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
+        Variable::new(RawData::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
 
     let expect = Array::from_elem(IxDyn(&[]), BigIntWrapper(Rc::new(BigInt::from(10))));
 
@@ -36,10 +36,10 @@ fn test_add_mul() {
     Setting::set_backprop_enabled();
 
     // 順伝播
-    let a = Variable::new(RawVariable::new(3.0f32));
-    let b = Variable::new(RawVariable::new(2.0f32));
-    let c = Variable::new(RawVariable::new(1.0f32));
-    let expected = RawVariable::new(7f32);
+    let a = Variable::new(RawData::new(3.0f32));
+    let b = Variable::new(RawData::new(2.0f32));
+    let c = Variable::new(RawData::new(1.0f32));
+    let expected = RawData::new(7f32);
 
     let result = add(mul(a.clone(), b.clone()), c.clone());
     assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -96,9 +96,9 @@ fn test_mul_2() {
     Setting::set_backprop_enabled();
 
     // 順伝播
-    let x1 = Variable::new(RawVariable::new(5.0f32));
-    let x2 = Variable::new(RawVariable::new(10.0f32));
-    let expected = RawVariable::new(50.0f32);
+    let x1 = Variable::new(RawData::new(5.0f32));
+    let x2 = Variable::new(RawData::new(10.0f32));
+    let expected = RawData::new(50.0f32);
 
     let result = mul(x1.clone(), x2.clone());
     assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -154,9 +154,9 @@ fn test_mul_1() {
     Setting::set_backprop_enabled();
 
     // 順伝播
-    let x1 = Variable::new(RawVariable::new(5i32));
-    let x2 = Variable::new(RawVariable::new(10i32));
-    let expected = RawVariable::new(50);
+    let x1 = Variable::new(RawData::new(5i32));
+    let x2 = Variable::new(RawData::new(10i32));
+    let expected = RawData::new(50);
 
     let result = mul(x1.clone(), x2.clone());
     assert_eq!(expected.get_data(), result.borrow().get_data());
@@ -203,8 +203,8 @@ fn test_mul_1() {
 fn test_retain_grad_disabled_u32() {
     common::setup();
 
-    let x1 = Variable::new(RawVariable::new(2u32));
-    let x2 = Variable::new(RawVariable::new(3u32));
+    let x1 = Variable::new(RawData::new(2u32));
+    let x2 = Variable::new(RawData::new(3u32));
     let a = square(x1.clone());
     let b = square(a.clone());
     let c = square(a.clone());
@@ -291,20 +291,20 @@ fn test_multidim_add_square_1() {
     // テスト用の入力値
     let sh1 = vec![2, 2];
     let val1 = vec![1., 2., 3., 4.];
-    let var1 = RawVariable::from_shape_vec(sh1, val1);
+    let var1 = RawData::from_shape_vec(sh1, val1);
     dbg!(&var1);
     let sh2 = vec![2, 2];
     let val2 = vec![11., 12., 13., 14.];
-    let var2 = RawVariable::from_shape_vec(sh2, val2);
+    let var2 = RawData::from_shape_vec(sh2, val2);
     dbg!(&var2);
 
     let x1 = Variable::new(var1);
     let x2 = Variable::new(var2);
 
     // 順伝播の結果 [[12., 14.],[16., 18.]]^2 = [[144., 196.], [256., 324.]]
-    let expected = RawVariable::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
+    let expected = RawData::from_shape_vec(vec![2, 2], vec![144., 196., 256., 324.]);
     // 逆伝播の結果 2 * [[12., 14.], [16., 18.]]
-    let expected_grad = RawVariable::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
+    let expected_grad = RawData::from_shape_vec(vec![2, 2], vec![24., 28., 32., 36.]);
 
     let result = square(add(x1.clone(), x2.clone()));
 
@@ -339,11 +339,11 @@ fn test_multidim_square() {
     // 入力値の準備
     let sh1 = vec![2, 2];
     let arr1 = vec![1., 2., 3., 4.];
-    let var1 = RawVariable::from_shape_vec(sh1, arr1);
+    let var1 = RawData::from_shape_vec(sh1, arr1);
     let x1 = Variable::new(var1.clone());
 
-    let expected_var = RawVariable::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
-    let expected_grad = RawVariable::from_shape_vec(vec![2, 2], vec![2., 4., 6., 8.]);
+    let expected_var = RawData::from_shape_vec(vec![2, 2], vec![1., 4., 9., 16.]);
+    let expected_grad = RawData::from_shape_vec(vec![2, 2], vec![2., 4., 6., 8.]);
 
     // 順伝播、逆伝播を実行する。
     let result = square(x1.clone());
@@ -366,18 +366,18 @@ fn test_multidim_add() {
 
     let sh1 = vec![2, 2];
     let val1 = vec![1., 2., 3., 4.];
-    let var1 = RawVariable::from_shape_vec(sh1, val1);
+    let var1 = RawData::from_shape_vec(sh1, val1);
     dbg!(&var1);
     let sh2 = vec![2, 2];
     let val2 = vec![11., 12., 13., 14.];
-    let var2 = RawVariable::from_shape_vec(sh2, val2);
+    let var2 = RawData::from_shape_vec(sh2, val2);
     // dbg!(&var2);
 
     // 加算値をランダムに生成する。
     let x1 = Variable::new(var1);
     let x2 = Variable::new(var2);
 
-    let expected_var = RawVariable::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
+    let expected_var = RawData::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
 
     // 加算した結果の期待値を計算する。
     // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
@@ -396,7 +396,7 @@ fn test_disable_backprop() {
 
     // バックプロパゲーションを行わない場合
     Setting::set_backprop_disabled();
-    let x = Variable::new(RawVariable::new(Array::from_elem(
+    let x = Variable::new(RawData::new(Array::from_elem(
         IxDyn(&[100, 100, 100]),
         1.0,
     )));
@@ -408,7 +408,7 @@ fn test_disable_backprop() {
 
     // バックプロパゲーションを行う場合
     Setting::set_backprop_enabled();
-    let x = Variable::new(RawVariable::new(Array::from_elem(
+    let x = Variable::new(RawData::new(Array::from_elem(
         IxDyn(&[100, 100, 100]),
         1.0,
     )));
@@ -424,8 +424,8 @@ fn test_disable_backprop() {
 fn test_retain_grad_disabled() {
     common::setup();
 
-    let x1 = Variable::new(RawVariable::new(2.0));
-    let x2 = Variable::new(RawVariable::new(3.0));
+    let x1 = Variable::new(RawData::new(2.0));
+    let x2 = Variable::new(RawData::new(3.0));
     let a = square(x1.clone());
     let b = square(a.clone());
     let c = square(a.clone());
@@ -501,8 +501,8 @@ fn test_retain_grad_disabled() {
 fn test_retain_grad_enabled() {
     // common::setup();
 
-    let x1 = Variable::new(RawVariable::new(2.0));
-    let x2 = Variable::new(RawVariable::new(3.0));
+    let x1 = Variable::new(RawData::new(2.0));
+    let x2 = Variable::new(RawData::new(3.0));
     let a = square(x1.clone());
     let b = square(a.clone());
     let c = square(a.clone());
@@ -622,8 +622,8 @@ fn test_generations() {
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
 
-    let x1 = Variable::new(RawVariable::new(2.0));
-    let x2 = Variable::new(RawVariable::new(3.0));
+    let x1 = Variable::new(RawData::new(2.0));
+    let x2 = Variable::new(RawData::new(3.0));
     let a = square(x1.clone());
     let b = square(a.clone());
     let c = square(a.clone());
@@ -732,7 +732,7 @@ fn test_add_same_input_3times() {
     // common::setup();
 
     // 加算値をランダムに生成する。
-    let x = Variable::new(RawVariable::new(2.0));
+    let x = Variable::new(RawData::new(2.0));
 
     // 加算した結果の期待値を計算する。
     let expected_output_data = Array::from_elem(IxDyn(&[]), 6.0);
@@ -770,7 +770,7 @@ fn test_clear_grad() {
     common::setup();
 
     // 加算値を生成する。
-    let x = Variable::new(RawVariable::new(2.0));
+    let x = Variable::new(RawData::new(2.0));
 
     // 加算した結果の期待値を計算する。
     let expected_output_data = Array::from_elem(IxDyn(&[]), 4.0);
@@ -850,7 +850,7 @@ fn test_square() {
     //let rand_x = rng.random::<f64>();
     let rand_x = rand::random::<f64>();
 
-    let x = Variable::new(RawVariable::new(rand_x));
+    let x = Variable::new(RawData::new(rand_x));
 
     // 2乗した結果の期待値を計算する。
     let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
@@ -894,8 +894,8 @@ fn test_add() {
     // let rand_x2 = rng.random::<f64>();
     let rand_x1 = rand::random::<f64>();
     let rand_x2 = rand::random::<f64>();
-    let x1 = Variable::new(RawVariable::new(rand_x1));
-    let x2 = Variable::new(RawVariable::new(rand_x2));
+    let x1 = Variable::new(RawData::new(rand_x1));
+    let x2 = Variable::new(RawData::new(rand_x2));
 
     // 加算した結果の期待値を計算する。
     let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
@@ -939,7 +939,7 @@ fn test_add() {
 fn test_exp() {
     common::setup();
 
-    let x = Variable::new(RawVariable::new(2.0));
+    let x = Variable::new(RawData::new(2.0));
 
     let e = std::f64::consts::E;
     let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
@@ -985,8 +985,8 @@ fn test_add_square_1() {
     // テスト用の入力値
     let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
     let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
-    let x1 = Variable::new(RawVariable::new(x1_arr.clone()));
-    let x2 = Variable::new(RawVariable::new(x2_arr.clone()));
+    let x1 = Variable::new(RawData::new(x1_arr.clone()));
+    let x2 = Variable::new(RawData::new(x2_arr.clone()));
 
     let expected = Array::from_elem(IxDyn(&[]), 25.0);
 
@@ -1048,8 +1048,8 @@ fn test_add_square_2() {
     // テスト用の入力値
     let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
     let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
-    let x1 = Variable::new(RawVariable::new(x1_arr.clone()));
-    let x2 = Variable::new(RawVariable::new(x2_arr.clone()));
+    let x1 = Variable::new(RawData::new(x1_arr.clone()));
+    let x2 = Variable::new(RawData::new(x2_arr.clone()));
 
     let expected = Array::from_elem(IxDyn(&[]), 13.0);
 
@@ -1119,7 +1119,7 @@ fn test_square_exp_square() {
 
     // テスト用の入力値
     let x_arr = Array::from_elem(IxDyn(&[]), 0.5);
-    let x = Variable::new(RawVariable::new(x_arr.clone()));
+    let x = Variable::new(RawData::new(x_arr.clone()));
 
     let e = std::f64::consts::E;
     let expected = Array::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));

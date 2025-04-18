@@ -121,7 +121,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),
         ));
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_forward1() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![1, 10], (1..11).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![1, 10], (1..11).collect()));
         let y = sum_to(x.clone(), vec![1]);
 
         let expected = sum(x, None, false);
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_forward2() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![2, 3], (1..7).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![2, 3], (1..7).collect()));
         let y = sum_to(x.clone(), vec![1, 3]);
         dbg!(&y);
         let expected = sum(x.clone(), Some(vec![0]), true);
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_forward3() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![10], (1..11).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![10], (1..11).collect()));
         let y = sum_to(x.clone(), vec![10]);
 
         assert_eq!(x.borrow().get_data().shape(), y.borrow().get_data().shape());
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_backward1() {
-        let x = Variable::new(RawVariable::from_shape_vec(vec![10], (1..11).collect()));
+        let x = Variable::new(RawData::from_shape_vec(vec![10], (1..11).collect()));
 
         let y = sum_to(x.clone(), vec![1]);
         y.backward();
@@ -206,7 +206,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_backward2() {
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             (1..101).collect(),
         ));
@@ -240,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_sum_to_backward3() {
-        let x = Variable::new(RawVariable::from_shape_vec(
+        let x = Variable::new(RawData::from_shape_vec(
             vec![10, 20, 20],
             (1..4001).collect(),
         ));

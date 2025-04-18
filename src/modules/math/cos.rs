@@ -54,10 +54,10 @@ impl<V: MathOps> Function<V> for CosFunction {
 /// Cos 関数
 ///
 /// Arguments
-/// * input (Rc<RefCell<RawVariable>>): 入力値
+/// * input (Rc<RefCell<RawData>>): 入力値
 ///
 /// Return
-/// * Rc<RefCell<RawVariable>>: 結果
+/// * Rc<RefCell<RawData>>: 結果
 pub fn cos<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut cos = FunctionExecutor::new(Rc::new(RefCell::new(CosFunction)));
     // Cos の順伝播
@@ -80,7 +80,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
         let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
 
-        let x0 = Variable::new(RawVariable::from_shape_vec(
+        let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
             x0_var.flatten().to_vec(),
         ));
@@ -99,7 +99,7 @@ mod tests {
         // バックプロパゲーションを行う。
         Setting::set_backprop_enabled();
 
-        let x = Variable::new(RawVariable::new(PIf32 / 4.0f32));
+        let x = Variable::new(RawData::new(PIf32 / 4.0f32));
 
         let expected_output_data = Array::from_elem(IxDyn(&[]), 0.7071067811865475f32);
 
