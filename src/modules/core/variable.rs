@@ -55,10 +55,10 @@ impl<V: MathOps> Variable<V> {
         return reshape(self.clone(), shape.clone());
     }
 
-    /// 転値
+    /// 転置
     ///
     /// Return:
-    /// * Variable<RawData<V>>: 転値結果
+    /// * Variable<RawData<V>>: 転置結果
     pub fn transpose(&self) -> Self {
         return transpose(self.clone());
     }
@@ -68,7 +68,7 @@ impl<V: MathOps> Variable<V> {
 mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
-    use rand::prelude::*;
+    //use rand::prelude::*;
     #[test]
     /// 変数の型名に関するテスト。
     fn test_get_dtype() {
@@ -163,24 +163,15 @@ mod tests {
         let x = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
 
         let r1 = x.reshape(vec![6]);
-        // assert_eq!(vec![6], r1.borrow().get_data().shape().to_vec());
         assert_eq!(vec![6], r1.get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 2, 3, 4, 5, 6],
-            // r1.borrow().get_data().flatten().to_vec()
-            r1.get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![1, 2, 3, 4, 5, 6], r1.get_data().flatten().to_vec());
 
         let r2 = r1.reshape(vec![3, 2]);
         assert_eq!(vec![3, 2], r2.get_data().shape().to_vec());
-        assert_eq!(
-            vec![1, 2, 3, 4, 5, 6],
-            // r2.borrow().get_data().flatten().to_vec()
-            r2.get_data().flatten().to_vec()
-        );
+        assert_eq!(vec![1, 2, 3, 4, 5, 6], r2.get_data().flatten().to_vec());
     }
 
-    /// 行列の転値のテスト
+    /// 行列の転置のテスト
     #[test]
     fn test_transpose() {
         let input_shape = vec![2, 3];
@@ -192,7 +183,7 @@ mod tests {
 
         let y = x.transpose();
 
-        // 転値後の確認
+        // 転置後の確認
         assert_eq!(vec![3, 2], y.get_data().shape().to_vec());
         assert_eq!(vec![1, 4, 2, 5, 3, 6], y.get_data().flatten().to_vec());
 
