@@ -30,7 +30,7 @@ where
 pub struct LayerExecutor<V: MathOps> {
     inputs: Vec<Weak<RefCell<Variable<V>>>>,  // 関数の入力値
     outputs: Vec<Weak<RefCell<Variable<V>>>>, //関数の出力値
-    parameters: HashMap<String, Parameter<V>>,
+    parameters: HashMap<String, Variable<V>>,
 }
 
 /// レイヤラッパーの実装
@@ -68,8 +68,8 @@ impl<V: MathOps> LayerExecutor<V> {
     ///
     /// Arguments
     /// * name (String): パラメータの名前
-    /// * parameter (Parameter<V>): パラメータ
-    pub fn add_parameter(&mut self, name: String, parameter: Parameter<V>) {
+    /// * parameter (Variable<V>): パラメータ
+    pub fn add_parameter(&mut self, name: String, parameter: Variable<V>) {
         self.parameters.insert(name, parameter);
     }
 
@@ -79,8 +79,8 @@ impl<V: MathOps> LayerExecutor<V> {
     /// * name (&str): 取得するパラメータの名前
     ///
     /// Return
-    /// * &Parameter<V>: パラメータ
-    pub fn get_parameter(&self, name: &str) -> &Parameter<V> {
+    /// * &Variable<V>: パラメータ
+    pub fn get_parameter(&self, name: &str) -> &Variable<V> {
         self.parameters.get(name).unwrap()
     }
 
