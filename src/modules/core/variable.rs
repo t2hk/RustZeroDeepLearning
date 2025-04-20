@@ -2,7 +2,6 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -42,7 +41,9 @@ impl<V: MathOps> RawDataProcessor<V> for Variable<V> {
     fn as_ref(&self) -> &RefCell<RawData<V>> {
         self.raw.as_ref()
     }
+}
 
+impl<V: MathOps> Variable<V> {
     /// リシェイプ
     ///
     /// Arguments:
@@ -50,7 +51,7 @@ impl<V: MathOps> RawDataProcessor<V> for Variable<V> {
     ///
     /// Return:
     /// * Variable<RawData<V>>
-    fn reshape(&self, shape: Vec<usize>) -> Self {
+    pub fn reshape(&self, shape: Vec<usize>) -> Self {
         return reshape(self.clone(), shape.clone());
     }
 
@@ -58,7 +59,7 @@ impl<V: MathOps> RawDataProcessor<V> for Variable<V> {
     ///
     /// Return:
     /// * Variable<RawData<V>>: 転値結果
-    fn transpose(&self) -> Self {
+    pub fn transpose(&self) -> Self {
         return transpose(self.clone());
     }
 }
@@ -66,6 +67,7 @@ impl<V: MathOps> RawDataProcessor<V> for Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ndarray::{Array, IxDyn};
     use rand::prelude::*;
     #[test]
     /// 変数の型名に関するテスト。

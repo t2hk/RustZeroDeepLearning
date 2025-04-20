@@ -391,20 +391,20 @@ pub trait RawDataProcessor<V: MathOps> {
         self.raw().as_ref().clone().borrow().backward();
     }
 
-    /// リシェイプ
-    ///
-    /// Arguments:
-    /// * shape (Vec<usize>): 変更後の形状
-    ///
-    /// Return:
-    /// * Variable<RawData<V>>
-    fn reshape(&self, shape: Vec<usize>) -> Self;
+    // /// リシェイプ
+    // ///
+    // /// Arguments:
+    // /// * shape (Vec<usize>): 変更後の形状
+    // ///
+    // /// Return:
+    // /// * Variable<RawData<V>>
+    // fn reshape(&self, shape: Vec<usize>) -> Self;
 
-    /// 転値
-    ///
-    /// Return:
-    /// * Variable<RawData<V>>: 転値結果
-    fn transpose(&self) -> Self;
+    // /// 転値
+    // ///
+    // /// Return:
+    // /// * Variable<RawData<V>>: 転値結果
+    // fn transpose(&self) -> Self;
 
     /// 詳細出力
     fn detail(&self) -> String {
