@@ -7,6 +7,7 @@ pub use modules::core::functions::*;
 pub use modules::core::layer::*;
 pub use modules::core::raw_data::*;
 pub use modules::core::variable::*;
+pub use modules::layer_modules::linear::*;
 pub use modules::math::add::*;
 pub use modules::math::broadcast_to::*;
 pub use modules::math::cos::*;
