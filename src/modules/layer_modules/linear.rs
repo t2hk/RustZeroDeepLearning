@@ -69,13 +69,13 @@ impl<V: MathOps> Layer<V> for LinearLayer<V> {
     }
 
     /// パラメータを追加する。
-    fn add_parameter(&mut self, name: String, parameter: Variable<V>) {
-        self.parameters.insert(name, parameter);
+    fn add_parameter(&mut self, name: &str, parameter: Variable<V>) {
+        self.parameters.insert(name.to_string(), parameter);
     }
 
     /// パラメータを取得する。
-    fn get_parameter(&self, name: String) -> Variable<V> {
-        self.parameters.get(&name).unwrap().clone()
+    fn get_parameter(&self, name: &str) -> Variable<V> {
+        self.parameters.get(&name.to_string()).unwrap().clone()
     }
 
     /// 全てのパラメータを取得する。

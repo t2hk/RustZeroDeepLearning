@@ -3,10 +3,58 @@ use crate::modules::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
+
+#[derive(Debug, Clone)]
+pub struct LayerModel<V: MathOps> {
+    layers: HashMap<String, LayerExecutor<V>>,
+}
+
+impl<V: MathOps> LayerModel<V> {
+    pub fn new() -> LayerModel<f64> {
+        LayerModel {
+            layers: HashMap::new(),
+        }
+    }
+    pub fn add_layer(&mut self, name: &str, layer: LayerExecutor<V>) {
+        self.layers.insert(name.to_string(), layer);
+    }
+
+    pub fn get_layer(&self, name: &str) -> &LayerExecutor<V> {
+        self.layers.get(&name.to_string()).unwrap()
+    }
+
+    pub fn cleargrads(&mut self) {
+        for (_layer_name, layer) in self.layers.iter() {
+            for (_param_name, layer_param) in layer.get_parameters().iter() {
+                layer_param.clear_grad();
+            }
+        }
+    }
+
+    pub fn forward(&mut self, layer_name: &str, x: Vec<Variable<V>>) -> Vec<Variable<V>> {
+        let mut layer = self.layers.get(&layer_name.to_string()).unwrap().clone();
+        layer.forward(x)
+    }
+
+    pub fn update_parameters(&mut self, lr: f64) {
+        for (_layer_name, layer) in self.layers.iter() {
+            for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
+                let new_data = layer_param.get_data().mapv(|x| x.to_f64().unwrap())
+                    - layer_param
+                        .get_grad()
+                        .unwrap()
+                        .get_data()
+                        .mapv(|x| x.to_f64().unwrap())
+                        * lr;
+                layer_param.set_data(new_data.mapv(|x| V::from(x).unwrap()));
+            }
+        }
+    }
+}
 
 /// Layer トレイト
 pub trait Layer<V>: std::fmt::Debug
@@ -17,10 +65,10 @@ where
     fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>>;
 
     /// パラメータを追加する。
-    fn add_parameter(&mut self, name: String, parameter: Variable<V>);
+    fn add_parameter(&mut self, name: &str, parameter: Variable<V>);
 
     /// パラメータを取得する。
-    fn get_parameter(&self, name: String) -> Variable<V>;
+    fn get_parameter(&self, name: &str) -> Variable<V>;
 
     /// 全てのパラメータを取得する。
     fn get_parameters(&self) -> HashMap<String, Variable<V>>;
@@ -99,7 +147,7 @@ impl<V: MathOps> LayerExecutor<V> {
     /// Arguments
     /// * name (String): パラメータの名前
     /// * parameter (Variable<V>): パラメータ
-    pub fn add_parameter(&mut self, name: String, parameter: Variable<V>) {
+    pub fn add_parameter(&mut self, name: &str, parameter: Variable<V>) {
         //self.parameters.insert(name, parameter);
         self.layer_function
             .borrow_mut()
@@ -114,7 +162,7 @@ impl<V: MathOps> LayerExecutor<V> {
     /// Return
     /// * &Variable<V>: パラメータ
     pub fn get_parameter(&self, name: &str) -> Variable<V> {
-        self.layer_function.borrow().get_parameter(name.to_string())
+        self.layer_function.borrow().get_parameter(name)
     }
 
     /// 内包するレイヤのパラメータを全て取得する。
@@ -143,15 +191,101 @@ impl<V: MathOps> LayerExecutor<V> {
     }
 }
 
+pub fn predict(model: &mut LayerModel<f64>, x: Variable<f64>) -> Vec<Variable<f64>> {
+    let y1 = model.forward("l1", vec![x.clone()]);
+    let y2 = sigmoid(y1[0].clone());
+    let y = model.forward("l2", vec![y2.clone()]);
+    y
+}
+
 #[cfg(test)]
 mod tests {
-    use std::{env, f64::consts::PI};
-
+    use ndarray::{Array, IxDyn};
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
+    use std::{env, f64::consts::PI};
 
     use super::*;
+
+    #[test]
+    fn test_step45() {
+        let mut layer_model: LayerModel<f64> = LayerModel::<f64>::new();
+        // 1層目
+        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
+        let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
+
+        // 2層目
+        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
+        let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
+
+        layer_model.add_layer("l1", l1.clone());
+        layer_model.add_layer("l2", l2.clone());
+
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        // 学習用の入力値(X)
+        let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let x = Variable::new(RawData::from_shape_vec(
+            vec![100, 1],
+            x_var.flatten().to_vec(),
+        ));
+
+        // 学習用の出力値(Y = sin(2 * Pi * x) + random)
+        let y_array = (2.0 * PI * x_var.clone()).sin()
+            + Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let y = Variable::new(RawData::from_shape_vec(
+            y_array.shape().to_vec(),
+            y_array.flatten().to_vec(),
+        ));
+
+        let lr = 0.2;
+        let iters = 10000;
+
+        // 学習
+        for i in 0..iters {
+            let y_pred = predict(&mut layer_model, x.clone());
+            let loss = mean_squared_error(y.clone(), y_pred[0].clone());
+
+            layer_model.cleargrads();
+
+            loss.backward();
+
+            layer_model.update_parameters(lr);
+
+            // 学習過程の確認
+            if i % 1000 == 0 {
+                println!("[{}] loss: {:?}", i, loss.get_data());
+
+                let plot_x = x_var.flatten().to_vec();
+                let plot_y = y_array.flatten().to_vec();
+
+                // 推論
+                let test_x: Vec<f64> = (0..100).map(|i| i as f64 / 100.0).collect();
+                let test_x_var =
+                    Variable::new(RawData::from_shape_vec(vec![100, 1], test_x.clone()));
+
+                let test_y_pred = predict(&mut layer_model, test_x_var.clone())[0]
+                    .get_data()
+                    .flatten()
+                    .to_vec();
+
+                let mut test_xy = vec![];
+                for (i, tmp_x) in test_x.iter().enumerate() {
+                    test_xy.push((*tmp_x, test_y_pred[i]));
+                }
+                utils::draw_graph(
+                    "y=sin(2 * pi * x) + b",
+                    &format!("graph/step45_neural_network_pred_{}.png", i),
+                    plot_x,
+                    plot_y,
+                    test_xy,
+                    &format!("loss: {}", loss.get_data().flatten().to_vec()[0]),
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_step44() {
