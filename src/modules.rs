@@ -1,5 +1,6 @@
 pub mod big_int_wrapper;
 pub mod core;
+pub mod layer_modules;
 pub mod math;
 pub mod settings;
 pub mod utils;
@@ -11,11 +12,13 @@ pub use crate::modules::core::function_libs::*;
 #[allow(unused_imports)]
 pub use crate::modules::core::functions::*;
 #[allow(unused_imports)]
-pub use crate::modules::core::parameter::*;
+pub use crate::modules::core::layer::*;
 #[allow(unused_imports)]
 pub use crate::modules::core::raw_data::*;
 #[allow(unused_imports)]
 pub use crate::modules::core::variable::*;
+#[allow(unused_imports)]
+pub use crate::modules::layer_modules::linear::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
 #[allow(unused_imports)]
