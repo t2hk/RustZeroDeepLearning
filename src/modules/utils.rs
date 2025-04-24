@@ -33,9 +33,7 @@ macro_rules! dot_var {
         let temp_raw_v = $variable.raw().borrow().clone();
         if $verbose {
             if let Some(tmp_v_name) = $variable.get_name() {
-                v_name = format!("{}({}): ", tmp_v_name, $variable.get_data());
-            } else {
-                v_name = format!("({})", $variable.get_data());
+                v_name = format!("{}", tmp_v_name);
             }
             let v_shape = &temp_raw_v.get_shape();
             let v_dtype = &temp_raw_v.get_dtype();
