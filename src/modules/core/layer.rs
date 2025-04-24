@@ -1,5 +1,5 @@
 // ライブラリを一括でインポート
-use crate::modules::*;
+use crate::{modules::*, plot_dot_graph};
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
@@ -11,35 +11,57 @@ use std::rc::{Rc, Weak};
 #[derive(Debug, Clone)]
 pub struct LayerModel<V: MathOps> {
     layers: HashMap<String, LayerExecutor<V>>,
+    layer_models: HashMap<String, LayerModel<V>>,
 }
 
 impl<V: MathOps> LayerModel<V> {
-    pub fn new() -> LayerModel<f64> {
+    /// コンストラクタ
+    pub fn new() -> LayerModel<V> {
         LayerModel {
             layers: HashMap::new(),
+            layer_models: HashMap::new(),
         }
     }
+
+    /// レイヤーを追加する。
     pub fn add_layer(&mut self, name: &str, layer: LayerExecutor<V>) {
         self.layers.insert(name.to_string(), layer);
     }
 
+    /// レイヤーを取得する。
     pub fn get_layer(&self, name: &str) -> &LayerExecutor<V> {
         self.layers.get(&name.to_string()).unwrap()
     }
 
+    /// レイヤーモデルを追加する。
+    pub fn add_layer_model(&mut self, name: &str, layer_model: LayerModel<V>) {
+        self.layer_models.insert(name.to_string(), layer_model);
+    }
+
+    /// レイヤーモデルを取得する。
+    pub fn get_layer_model(&self, name: &str) -> &LayerModel<V> {
+        self.layer_models.get(&name.to_string()).unwrap()
+    }
+
+    /// 内包するレイヤー、及び レイヤーモデルの全ての勾配をクリアする。
     pub fn cleargrads(&mut self) {
         for (_layer_name, layer) in self.layers.iter() {
             for (_param_name, layer_param) in layer.get_parameters().iter() {
                 layer_param.clear_grad();
             }
         }
+        for (_layer_model_name, layer_model) in self.layer_models.iter_mut() {
+            layer_model.cleargrads();
+        }
     }
 
+    /// 順伝播
     pub fn forward(&mut self, layer_name: &str, x: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let mut layer = self.layers.get(&layer_name.to_string()).unwrap().clone();
         layer.forward(x)
     }
 
+    /// パラメータの勾配を更新する。
     pub fn update_parameters(&mut self, lr: f64) {
         for (_layer_name, layer) in self.layers.iter() {
             for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
@@ -75,6 +97,22 @@ where
 
     /// パラメータの勾配をクリアする。
     fn cleargrads(&mut self);
+
+    /// 計算グラフを描画する。
+    ///
+    /// Arguments
+    /// * x (Vec<Variable<V>): 入力値
+    /// * to_file (&str): ファイル名(png)
+    /// * detail (bool): 詳細を出力するかどうか
+    fn plot(&mut self, x: Vec<Variable<V>>, to_file: &str, detail: bool) {
+        let y = self.forward(x.clone());
+        let y_tmp = y[0].clone();
+        if bool {
+            plot_dot_graph!(y_tmp, to_file, true);
+        } else {
+            plot_dot_graph!(y_tmp, to_file, false);
+        }
+    }
 }
 
 /// レイヤ用ラッパー
