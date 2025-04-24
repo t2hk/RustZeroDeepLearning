@@ -107,7 +107,7 @@ where
     fn plot(&mut self, x: Vec<Variable<V>>, to_file: &str, detail: bool) {
         let y = self.forward(x.clone());
         let y_tmp = y[0].clone();
-        if bool {
+        if detail {
             plot_dot_graph!(y_tmp, to_file, true);
         } else {
             plot_dot_graph!(y_tmp, to_file, false);
