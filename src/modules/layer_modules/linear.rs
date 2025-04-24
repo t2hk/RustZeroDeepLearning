@@ -46,12 +46,14 @@ impl<V: MathOps> Layer<V> for LinearLayer<V> {
                 w_data_array.shape().to_vec(),
                 w_data_array.flatten().to_vec(),
             ));
+            w_data.set_name("w".to_string());
 
             self.parameters.insert("w".to_string(), w_data.clone());
         }
 
         // バイアスの有無に応じて順伝播を実行する。
         if let Some(b) = self.parameters.get("b") {
+            b.set_name("b".to_string());
             let output = linear(
                 inputs[0].clone(),
                 self.parameters.get("w").unwrap().clone(),
@@ -113,6 +115,7 @@ impl<V: MathOps> LinearLayer<V> {
                 w_data_array.shape().to_vec(),
                 w_data_array.flatten().to_vec(),
             ));
+            w_data.set_name("w".to_string());
             parameters_map.insert("w".to_string(), w_data);
         }
 
@@ -121,6 +124,7 @@ impl<V: MathOps> LinearLayer<V> {
             let b = Variable::new(RawData::from_vec(
                 std::iter::repeat(V::zero()).take(out_size).collect(),
             ));
+            b.set_name("b".to_string());
             parameters_map.insert("b".to_string(), b);
         }
 
