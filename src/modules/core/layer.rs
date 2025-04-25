@@ -8,9 +8,10 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::{Rc, Weak};
 
+/// レイヤモデル
 #[derive(Debug, Clone)]
 pub struct LayerModel<V: MathOps> {
-    layers: HashMap<String, LayerExecutor<V>>,
+    layers: OrderedHashMap<LayerExecutor<V>>,
     layer_models: HashMap<String, LayerModel<V>>,
 }
 
@@ -18,19 +19,23 @@ impl<V: MathOps> LayerModel<V> {
     /// コンストラクタ
     pub fn new() -> LayerModel<V> {
         LayerModel {
-            layers: HashMap::new(),
+            layers: OrderedHashMap::new(),
             layer_models: HashMap::new(),
         }
     }
 
     /// レイヤーを追加する。
     pub fn add_layer(&mut self, name: &str, layer: LayerExecutor<V>) {
-        self.layers.insert(name.to_string(), layer);
+        self.layers.insert(name, layer);
     }
 
     /// レイヤーを取得する。
     pub fn get_layer(&self, name: &str) -> &LayerExecutor<V> {
-        self.layers.get(&name.to_string()).unwrap()
+        self.layers.get(&name)
+    }
+
+    pub fn get_layers(&self) -> OrderedHashMap<LayerExecutor<V>> {
+        self.layers.clone()
     }
 
     /// レイヤーモデルを追加する。
@@ -45,11 +50,13 @@ impl<V: MathOps> LayerModel<V> {
 
     /// 内包するレイヤー、及び レイヤーモデルの全ての勾配をクリアする。
     pub fn cleargrads(&mut self) {
-        for (_layer_name, layer) in self.layers.iter() {
-            for (_param_name, layer_param) in layer.get_parameters().iter() {
+        for key in self.layers.iter() {
+            let layer = self.layers.get(key);
+            for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
                 layer_param.clear_grad();
             }
         }
+
         for (_layer_model_name, layer_model) in self.layer_models.iter_mut() {
             layer_model.cleargrads();
         }
@@ -57,13 +64,14 @@ impl<V: MathOps> LayerModel<V> {
 
     /// 順伝播
     pub fn forward(&mut self, layer_name: &str, x: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        let mut layer = self.layers.get(&layer_name.to_string()).unwrap().clone();
+        let mut layer = self.layers.get(&layer_name.to_string()).clone();
         layer.forward(x)
     }
 
     /// パラメータの勾配を更新する。
     pub fn update_parameters(&mut self, lr: f64) {
-        for (_layer_name, layer) in self.layers.iter() {
+        for key in self.layers.iter() {
+            let layer = self.layers.get(key);
             for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
                 let new_data = layer_param.get_data().mapv(|x| x.to_f64().unwrap())
                     - layer_param
