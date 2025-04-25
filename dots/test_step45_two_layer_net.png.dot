@@ -1,0 +1,23 @@
+digraph g {
+"7fc854004778" [label="[5, 10] f64", color=orange, style=filled]
+"7fc8540044a8" [label="Linear", color=lightblue, style=filled, shape=box]
+"7fc854005978" -> "7fc8540044a8"
+"7fc8540043c8" -> "7fc8540044a8"
+"7fc854001618" -> "7fc8540044a8"
+"7fc8540044a8" -> "7fc854004778"
+"7fc854005978" [label="[5, 100] f64", color=orange, style=filled]
+"7fc8540043c8" [label="w[100, 10] f64", color=orange, style=filled]
+"7fc854001618" [label="b[10] f64", color=orange, style=filled]
+"7fc8540058d8" [label="Sigmoid", color=lightblue, style=filled, shape=box]
+"7fc854005728" -> "7fc8540058d8"
+"7fc8540058d8" -> "7fc854005978"
+"7fc854005728" [label="[5, 100] f64", color=orange, style=filled]
+"7fc854003b58" [label="Linear", color=lightblue, style=filled, shape=box]
+"7fc854001058" -> "7fc854003b58"
+"7fc854005aa8" -> "7fc854003b58"
+"7fc854001468" -> "7fc854003b58"
+"7fc854003b58" -> "7fc854005728"
+"7fc854001058" [label="x[5, 10] f64", color=orange, style=filled]
+"7fc854005aa8" [label="w[10, 100] f64", color=orange, style=filled]
+"7fc854001468" [label="b[100] f64", color=orange, style=filled]
+}

@@ -234,3 +234,10 @@ cargo run
 * RawData に関する処理をトレイト RawDataProcessor に定義し、Variable は RawDataProcessor を実装するように変更した。
 * Variable や RawData のアクセサの実装を見直した。borrow() などの実行をアクセサ側で実行するようにして、呼び出し元での記述が最小限になるように修正した。
 * Variable と Parameter を別々に実装するように検討していたが、既存機能を Variable と Parameter の両方に対応するのが難しく、いったん、Parameter も Variable で代替しておくことにして先に進める。
+
+### ステップ45 レイヤをまとめるレイヤ
+* レイヤ拡張としてレイヤモデル構造体を追加し、レイヤ自体を管理するように対応(ステップ45.1 相当)。
+* レイヤトレイトに plot を追加し、計算グラフを出力できるようにした。
+* two_layer_net を追加し、モデルを使った Sin 関数ののデータセットの回帰を実装した。
+* レイヤモデル構造体が内包するレイヤ関数用のハッシュマップについて、関数を追加した順に取得できるように OrderedHashMap を独自に実装し、Utils.rs に追加した。
+* MLP を実装。
