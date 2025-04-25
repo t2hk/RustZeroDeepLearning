@@ -8,10 +8,12 @@ use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
 use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
 use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{Result, Write};
 use std::path::Path;
 use std::rc::Rc;
+use std::slice::Iter;
 
 /// Variable を graphviz の DOT 言語で出力する。
 ///
@@ -301,10 +303,6 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
                     tmp_output.borrow().get_name().unwrap_or("None".to_string()),
                     tmp_output.borrow().get_data()
                 ));
-                // debug_variable(
-                //     Variable::new(tmp_output.clone()),
-                //     format!("{}{}", indent, indent),
-                // );
             }
         }
         _ => result.push(format!("{}  creator is None.", indent)),
@@ -375,10 +373,6 @@ pub fn dump_detail_variable<V: MathOps>(
                     tmp_output.borrow().get_data()
                 )
                 .unwrap();
-                // debug_variable(
-                //     Variable::new(tmp_output.clone()),
-                //     format!("{}{}", indent, indent),
-                // );
             }
             Ok(())
         }
@@ -627,6 +621,63 @@ pub fn draw_graph(
         .border_style(&BLACK)
         .draw()
         .unwrap();
+}
+
+/// 順序付き HashMap 構造体
+#[derive(Debug, Clone)]
+pub struct OrderedHashMap<T> {
+    next_counter: usize,
+    order: Vec<String>,
+    hash_map: HashMap<String, T>,
+}
+
+impl<T: Clone> OrderedHashMap<T> {
+    pub fn new() -> OrderedHashMap<T> {
+        OrderedHashMap {
+            next_counter: 0,
+            order: Vec::new(),
+            hash_map: HashMap::new(),
+        }
+    }
+
+    /// キーと値を追加する。
+    pub fn insert(&mut self, key: &str, value: T) {
+        self.order.push(key.to_string());
+        self.hash_map.insert(key.to_string(), value);
+    }
+
+    /// 値を取得する。
+    pub fn get(&self, key: &str) -> &T {
+        self.hash_map.get(&key.to_string()).unwrap()
+    }
+
+    /// 要素数を取得する。
+    pub fn len(&self) -> usize {
+        self.order.len()
+    }
+
+    /// イテレータ
+    ///
+    /// Retrun
+    /// * HashMap の登録順にキーを返す。
+    pub fn iter(&self) -> Iter<'_, String> {
+        self.order.iter()
+    }
+}
+
+impl<T: Clone> Iterator for OrderedHashMap<T> {
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.next_counter > self.order.len() {
+            None
+        } else {
+            let key = self.order.get(self.next_counter).unwrap();
+            let result = self.hash_map.get(key).unwrap().clone();
+            self.next_counter += 1;
+            Some(result)
+        }
+    }
 }
 
 #[cfg(test)]

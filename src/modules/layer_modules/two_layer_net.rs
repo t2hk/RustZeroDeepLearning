@@ -73,11 +73,11 @@ impl TwoLayerNet {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::f64::consts::PI;
     use ndarray::Array;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
+    use std::f64::consts::PI;
 
     use crate::plot_dot_graph;
 
@@ -96,6 +96,7 @@ mod tests {
 
         let mut tln = TwoLayerNet::new(100, 10);
         tln.plot(vec![x], "test_step45_two_layer_net.png", true);
+    }
 
     /// Two Layer Net のモデルによる Sin の学習と推論
     #[test]
