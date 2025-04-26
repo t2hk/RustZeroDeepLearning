@@ -197,6 +197,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_mlp_sin_pred_10_1_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
@@ -268,6 +270,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_mlp_sin_pred_20_10_1_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,

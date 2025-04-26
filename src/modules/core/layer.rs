@@ -324,6 +324,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_neural_network_pred_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
@@ -410,6 +412,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step44_neural_network_pred_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
