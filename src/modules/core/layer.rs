@@ -10,17 +10,22 @@ use std::rc::{Rc, Weak};
 
 /// レイヤモデル
 #[derive(Debug, Clone)]
-pub struct LayerModel<V: MathOps> {
+pub struct LayerModel<V: MathOps, O> {
     layers: OrderedHashMap<LayerExecutor<V>>,
-    layer_models: HashMap<String, LayerModel<V>>,
+    layer_models: HashMap<String, LayerModel<V, O>>,
+    optimizer: Option<O>,
 }
 
-impl<V: MathOps> LayerModel<V> {
+impl<V: MathOps, O: Optimizer> LayerModel<V, O> {
     /// コンストラクタ
-    pub fn new() -> LayerModel<V> {
+    pub fn new() -> LayerModel<V, O>
+    where
+        O: Optimizer,
+    {
         LayerModel {
             layers: OrderedHashMap::new(),
             layer_models: HashMap::new(),
+            optimizer: None,
         }
     }
 
@@ -39,13 +44,24 @@ impl<V: MathOps> LayerModel<V> {
     }
 
     /// レイヤーモデルを追加する。
-    pub fn add_layer_model(&mut self, name: &str, layer_model: LayerModel<V>) {
+    pub fn add_layer_model(&mut self, name: &str, layer_model: LayerModel<V, O>) {
         self.layer_models.insert(name.to_string(), layer_model);
     }
 
     /// レイヤーモデルを取得する。
-    pub fn get_layer_model(&self, name: &str) -> &LayerModel<V> {
+    pub fn get_layer_model(&self, name: &str) -> &LayerModel<V, O> {
         self.layer_models.get(&name.to_string()).unwrap()
+    }
+
+    /// オプティマイザを設定する。
+    ///
+    /// Arguments
+    /// * optimizer (Option<O>): オプティマイザ
+    pub fn set_optimizer(&mut self, optimizer: O)
+    where
+        O: Optimizer,
+    {
+        self.optimizer = Some(optimizer);
     }
 
     /// 内包するレイヤー、及び レイヤーモデルの全ての勾配をクリアする。
@@ -68,19 +84,39 @@ impl<V: MathOps> LayerModel<V> {
         layer.forward(x)
     }
 
-    /// パラメータの勾配を更新する。
-    pub fn update_parameters(&mut self, lr: f64) {
+    /// 内包するレイヤモデルやレイヤの全てのパラメータを取得する。
+    ///
+    /// Return
+    /// * Vec<Variable<V>>: 内包するパラメータのベクタ
+    pub fn get_parameters(&self) -> Vec<Variable<V>> {
+        let mut result = vec![];
+
+        for (idx, key) in self.layers.iter().enumerate() {
+            let layer = self.layers.get(key);
+            for layer in layer.get_parameters().iter() {
+                result.push(layer.1.clone());
+            }
+        }
+
+        for (idx, key_value) in self.layer_models.iter().enumerate() {
+            let params = key_value.1.get_parameters();
+            result.extend(params);
+        }
+
+        result
+    }
+
+    /// 全てのパラメータを更新する。
+    /// オプティマイザを使って、このレイヤモデル配下のすべてのパラメータを更新する。
+    /// 事前にレイヤモデルにオプティマイザを設定しておくこと。
+    pub fn update_parameters(&mut self) {
         for key in self.layers.iter() {
             let layer = self.layers.get(key);
             for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
-                let new_data = layer_param.get_data().mapv(|x| x.to_f64().unwrap())
-                    - layer_param
-                        .get_grad()
-                        .unwrap()
-                        .get_data()
-                        .mapv(|x| x.to_f64().unwrap())
-                        * lr;
-                layer_param.set_data(new_data.mapv(|x| V::from(x).unwrap()));
+                self.optimizer
+                    .as_ref()
+                    .expect("No optimizer is set.")
+                    .update_one(layer_param);
             }
         }
     }
@@ -237,7 +273,10 @@ impl<V: MathOps> LayerExecutor<V> {
     }
 }
 
-pub fn predict(model: &mut LayerModel<f64>, x: Variable<f64>) -> Vec<Variable<f64>> {
+pub fn predict<O: Optimizer>(
+    model: &mut LayerModel<f64, O>,
+    x: Variable<f64>,
+) -> Vec<Variable<f64>> {
     let y1 = model.forward("l1", vec![x.clone()]);
     let y2 = sigmoid(y1[0].clone());
     let y = model.forward("l2", vec![y2.clone()]);
@@ -246,17 +285,20 @@ pub fn predict(model: &mut LayerModel<f64>, x: Variable<f64>) -> Vec<Variable<f6
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{Array, IxDyn};
+    use ndarray::Array;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
-    use std::{env, f64::consts::PI};
+    use std::f64::consts::PI;
 
     use super::*;
 
     #[test]
     fn test_step45() {
-        let mut layer_model: LayerModel<f64> = LayerModel::<f64>::new();
+        let sgd = Sgd::new(0.2);
+        let mut layer_model: LayerModel<f64, Sgd> = LayerModel::new();
+        layer_model.set_optimizer(sgd);
+
         // 1層目
         let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
         let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
@@ -298,7 +340,7 @@ mod tests {
 
             loss.backward();
 
-            layer_model.update_parameters(lr);
+            layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {

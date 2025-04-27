@@ -6,16 +6,16 @@ use log::{debug, error, info, trace, warn};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 /// Two Layer Net 関数
 #[derive(Debug, Clone)]
-pub struct TwoLayerNet {
-    layer_model: LayerModel<f64>,
+pub struct TwoLayerNet<O> {
+    layer_model: LayerModel<f64, O>,
     parameters: HashMap<String, Variable<f64>>,
 }
 
-impl Layer<f64> for TwoLayerNet {
+impl<O: Optimizer + std::fmt::Debug> Layer<f64> for TwoLayerNet<O> {
     fn forward(&mut self, inputs: Vec<Variable<f64>>) -> Vec<Variable<f64>> {
         let y0 = self.layer_model.forward("l1", inputs);
         let y1 = sigmoid(y0[0].clone());
@@ -41,24 +41,25 @@ impl Layer<f64> for TwoLayerNet {
 
     /// パラメータの勾配をクリアする。
     fn cleargrads(&mut self) {
-        for (name, parameter) in self.parameters.iter_mut() {
+        for (_name, parameter) in self.parameters.iter_mut() {
             parameter.clear_grad();
         }
         self.layer_model.cleargrads();
     }
 }
 
-impl TwoLayerNet {
-    pub fn new(hidden_size: usize, out_size: usize) -> TwoLayerNet {
-        let mut layer_model: LayerModel<f64> = LayerModel::new();
+impl<O: Optimizer> TwoLayerNet<O> {
+    pub fn new(hidden_size: usize, out_size: usize, optimizer: O) -> TwoLayerNet<O> {
+        let mut layer_model: LayerModel<f64, O> = LayerModel::new();
+        layer_model.set_optimizer(optimizer);
 
         // 1層目
-        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, hidden_size, false);
-        let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
+        let ll1: LinearLayer<f64> = LinearLayer::new(None, hidden_size, false);
+        let l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, out_size, false);
-        let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
+        let ll2: LinearLayer<f64> = LinearLayer::new(None, out_size, false);
+        let l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         layer_model.add_layer("l1", l1.clone());
         layer_model.add_layer("l2", l2.clone());
@@ -94,7 +95,8 @@ mod tests {
         ));
         x.set_name("x".to_string());
 
-        let mut tln = TwoLayerNet::new(100, 10);
+        let sgd = Sgd::new(0.2);
+        let mut tln = TwoLayerNet::new(100, 10, sgd);
         tln.plot(vec![x], "test_step45_two_layer_net.png", true);
     }
 
@@ -121,11 +123,11 @@ mod tests {
         ));
         y.set_name("y".to_string());
 
-        let lr = 0.2;
         let iters = 10000;
         let hidden_size = 10;
 
-        let mut tln = TwoLayerNet::new(hidden_size, 1);
+        let sgd = Sgd::new(0.2);
+        let mut tln = TwoLayerNet::new(hidden_size, 1, sgd);
 
         // 学習
         for i in 0..iters {
@@ -134,7 +136,7 @@ mod tests {
             tln.cleargrads();
             loss.backward();
 
-            tln.layer_model.update_parameters(lr);
+            tln.layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {

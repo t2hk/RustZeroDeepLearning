@@ -10,13 +10,13 @@ use std::rc::{Rc, Weak};
 
 /// Two Layer Net 関数
 #[derive(Debug, Clone)]
-pub struct Mlp {
-    layer_model: LayerModel<f64>,
+pub struct Mlp<O> {
+    layer_model: LayerModel<f64, O>,
     activation: Rc<RefCell<dyn Function<f64>>>,
     parameters: HashMap<String, Variable<f64>>,
 }
 
-impl Layer<f64> for Mlp {
+impl<O: Optimizer + std::fmt::Debug> Layer<f64> for Mlp<O> {
     /// 順伝播
     ///
     /// Arguments
@@ -69,9 +69,15 @@ impl Layer<f64> for Mlp {
     }
 }
 
-impl Mlp {
-    pub fn new(fc_output_sizes: Vec<usize>, activation: Rc<RefCell<dyn Function<f64>>>) -> Mlp {
-        let mut layer_model: LayerModel<f64> = LayerModel::new();
+impl<O: Optimizer> Mlp<O> {
+    pub fn new(
+        fc_output_sizes: Vec<usize>,
+        activation: Rc<RefCell<dyn Function<f64>>>,
+        optimizer: O,
+    ) -> Mlp<O> {
+        // let sgd = Sgd::new(0.2);
+        let mut layer_model: LayerModel<f64, O> = LayerModel::new();
+        layer_model.set_optimizer(optimizer);
 
         for (idx, out_size) in fc_output_sizes.iter().enumerate() {
             let ll = LinearLayer::new(None, *out_size, false);
@@ -112,7 +118,8 @@ mod tests {
         x.set_name("x".to_string());
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 1], sigmoid, sgd);
         mlp.plot(vec![x], "test_step45_mlp_10-1.png", true);
     }
 
@@ -130,7 +137,8 @@ mod tests {
         x.set_name("x".to_string());
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 20, 30, 40, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 20, 30, 40, 1], sigmoid, sgd);
         mlp.plot(vec![x], "test_step45_mlp_10-20-30-40-1.png", true);
     }
 
@@ -162,7 +170,8 @@ mod tests {
         let hidden_size = 10;
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 1], sigmoid, sgd);
 
         // 学習
         for i in 0..iters {
@@ -171,7 +180,7 @@ mod tests {
             mlp.cleargrads();
             loss.backward();
 
-            mlp.layer_model.update_parameters(lr);
+            mlp.layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {
@@ -235,7 +244,8 @@ mod tests {
         let iters = 10000;
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![20, 10, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![20, 10, 1], sigmoid, sgd);
 
         // 学習
         for i in 0..iters {
@@ -244,7 +254,7 @@ mod tests {
             mlp.cleargrads();
             loss.backward();
 
-            mlp.layer_model.update_parameters(lr);
+            mlp.layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {
