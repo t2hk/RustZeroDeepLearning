@@ -5,7 +5,6 @@ use crate::modules::*;
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::collections::HashMap;
-
 /// MomentumSgd 構造体
 #[derive(Debug, Clone)]
 pub struct MomentumSgd<V> {
@@ -67,12 +66,13 @@ impl<V: MathOps> Optimizer for MomentumSgd<V> {
 mod tests {
     use super::*;
     // use rand::prelude::*;
-    use super::*;
     use ndarray::Array;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
+    use std::cell::RefCell;
     use std::f64::consts::PI;
+    use std::rc::Rc;
 
     /// update_one のテスト
     #[test]
