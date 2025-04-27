@@ -10,18 +10,15 @@ use std::rc::{Rc, Weak};
 
 /// レイヤモデル
 #[derive(Debug, Clone)]
-pub struct LayerModel<V: MathOps, O> {
+pub struct LayerModel<V: MathOps + 'static, O> {
     layers: OrderedHashMap<LayerExecutor<V>>,
     layer_models: HashMap<String, LayerModel<V, O>>,
     optimizer: Option<O>,
 }
 
-impl<V: MathOps, O: Optimizer> LayerModel<V, O> {
+impl<V: MathOps, O: Optimizer<Val = V>> LayerModel<V, O> {
     /// コンストラクタ
-    pub fn new() -> LayerModel<V, O>
-    where
-        O: Optimizer,
-    {
+    pub fn new() -> LayerModel<V, O> {
         LayerModel {
             layers: OrderedHashMap::new(),
             layer_models: HashMap::new(),
@@ -57,10 +54,7 @@ impl<V: MathOps, O: Optimizer> LayerModel<V, O> {
     ///
     /// Arguments
     /// * optimizer (Option<O>): オプティマイザ
-    pub fn set_optimizer(&mut self, optimizer: O)
-    where
-        O: Optimizer,
-    {
+    pub fn set_optimizer(&mut self, optimizer: O) {
         self.optimizer = Some(optimizer);
     }
 
@@ -114,7 +108,7 @@ impl<V: MathOps, O: Optimizer> LayerModel<V, O> {
             let layer = self.layers.get(key);
             for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
                 self.optimizer
-                    .as_ref()
+                    .as_mut()
                     .expect("No optimizer is set.")
                     .update_one(layer_param);
             }
@@ -142,6 +136,9 @@ where
     /// パラメータの勾配をクリアする。
     fn cleargrads(&mut self);
 
+    /// パラメータを更新する。
+    fn update_parameters(&mut self);
+
     /// 計算グラフを描画する。
     ///
     /// Arguments
@@ -162,7 +159,7 @@ where
 /// レイヤ用ラッパー
 /// レイヤの入出力やパラメータなどの値を保持する。
 #[derive(Debug, Clone)]
-pub struct LayerExecutor<V: MathOps> {
+pub struct LayerExecutor<V: MathOps + 'static> {
     inputs: Vec<Weak<RefCell<Variable<V>>>>,   // 関数の入力値
     outputs: Vec<Weak<RefCell<Variable<V>>>>,  //関数の出力値
     layer_function: Rc<RefCell<dyn Layer<V>>>, // レイヤー関数のトレイトオブジェクト
@@ -273,10 +270,10 @@ impl<V: MathOps> LayerExecutor<V> {
     }
 }
 
-pub fn predict<O: Optimizer>(
-    model: &mut LayerModel<f64, O>,
-    x: Variable<f64>,
-) -> Vec<Variable<f64>> {
+pub fn predict<V: MathOps, O: Optimizer<Val = V>>(
+    model: &mut LayerModel<V, O>,
+    x: Variable<V>,
+) -> Vec<Variable<V>> {
     let y1 = model.forward("l1", vec![x.clone()]);
     let y2 = sigmoid(y1[0].clone());
     let y = model.forward("l2", vec![y2.clone()]);
@@ -296,7 +293,7 @@ mod tests {
     #[test]
     fn test_step45() {
         let sgd = Sgd::new(0.2);
-        let mut layer_model: LayerModel<f64, Sgd> = LayerModel::new();
+        let mut layer_model: LayerModel<f64, Sgd<f64>> = LayerModel::new();
         layer_model.set_optimizer(sgd);
 
         // 1層目

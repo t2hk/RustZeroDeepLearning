@@ -85,9 +85,12 @@ impl<V: MathOps> Layer<V> for LinearLayer<V> {
         self.parameters.clone()
     }
 
+    /// パラメータを更新する
+    fn update_parameters(&mut self) {}
+
     /// パラメータの勾配をクリアする。
     fn cleargrads(&mut self) {
-        for (name, parameter) in self.parameters.iter_mut() {
+        for (_name, parameter) in self.parameters.iter_mut() {
             parameter.clear_grad();
         }
     }

@@ -10,13 +10,16 @@ use std::rc::Rc;
 
 /// Two Layer Net 関数
 #[derive(Debug, Clone)]
-pub struct TwoLayerNet<O> {
-    layer_model: LayerModel<f64, O>,
-    parameters: HashMap<String, Variable<f64>>,
+pub struct TwoLayerNet<V, O>
+where
+    V: MathOps + 'static,
+{
+    layer_model: LayerModel<V, O>,
+    parameters: HashMap<String, Variable<V>>,
 }
 
-impl<O: Optimizer + std::fmt::Debug> Layer<f64> for TwoLayerNet<O> {
-    fn forward(&mut self, inputs: Vec<Variable<f64>>) -> Vec<Variable<f64>> {
+impl<V: MathOps, O: Optimizer<Val = V> + std::fmt::Debug> Layer<V> for TwoLayerNet<V, O> {
+    fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let y0 = self.layer_model.forward("l1", inputs);
         let y1 = sigmoid(y0[0].clone());
         let y = self.layer_model.forward("l2", vec![y1.clone()]);
@@ -25,17 +28,17 @@ impl<O: Optimizer + std::fmt::Debug> Layer<f64> for TwoLayerNet<O> {
     }
 
     /// パラメータを追加する。
-    fn add_parameter(&mut self, name: &str, parameter: Variable<f64>) {
+    fn add_parameter(&mut self, name: &str, parameter: Variable<V>) {
         self.parameters.insert(name.to_string(), parameter);
     }
 
     /// パラメータを取得する。
-    fn get_parameter(&self, name: &str) -> Variable<f64> {
+    fn get_parameter(&self, name: &str) -> Variable<V> {
         self.parameters.get(&name.to_string()).unwrap().clone()
     }
 
     /// 全てのパラメータを取得する。
-    fn get_parameters(&self) -> HashMap<String, Variable<f64>> {
+    fn get_parameters(&self) -> HashMap<String, Variable<V>> {
         self.parameters.clone()
     }
 
@@ -46,19 +49,24 @@ impl<O: Optimizer + std::fmt::Debug> Layer<f64> for TwoLayerNet<O> {
         }
         self.layer_model.cleargrads();
     }
+
+    /// パラメータを更新する
+    fn update_parameters(&mut self) {
+        self.layer_model.update_parameters();
+    }
 }
 
-impl<O: Optimizer> TwoLayerNet<O> {
-    pub fn new(hidden_size: usize, out_size: usize, optimizer: O) -> TwoLayerNet<O> {
-        let mut layer_model: LayerModel<f64, O> = LayerModel::new();
+impl<V: MathOps, O: Optimizer<Val = V>> TwoLayerNet<V, O> {
+    pub fn new(hidden_size: usize, out_size: usize, optimizer: O) -> TwoLayerNet<V, O> {
+        let mut layer_model: LayerModel<V, O> = LayerModel::new();
         layer_model.set_optimizer(optimizer);
 
         // 1層目
-        let ll1: LinearLayer<f64> = LinearLayer::new(None, hidden_size, false);
+        let ll1: LinearLayer<V> = LinearLayer::new(None, hidden_size, false);
         let l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let ll2: LinearLayer<f64> = LinearLayer::new(None, out_size, false);
+        let ll2: LinearLayer<V> = LinearLayer::new(None, out_size, false);
         let l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         layer_model.add_layer("l1", l1.clone());
@@ -136,7 +144,7 @@ mod tests {
             tln.cleargrads();
             loss.backward();
 
-            tln.layer_model.update_parameters();
+            tln.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {

@@ -9,11 +9,11 @@ use std::rc::{Rc, Weak};
 
 /// SGD 構造体
 #[derive(Debug, Clone)]
-pub struct Sgd {
-    lr: f64, // 学習係数
+pub struct Sgd<V> {
+    lr: V, // 学習係数
 }
 
-impl Sgd {
+impl<V: MathOps> Sgd<V> {
     /// オプティマイザ SGD を初期化する。
     ///
     /// Arguments
@@ -21,25 +21,27 @@ impl Sgd {
     ///
     /// Return
     /// * Sgd: Sgd 構造体のインスタンス
-    pub fn new(lr: f64) -> Self {
+    pub fn new(lr: V) -> Self {
         Sgd { lr: lr }
     }
 }
 
 /// SGD の Optimizer トレイト実装
-impl Optimizer for Sgd {
+impl<V: MathOps> Optimizer for Sgd<V> {
+    type Val = V;
+
     /// 勾配を更新する。
     ///
     /// Argumesnts
     /// * param (Variable<V>): 更新対象の変数
-    fn update_one<V: MathOps>(&self, param: &mut Variable<V>) {
+    fn update_one(&mut self, param: &mut Variable<V>) {
         let new_data = param.get_data().mapv(|x| x.to_f64().unwrap())
             - param
                 .get_grad()
                 .unwrap()
                 .get_data()
                 .mapv(|x| x.to_f64().unwrap())
-                * self.lr;
+                * self.lr.to_f64().unwrap();
         param.set_data(new_data.mapv(|x| V::from(x).unwrap()));
     }
 }
@@ -58,7 +60,7 @@ mod tests {
 
         let expect = value - lr * grad;
 
-        let sgd = Sgd::new(lr);
+        let mut sgd = Sgd::new(lr);
         let var = Variable::new(RawData::new(value));
         var.set_grad(Variable::new(RawData::new(grad)));
         sgd.update_one(&mut var.clone());
