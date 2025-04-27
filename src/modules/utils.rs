@@ -427,7 +427,7 @@ pub fn reshape_sum_backward<V: MathOps>(
 
     // Reshape gy to the new shape
     let reshape_gy = gy.get_data().into_shape_with_order(IxDyn(&shape)).unwrap();
-    let mut gy_clone = gy.clone();
+    let gy_clone = gy.clone();
     gy_clone.set_data(reshape_gy);
     gy_clone
 }

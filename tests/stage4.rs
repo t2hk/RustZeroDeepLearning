@@ -544,7 +544,7 @@ fn test_predict() {
     // ニューラルネットワークの学習
     ////////////////////////////////////////////////////
     for idx in 0..iters {
-        let y_pred = function_libs::predict(
+        let y_pred = function_libs::predict_linear_with_sigmoid(
             x.clone(),
             vec![w1.clone(), w2.clone()],
             vec![b1.clone(), b2.clone()],
@@ -578,7 +578,7 @@ fn test_predict() {
             let plot_y = y_var.flatten().to_vec();
 
             let test_x: Vec<f64> = (0..100).map(|i| i as f64 / 100.0).collect();
-            let test_y_var = function_libs::predict(
+            let test_y_var = function_libs::predict_linear_with_sigmoid(
                 Variable::new(RawData::from_shape_vec(vec![100, 1], test_x.clone())),
                 vec![w1.clone(), w2.clone()],
                 vec![b1.clone(), b2.clone()],

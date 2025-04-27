@@ -300,12 +300,12 @@ mod tests {
         layer_model.set_optimizer(sgd);
 
         // 1層目
-        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
-        let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
+        let ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
+        let l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
-        let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
+        let ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
+        let l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         layer_model.add_layer("l1", l1.clone());
         layer_model.add_layer("l2", l2.clone());
@@ -328,7 +328,6 @@ mod tests {
             y_array.flatten().to_vec(),
         ));
 
-        let lr = 0.2;
         let iters = 10000;
 
         // 学習
@@ -398,11 +397,11 @@ mod tests {
         ));
 
         // 1層目
-        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
+        let ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
         let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
+        let ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
         let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         let lr = 0.2;

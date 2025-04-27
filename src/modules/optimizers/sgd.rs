@@ -47,7 +47,7 @@ impl Optimizer for Sgd {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand::prelude::*;
+    // use rand::prelude::*;
 
     /// update_one のテスト
     #[test]
@@ -59,7 +59,7 @@ mod tests {
         let expect = value - lr * grad;
 
         let sgd = Sgd::new(lr);
-        let mut var = Variable::new(RawData::new(value));
+        let var = Variable::new(RawData::new(value));
         var.set_grad(Variable::new(RawData::new(grad)));
         sgd.update_one(&mut var.clone());
 

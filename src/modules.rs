@@ -2,6 +2,7 @@ pub mod big_int_wrapper;
 pub mod core;
 pub mod layer_modules;
 pub mod math;
+pub mod optimizers;
 pub mod settings;
 pub mod utils;
 
@@ -21,10 +22,6 @@ pub use crate::modules::core::variable::*;
 pub use crate::modules::layer_modules::linear::*;
 #[allow(unused_imports)]
 pub use crate::modules::layer_modules::mlp::*;
-#[allow(unused_imports)]
-pub use crate::modules::layer_modules::optimizer::*;
-#[allow(unused_imports)]
-pub use crate::modules::layer_modules::sgd::*;
 #[allow(unused_imports)]
 pub use crate::modules::layer_modules::two_layer_net::*;
 #[allow(unused_imports)]
@@ -67,6 +64,10 @@ pub use crate::modules::math::sum::*;
 pub use crate::modules::math::sum_to::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::transpose::*;
+#[allow(unused_imports)]
+pub use crate::modules::optimizers::optimizer::*;
+#[allow(unused_imports)]
+pub use crate::modules::optimizers::sgd::*;
 #[allow(unused_imports)]
 pub use crate::modules::settings::*;
 #[allow(unused_imports)]

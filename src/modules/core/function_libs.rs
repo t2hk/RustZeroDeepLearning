@@ -310,7 +310,7 @@ pub fn sigmoid_simple<V: MathOps>(x: Variable<V>) -> Variable<V> {
 /// * bs (Vec<Variable<V>>): バイアス b1 と b2 を保持するベクタ
 /// Return
 /// * Variable<V>: 推論値
-pub fn predict<V: MathOps>(
+pub fn predict_linear_with_sigmoid<V: MathOps>(
     x: Variable<V>,
     ws: Vec<Variable<V>>,
     bs: Vec<Variable<V>>,
@@ -336,7 +336,7 @@ fn type_of<T>(_: T) -> String {
 mod tests {
     use super::*;
     use ndarray::{Array, IxDyn};
-    use rand::prelude::*;
+    // use rand::prelude::*;
 
     use plotters::chart::ChartBuilder;
     use plotters::prelude::{BitMapBackend, IntoDrawingArea};
@@ -399,7 +399,7 @@ mod tests {
             return y;
         }
 
-        let mut x = Variable::new(RawData::new(2.0));
+        let x = Variable::new(RawData::new(2.0));
         let iters = 10;
 
         for i in 0..iters {
@@ -451,8 +451,8 @@ mod tests {
     /// ローゼンブロック関数の勾配降下法
     #[test]
     fn test_step28() {
-        let mut x0 = Variable::new(RawData::new(0.0));
-        let mut x1 = Variable::new(RawData::new(2.0));
+        let x0 = Variable::new(RawData::new(0.0));
+        let x1 = Variable::new(RawData::new(2.0));
         let lr = 0.001;
         let iters = 10000;
 
