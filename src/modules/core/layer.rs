@@ -10,17 +10,19 @@ use std::rc::{Rc, Weak};
 
 /// レイヤモデル
 #[derive(Debug, Clone)]
-pub struct LayerModel<V: MathOps> {
+pub struct LayerModel<V: MathOps + 'static, O> {
     layers: OrderedHashMap<LayerExecutor<V>>,
-    layer_models: HashMap<String, LayerModel<V>>,
+    layer_models: HashMap<String, LayerModel<V, O>>,
+    optimizer: Option<O>,
 }
 
-impl<V: MathOps> LayerModel<V> {
+impl<V: MathOps, O: Optimizer<Val = V>> LayerModel<V, O> {
     /// コンストラクタ
-    pub fn new() -> LayerModel<V> {
+    pub fn new() -> LayerModel<V, O> {
         LayerModel {
             layers: OrderedHashMap::new(),
             layer_models: HashMap::new(),
+            optimizer: None,
         }
     }
 
@@ -39,13 +41,21 @@ impl<V: MathOps> LayerModel<V> {
     }
 
     /// レイヤーモデルを追加する。
-    pub fn add_layer_model(&mut self, name: &str, layer_model: LayerModel<V>) {
+    pub fn add_layer_model(&mut self, name: &str, layer_model: LayerModel<V, O>) {
         self.layer_models.insert(name.to_string(), layer_model);
     }
 
     /// レイヤーモデルを取得する。
-    pub fn get_layer_model(&self, name: &str) -> &LayerModel<V> {
+    pub fn get_layer_model(&self, name: &str) -> &LayerModel<V, O> {
         self.layer_models.get(&name.to_string()).unwrap()
+    }
+
+    /// オプティマイザを設定する。
+    ///
+    /// Arguments
+    /// * optimizer (Option<O>): オプティマイザ
+    pub fn set_optimizer(&mut self, optimizer: O) {
+        self.optimizer = Some(optimizer);
     }
 
     /// 内包するレイヤー、及び レイヤーモデルの全ての勾配をクリアする。
@@ -68,19 +78,39 @@ impl<V: MathOps> LayerModel<V> {
         layer.forward(x)
     }
 
-    /// パラメータの勾配を更新する。
-    pub fn update_parameters(&mut self, lr: f64) {
+    /// 内包するレイヤモデルやレイヤの全てのパラメータを取得する。
+    ///
+    /// Return
+    /// * Vec<Variable<V>>: 内包するパラメータのベクタ
+    pub fn get_parameters(&self) -> Vec<Variable<V>> {
+        let mut result = vec![];
+
+        for (idx, key) in self.layers.iter().enumerate() {
+            let layer = self.layers.get(key);
+            for layer in layer.get_parameters().iter() {
+                result.push(layer.1.clone());
+            }
+        }
+
+        for (idx, key_value) in self.layer_models.iter().enumerate() {
+            let params = key_value.1.get_parameters();
+            result.extend(params);
+        }
+
+        result
+    }
+
+    /// 全てのパラメータを更新する。
+    /// オプティマイザを使って、このレイヤモデル配下のすべてのパラメータを更新する。
+    /// 事前にレイヤモデルにオプティマイザを設定しておくこと。
+    pub fn update_parameters(&mut self) {
         for key in self.layers.iter() {
             let layer = self.layers.get(key);
             for (_param_name, layer_param) in layer.get_parameters().iter_mut() {
-                let new_data = layer_param.get_data().mapv(|x| x.to_f64().unwrap())
-                    - layer_param
-                        .get_grad()
-                        .unwrap()
-                        .get_data()
-                        .mapv(|x| x.to_f64().unwrap())
-                        * lr;
-                layer_param.set_data(new_data.mapv(|x| V::from(x).unwrap()));
+                self.optimizer
+                    .as_mut()
+                    .expect("No optimizer is set.")
+                    .update_one(layer_param);
             }
         }
     }
@@ -106,6 +136,9 @@ where
     /// パラメータの勾配をクリアする。
     fn cleargrads(&mut self);
 
+    /// パラメータを更新する。
+    fn update_parameters(&mut self);
+
     /// 計算グラフを描画する。
     ///
     /// Arguments
@@ -126,7 +159,7 @@ where
 /// レイヤ用ラッパー
 /// レイヤの入出力やパラメータなどの値を保持する。
 #[derive(Debug, Clone)]
-pub struct LayerExecutor<V: MathOps> {
+pub struct LayerExecutor<V: MathOps + 'static> {
     inputs: Vec<Weak<RefCell<Variable<V>>>>,   // 関数の入力値
     outputs: Vec<Weak<RefCell<Variable<V>>>>,  //関数の出力値
     layer_function: Rc<RefCell<dyn Layer<V>>>, // レイヤー関数のトレイトオブジェクト
@@ -237,7 +270,10 @@ impl<V: MathOps> LayerExecutor<V> {
     }
 }
 
-pub fn predict(model: &mut LayerModel<f64>, x: Variable<f64>) -> Vec<Variable<f64>> {
+pub fn predict<V: MathOps, O: Optimizer<Val = V>>(
+    model: &mut LayerModel<V, O>,
+    x: Variable<V>,
+) -> Vec<Variable<V>> {
     let y1 = model.forward("l1", vec![x.clone()]);
     let y2 = sigmoid(y1[0].clone());
     let y = model.forward("l2", vec![y2.clone()]);
@@ -246,24 +282,27 @@ pub fn predict(model: &mut LayerModel<f64>, x: Variable<f64>) -> Vec<Variable<f6
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{Array, IxDyn};
+    use ndarray::Array;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
-    use std::{env, f64::consts::PI};
+    use std::f64::consts::PI;
 
     use super::*;
 
     #[test]
     fn test_step45() {
-        let mut layer_model: LayerModel<f64> = LayerModel::<f64>::new();
+        let sgd = Sgd::new(0.2);
+        let mut layer_model: LayerModel<f64, Sgd<f64>> = LayerModel::new();
+        layer_model.set_optimizer(sgd);
+
         // 1層目
-        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
-        let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
+        let ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
+        let l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
-        let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
+        let ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
+        let l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         layer_model.add_layer("l1", l1.clone());
         layer_model.add_layer("l2", l2.clone());
@@ -286,7 +325,6 @@ mod tests {
             y_array.flatten().to_vec(),
         ));
 
-        let lr = 0.2;
         let iters = 10000;
 
         // 学習
@@ -298,7 +336,7 @@ mod tests {
 
             loss.backward();
 
-            layer_model.update_parameters(lr);
+            layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {
@@ -324,6 +362,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_neural_network_pred_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
@@ -354,11 +394,11 @@ mod tests {
         ));
 
         // 1層目
-        let mut ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
+        let ll1: LinearLayer<f64> = LinearLayer::new(None, 10, false);
         let mut l1 = LayerExecutor::new(Rc::new(RefCell::new(ll1)));
 
         // 2層目
-        let mut ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
+        let ll2: LinearLayer<f64> = LinearLayer::new(None, 1, false);
         let mut l2 = LayerExecutor::new(Rc::new(RefCell::new(ll2)));
 
         let lr = 0.2;
@@ -410,6 +450,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step44_neural_network_pred_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,

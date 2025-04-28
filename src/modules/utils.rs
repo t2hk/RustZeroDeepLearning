@@ -427,7 +427,7 @@ pub fn reshape_sum_backward<V: MathOps>(
 
     // Reshape gy to the new shape
     let reshape_gy = gy.get_data().into_shape_with_order(IxDyn(&shape)).unwrap();
-    let mut gy_clone = gy.clone();
+    let gy_clone = gy.clone();
     gy_clone.set_data(reshape_gy);
     gy_clone
 }
@@ -568,6 +568,8 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
 /// Arguments
 /// * caption (&str): 図のタイトル
 /// * file_path (&str): グラフファイルのパス
+/// * x_spec ((f64, f64)): 描画する X 軸の範囲
+/// * y_spec ((f64, f64)): 描画する Y 軸の範囲
 /// * plot_x (Vec<f64>): 学習データの X 軸の値
 /// * plot_y (Vec<f64>): 学習データの Y 軸の値
 /// * pred_xy (Vec<(f64, f64)>): 推論結果
@@ -575,6 +577,8 @@ pub fn gradient_check(function: &mut FunctionExecutor<f64>, inputs: Vec<Variable
 pub fn draw_graph(
     caption: &str,
     file_path: &str,
+    x_spec: (f64, f64),
+    y_spec: (f64, f64),
     plot_x: Vec<f64>,
     plot_y: Vec<f64>,
     pred_xy: Vec<(f64, f64)>,
@@ -591,7 +595,7 @@ pub fn draw_graph(
         .margin(10)
         .x_label_area_size(30)
         .y_label_area_size(30)
-        .build_cartesian_2d(0.0..1.0, -1.0..2.0)
+        .build_cartesian_2d(x_spec.0..x_spec.1, y_spec.0..y_spec.1)
         .unwrap();
     chart.configure_mesh().draw().unwrap();
 

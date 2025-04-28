@@ -6,17 +6,20 @@ use log::{debug, error, info, trace, warn};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::rc::{Rc, Weak};
+use std::rc::Rc;
 
 /// Two Layer Net 関数
 #[derive(Debug, Clone)]
-pub struct Mlp {
-    layer_model: LayerModel<f64>,
-    activation: Rc<RefCell<dyn Function<f64>>>,
-    parameters: HashMap<String, Variable<f64>>,
+pub struct Mlp<V, O>
+where
+    V: MathOps + 'static,
+{
+    layer_model: LayerModel<V, O>,
+    activation: Rc<RefCell<dyn Function<V>>>,
+    parameters: HashMap<String, Variable<V>>,
 }
 
-impl Layer<f64> for Mlp {
+impl<V: MathOps, O: Optimizer<Val = V> + std::fmt::Debug> Layer<V> for Mlp<V, O> {
     /// 順伝播
     ///
     /// Arguments
@@ -24,7 +27,7 @@ impl Layer<f64> for Mlp {
     ///
     /// Retrun
     /// * Vec<Variable<f64>>: 結果
-    fn forward(&mut self, inputs: Vec<Variable<f64>>) -> Vec<Variable<f64>> {
+    fn forward(&mut self, inputs: Vec<Variable<V>>) -> Vec<Variable<V>> {
         let layers = self.layer_model.get_layers();
 
         let mut exec_activate = FunctionExecutor::new(self.activation.clone());
@@ -32,8 +35,6 @@ impl Layer<f64> for Mlp {
         let mut x = inputs.clone();
 
         for (idx, key) in layers.iter().enumerate() {
-            let layer = layers.get(key);
-
             if idx < layers.len() - 1 {
                 x = self.layer_model.forward(key, x);
                 x = exec_activate.forward(x);
@@ -46,17 +47,17 @@ impl Layer<f64> for Mlp {
     }
 
     /// パラメータを追加する。
-    fn add_parameter(&mut self, name: &str, parameter: Variable<f64>) {
+    fn add_parameter(&mut self, name: &str, parameter: Variable<V>) {
         self.parameters.insert(name.to_string(), parameter);
     }
 
     /// パラメータを取得する。
-    fn get_parameter(&self, name: &str) -> Variable<f64> {
+    fn get_parameter(&self, name: &str) -> Variable<V> {
         self.parameters.get(&name.to_string()).unwrap().clone()
     }
 
     /// 全てのパラメータを取得する。
-    fn get_parameters(&self) -> HashMap<String, Variable<f64>> {
+    fn get_parameters(&self) -> HashMap<String, Variable<V>> {
         self.parameters.clone()
     }
 
@@ -67,15 +68,27 @@ impl Layer<f64> for Mlp {
         }
         self.layer_model.cleargrads();
     }
+
+    /// パラメータを更新する
+    fn update_parameters(&mut self) {
+        self.layer_model.update_parameters();
+    }
 }
 
-impl Mlp {
-    pub fn new(fc_output_sizes: Vec<usize>, activation: Rc<RefCell<dyn Function<f64>>>) -> Mlp {
-        let mut layer_model: LayerModel<f64> = LayerModel::new();
+impl<V: MathOps, O: Optimizer<Val = V>> Mlp<V, O> {
+    pub fn new(
+        fc_output_sizes: Vec<usize>,
+        activation: Rc<RefCell<dyn Function<V>>>,
+        optimizer: O,
+    ) -> Mlp<V, O> {
+        // let sgd = Sgd::new(0.2);
+        let mut layer_model: LayerModel<V, O> = LayerModel::new();
+        layer_model.set_optimizer(optimizer);
 
         for (idx, out_size) in fc_output_sizes.iter().enumerate() {
             let ll = LinearLayer::new(None, *out_size, false);
             let mut layer = LayerExecutor::new(Rc::new(RefCell::new(ll)));
+
             layer_model.add_layer(&format!("l{}", idx), layer);
         }
 
@@ -112,7 +125,8 @@ mod tests {
         x.set_name("x".to_string());
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 1], sigmoid, sgd);
         mlp.plot(vec![x], "test_step45_mlp_10-1.png", true);
     }
 
@@ -130,7 +144,8 @@ mod tests {
         x.set_name("x".to_string());
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 20, 30, 40, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 20, 30, 40, 1], sigmoid, sgd);
         mlp.plot(vec![x], "test_step45_mlp_10-20-30-40-1.png", true);
     }
 
@@ -162,7 +177,8 @@ mod tests {
         let hidden_size = 10;
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![10, 1], sigmoid);
+        let sgd = Sgd::new(0.2);
+        let mut mlp = Mlp::new(vec![10, 1], sigmoid, sgd);
 
         // 学習
         for i in 0..iters {
@@ -171,7 +187,7 @@ mod tests {
             mlp.cleargrads();
             loss.backward();
 
-            mlp.layer_model.update_parameters(lr);
+            mlp.layer_model.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {
@@ -197,6 +213,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_mlp_sin_pred_10_1_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
@@ -233,7 +251,8 @@ mod tests {
         let iters = 10000;
 
         let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
-        let mut mlp = Mlp::new(vec![20, 10, 1], sigmoid);
+        let sgd = Sgd::new(lr);
+        let mut mlp = Mlp::new(vec![20, 10, 1], sigmoid, sgd);
 
         // 学習
         for i in 0..iters {
@@ -242,7 +261,8 @@ mod tests {
             mlp.cleargrads();
             loss.backward();
 
-            mlp.layer_model.update_parameters(lr);
+            //mlp.layer_model.update_parameters();
+            mlp.update_parameters();
 
             // 学習過程の確認
             if i % 1000 == 0 {
@@ -268,6 +288,8 @@ mod tests {
                 utils::draw_graph(
                     "y=sin(2 * pi * x) + b",
                     &format!("graph/step45_mlp_sin_pred_20_10_1_{}.png", i),
+                    (0.0, 1.0),
+                    (-1.0, 2.0),
                     plot_x,
                     plot_y,
                     test_xy,
