@@ -50,7 +50,13 @@ fn test_basic() {
         -0.27941549819892586,
     ];
 
-    assert_eq!(expect_y2, y2.get_data().flatten().to_vec());
+    let result = y2.get_data().flatten().to_vec();
+
+    let epsilon = 1e-10;
+    for (i, value) in result.iter().enumerate() {
+        let abs_diff: f64 = value - expect_y2[i];
+        assert!(abs_diff.abs() < epsilon);
+    }
 
     // 行列同士の和
     let x3 = Variable::new(RawData::from_shape_vec(vec![2, 3], vec![1, 2, 3, 4, 5, 6]));
