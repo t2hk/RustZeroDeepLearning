@@ -65,6 +65,8 @@ pub use crate::modules::math::sum_to::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::transpose::*;
 #[allow(unused_imports)]
+pub use crate::modules::optimizers::ada_grad::*;
+#[allow(unused_imports)]
 pub use crate::modules::optimizers::momentum_sgd::*;
 #[allow(unused_imports)]
 pub use crate::modules::optimizers::optimizer::*;

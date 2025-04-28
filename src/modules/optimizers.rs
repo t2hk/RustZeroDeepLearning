@@ -1,3 +1,4 @@
+pub mod ada_grad;
 pub mod momentum_sgd;
 pub mod optimizer;
 pub mod sgd;
