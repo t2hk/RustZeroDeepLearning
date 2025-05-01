@@ -5,83 +5,56 @@ use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{s, Array, ArrayD, Axis, Dimension, IxDyn, Shape, SliceInfo, SliceInfoElem};
 
 #[derive(Debug, Clone)]
-pub enum SliceElem {
-    Slice {
-        /// start index; negative are counted from the back of the axis
-        start: Option<isize>,
-        /// end index; negative are counted from the back of the axis; when not present
-        /// the default is the full length of the axis.
-        end: Option<isize>,
-        /// step size in elements; the default is 1, for every element.
-        step: isize,
-    },
-    /// A single index.
-    Index(Vec<usize>),
-    /// A new axis of length 1.
-    NewAxis,
-}
-
-#[derive(Debug, Clone)]
-pub struct GetItemFunction {
+pub struct GetItemGradFunction {
     slice: SliceElem,
+    in_shape: Vec<usize>,
 }
 
-impl GetItemFunction {
-    fn new(slice: SliceElem) -> Self {
-        Self { slice }
+impl GetItemGradFunction {
+    fn new(slice: SliceElem, in_shape: Vec<usize>) -> Self {
+        Self {
+            slice: slice,
+            in_shape: in_shape,
+        }
     }
 }
 
 /// GetItem関数
-impl<V: MathOps> Function<V> for GetItemFunction {
+impl<V: MathOps> Function<V> for GetItemGradFunction {
     /// 関数名を取得する。
     ///
     /// Return
     /// ＊String: 関数の名前
     fn get_name(&self) -> String {
-        "GetItem".to_string()
+        "GetItemGrad".to_string()
     }
 
-    // GetItem の順伝播
+    // GetItemGrad の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("get_item_grad(forward)");
-        match self.slice.clone() {
-            SliceElem::Index(indices) => {
-                let result = xs[0].select(Axis(0), &indices);
-                vec![result]
-            }
-            SliceElem::Slice { start, end, step } => match (start, end, step) {
-                (Some(start), Some(end), step) => {
-                    let result = xs[0].slice(s![0, 0, start..end;step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                (Some(start), None, step) => {
-                    let result = xs[0].slice(s![0, 0, start..;step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                (None, None, step) => {
-                    let result = xs[0].slice(s![.., .., step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                _ => vec![],
-            },
-            _ => vec![],
-        }
+
+        let gx = Array::from_shape_vec(
+            self.in_shape.clone(),
+            vec![0; self.in_shape.iter().product()],
+        )
+        .unwrap();
+
+        vec![]
     }
 
     /// 逆伝播
     /// y=x0 / x1 の微分であるため、dy/dx0=1/x1 * gy, dy/dx1= -x0/(x1^2) * gy である。
     fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
-        info!("get_item(backward)");
+        info!("get_item_grad(backward)");
 
         let gx_x0 = &gys[0] / &inputs[1];
         let gx_x1 = &gys[0] * &(&(&inputs[0] * -1) / &(&inputs[1] ^ 2));
 
         debug!(
-            "get_item(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
+            "get_item_grad(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
             &inputs[1].get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec(),
             &inputs[0].get_data().flatten().to_vec(),
@@ -148,7 +121,7 @@ pub fn get_item<V: MathOps>(x: Variable<V>, sim: SliceElem) -> Option<Variable<V
 #[cfg(test)]
 mod test {
     use super::*;
-    use ndarray::{array, Array2, Axis, Slice, SliceInfo, SliceInfoElem};
+    use ndarray::{array, Array2, Axis, Slice};
 
     #[test]
     fn test_get_item() {
@@ -218,7 +191,6 @@ mod test {
 
         let x = Variable::new(RawData::from_shape_vec(vec![2, 2, 3], (0..=11).collect()));
 
-        let sim = SliceElem::Index([0, 0, 1].to_vec());
         let sim = SliceElem::Index([0, 0, 1].to_vec());
         let result = get_item(x, sim);
 

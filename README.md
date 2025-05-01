@@ -252,3 +252,4 @@ cargo run
 * Ada Grad を追加。
 
 ### ステップ47　ソフトマックス関数と交差エントロピー誤差
+* get_item や get_item_grad の前準備として、utils に get_slice や add_at を実装中。

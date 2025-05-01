@@ -17,6 +17,7 @@ pub use modules::math::div::*;
 pub use modules::math::exp::*;
 pub use modules::math::factorial::*;
 pub use modules::math::get_item::*;
+pub use modules::math::get_item_grad::*;
 pub use modules::math::linear::*;
 pub use modules::math::matmul::*;
 pub use modules::math::mean_squared_error::*;

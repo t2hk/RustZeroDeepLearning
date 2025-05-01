@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{s, Array, Axis, Dimension, IxDyn};
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
@@ -684,6 +684,94 @@ impl<T: Clone> Iterator for OrderedHashMap<T> {
     }
 }
 
+/// スライスを取得する。
+///
+/// Arguments
+/// * x (Array<V, IxDyn>): 対象のテンソル
+/// * slice (SliceElem): スライスの指定
+///
+/// Return
+/// * Option<Array<V, IxDyn>>: スライス結果
+pub fn get_slice<V: MathOps>(x: Array<V, IxDyn>, slice: SliceElem) -> Option<Array<V, IxDyn>> {
+    match slice.clone() {
+        SliceElem::Index(indices) => {
+            let result = x.select(Axis(0), &indices);
+            Some(result)
+        }
+        SliceElem::Slice { start, end, step } => match (start, end, step) {
+            (Some(start), Some(end), step) => {
+                let result = x.slice(s![0, 0, start..end;step]).into_dyn().to_owned();
+                Some(result)
+            }
+            (Some(start), None, step) => {
+                let result = x.slice(s![0, 0, start..;step]).into_dyn().to_owned();
+                Some(result)
+            }
+            (None, None, step) => {
+                let result = x.slice(s![.., .., step]).into_dyn().to_owned();
+                Some(result)
+            }
+            _ => None,
+        },
+        _ => None,
+    }
+}
+
+/// 配列 arr の指定したindicesに対して、値 vlaues をインプレースで加算する。
+/// 重複したインデックスがあってもすべて加算する。
+///
+/// Arguments
+/// * arr (Array<V, IxDyn>): 対象のテンソル
+/// * slice (SliceElem): スライスの指定
+/// * values (&[V]): 加算する値
+///
+/// Return
+/// * Option<Array<V, IxDyn>>: 処理結果
+pub fn add_at<V: MathOps>(
+    mut arr: Array<V, IxDyn>,
+    slice: SliceElem,
+    // values: &[V],
+    values: Array<V, IxDyn>,
+) -> Option<Array<V, IxDyn>> {
+    println!("arr: {:?}", arr);
+    println!("slice: {:?}", slice);
+    println!("values: {:?}", values);
+
+    match slice.clone() {
+        SliceElem::Index(indices) => {
+            for (idx, val) in indices.iter().zip(values.iter()) {
+                let mut slice = arr.index_axis_mut(Axis(0), *idx);
+
+                // 1次元の場合は単純に値を加算
+                if slice.ndim() == 0 {
+                    *slice.first_mut().unwrap() = slice.first_mut().unwrap().clone() + val.clone();
+                }
+                // 複数次元の場合、最初の要素のみに加算
+                else if values.ndim() == 0 {
+                    *slice.first_mut().unwrap() = slice.first_mut().unwrap().clone() + val.clone();
+                }
+                // 形状が一致する場合、要素ごとに加算
+                else if slice.shape() == values.shape() {
+                    for (s, v) in slice.iter_mut().zip(values.iter()) {
+                        *s = s.clone() + v.clone();
+                    }
+                }
+                // 1次元の値を各要素に加算
+                else if values.ndim() == 1
+                    && slice.ndim() >= 1
+                    && slice.len_of(Axis(0)) == values.len()
+                {
+                    for (i, v) in values.iter().enumerate() {
+                        slice[i] = slice[i].clone() + v.clone();
+                    }
+                }
+            }
+            Some(arr)
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -891,5 +979,33 @@ mod test {
         var.set_name("2x2dim".to_string());
         let result = dot_var!(var);
         println!("{}", result);
+    }
+
+    #[test]
+    fn test_add_at_1() {
+        let mut arr = Array::from(vec![0, 0, 0, 0, 0]).into_dyn();
+        // let indices = [0, 2, 2, 3];
+        let indices = SliceElem::Index(vec![0, 2, 2, 3]);
+        let values = Array::from(vec![1, 2, 3, 4]).into_dyn();
+
+        let result = add_at(arr.clone(), indices, values).unwrap();
+        println!("{:?}", result); // [1, 0, 5, 4, 0]
+        assert_eq!(result.shape().to_vec(), arr.shape().to_vec());
+        assert_eq!(result.flatten().to_vec(), vec![1, 0, 5, 4, 0])
+    }
+
+    #[test]
+    fn test_add_at_2() {
+        let arr = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
+        let indices = [1];
+        let values = Array::from(vec![1, 1, 1]).into_dyn();
+
+        let slice = SliceElem::Index(indices.to_vec());
+
+        let result = add_at(arr.clone(), slice, values).unwrap();
+
+        println!("{:?}", result); // [0, 1, 2, 4, 5, 6]
+        assert_eq!(result.shape().to_vec(), arr.shape().to_vec());
+        assert_eq!(result.flatten().to_vec(), vec![0, 1, 2, 4, 5, 6])
     }
 }
