@@ -703,6 +703,10 @@ pub fn get_slice<V: MathOps>(x: Array<V, IxDyn>, slice: SliceElem) -> Option<Arr
                 let result = x.slice(s![0, 0, start..end;step]).into_dyn().to_owned();
                 Some(result)
             }
+            (None, Some(end), step) => {
+                let result = x.slice(s![0, 0, ..end;step]).into_dyn().to_owned();
+                Some(result)
+            }
             (Some(start), None, step) => {
                 let result = x.slice(s![0, 0, start..;step]).into_dyn().to_owned();
                 Some(result)
@@ -711,7 +715,6 @@ pub fn get_slice<V: MathOps>(x: Array<V, IxDyn>, slice: SliceElem) -> Option<Arr
                 let result = x.slice(s![.., .., step]).into_dyn().to_owned();
                 Some(result)
             }
-            _ => None,
         },
         _ => None,
     }
@@ -738,6 +741,21 @@ pub fn add_at<V: MathOps>(
     println!("values: {:?}", values);
 
     match slice.clone() {
+        SliceElem::Slice { start, end, step } => match (start, end, step) {
+            (Some(start), Some(end), step) => {
+                for (idx, val) in arr
+                    .slice(s![0,0, start..end;step])
+                    .axis_iter(Axis(0))
+                    .enumerate()
+                {
+                    println!("idx: {:?}, val: {:?}", idx, val);
+                }
+                // let result = arr.slice(s![0, 0, start..end;step]).into_dyn().to_owned();
+                // Some(result)
+                None
+            }
+            _ => None,
+        },
         SliceElem::Index(indices) => {
             for (idx, val) in indices.iter().zip(values.iter()) {
                 let mut slice = arr.index_axis_mut(Axis(0), *idx);
@@ -983,7 +1001,7 @@ mod test {
 
     #[test]
     fn test_add_at_1() {
-        let mut arr = Array::from(vec![0, 0, 0, 0, 0]).into_dyn();
+        let arr = Array::from(vec![0, 0, 0, 0, 0]).into_dyn();
         // let indices = [0, 2, 2, 3];
         let indices = SliceElem::Index(vec![0, 2, 2, 3]);
         let values = Array::from(vec![1, 2, 3, 4]).into_dyn();
@@ -1007,5 +1025,121 @@ mod test {
         println!("{:?}", result); // [0, 1, 2, 4, 5, 6]
         assert_eq!(result.shape().to_vec(), arr.shape().to_vec());
         assert_eq!(result.flatten().to_vec(), vec![0, 1, 2, 4, 5, 6])
+    }
+
+    #[test]
+    fn test_add_at_3() {
+        // Python 参考
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
+        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
+
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        println!("array : {:?}", array);
+
+        let sim = SliceElem::Slice {
+            start: Some(0),
+            end: None,
+            step: 1,
+        };
+
+        let values = Array::from_vec(vec![1, 1, 1]).into_dyn();
+        let test = get_slice(array.clone(), sim.clone()).unwrap();
+        println!("array sliced: {:?}", test);
+
+        let result = add_at(array.clone(), sim, values).unwrap();
+
+        println!("result: {:?}", result);
+        assert_eq!(vec![3], result.shape().to_vec());
+        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_get_slice_by_index_0() {
+        // Python 参考
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, 0)
+        // self.assertTrue(array_allclose(y.data, x_data[0]))
+
+        // let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        // let indices = vec![0_usize];
+        // let result = array.index_axis(Axis(0), indices[0]);
+        // println!("array: {:?}\nresult: {:?}", array, result);
+
+        let x = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        let sim = SliceElem::Index([0, 0, 1].to_vec());
+        let result = get_slice(x, sim).unwrap();
+
+        assert_eq!(vec![3, 2, 3], result.shape().to_vec());
+        assert_eq!(
+            vec![0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            result.flatten().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_get_slice_1() {
+        // Python 参考
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
+        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
+
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        let sim = SliceElem::Slice {
+            start: Some(0),
+            end: Some(3),
+            step: 1,
+        };
+
+        let result = get_slice(array.clone(), sim).unwrap();
+
+        println!("result: {:?}", result);
+        assert_eq!(vec![3], result.shape().to_vec());
+        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_get_slice_2() {
+        // Python 参考
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
+        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
+
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        let sim = SliceElem::Slice {
+            start: Some(0),
+            end: None,
+            step: 1,
+        };
+
+        let result = get_slice(array.clone(), sim).unwrap();
+
+        println!("result: {:?}", result);
+        assert_eq!(vec![3], result.shape().to_vec());
+        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_get_slice_ellipsis_2() {
+        let arr = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        let slice = SliceElem::Slice {
+            start: None,
+            end: None,
+            step: 2,
+        };
+
+        let result = get_slice(arr.clone(), slice).unwrap();
+
+        println!("{:?}", result); // [0, 1, 2, 4, 5, 6]
+        assert_eq!(vec![2, 2], result.shape().to_vec());
+        assert_eq!(result.flatten().to_vec(), vec![2, 5, 8, 11])
     }
 }

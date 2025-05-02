@@ -48,28 +48,9 @@ impl<V: MathOps> Function<V> for GetItemFunction {
     // GetItem の順伝播
     fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
         info!("get_item_grad(forward)");
-        match self.slice.clone() {
-            SliceElem::Index(indices) => {
-                let result = xs[0].select(Axis(0), &indices);
-                vec![result]
-            }
-            SliceElem::Slice { start, end, step } => match (start, end, step) {
-                (Some(start), Some(end), step) => {
-                    let result = xs[0].slice(s![0, 0, start..end;step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                (Some(start), None, step) => {
-                    let result = xs[0].slice(s![0, 0, start..;step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                (None, None, step) => {
-                    let result = xs[0].slice(s![.., .., step]).into_dyn().to_owned();
-                    vec![result]
-                }
-                _ => vec![],
-            },
-            _ => vec![],
-        }
+
+        let result = utils::get_slice(xs[0].clone(), self.slice.clone()).unwrap();
+        vec![result]
     }
 
     /// 逆伝播
@@ -91,57 +72,6 @@ impl<V: MathOps> Function<V> for GetItemFunction {
 
         let gxs = vec![gx_x0, gx_x1];
         gxs
-    }
-}
-
-/// 変数をスライスする。
-///
-/// Arguments:
-/// * indices (SliceElem):
-///   - 多次元配列から指定した行を抽出する場合: vec![0_usize, 1_usize, 2_usize]
-pub fn get_item<V: MathOps>(x: Variable<V>, sim: SliceElem) -> Option<Variable<V>> {
-    let x_value = x.get_data();
-
-    match sim {
-        SliceElem::Index(indices) => {
-            let result_array = x_value.select(Axis(0), &indices);
-            // let result_array = x_value.index_axis(Axis(0), index as usize);
-            let result = Variable::new(RawData::from_shape_vec(
-                result_array.shape().to_vec(),
-                result_array.flatten().to_vec(),
-            ));
-            Some(result)
-        }
-        SliceElem::Slice { start, end, step } => {
-            let x_array = x.get_data();
-
-            match (start, end, step) {
-                (Some(start), Some(end), step) => {
-                    let result = x_array.slice(s![0, 0, start..end;step]).to_owned();
-
-                    Some(Variable::new(RawData::from_shape_vec(
-                        result.shape().to_vec(),
-                        result.flatten().to_vec(),
-                    )))
-                }
-                (Some(start), None, step) => {
-                    let result = x_array.slice(s![0, 0, start..;step]).to_owned();
-                    Some(Variable::new(RawData::from_shape_vec(
-                        result.shape().to_vec(),
-                        result.flatten().to_vec(),
-                    )))
-                }
-                (None, None, step) => {
-                    let result = x_array.slice(s![.., .., step]).to_owned();
-                    Some(Variable::new(RawData::from_shape_vec(
-                        result.shape().to_vec(),
-                        result.flatten().to_vec(),
-                    )))
-                }
-                _ => None,
-            }
-        }
-        _ => None,
     }
 }
 
@@ -218,7 +148,6 @@ mod test {
 
         let x = Variable::new(RawData::from_shape_vec(vec![2, 2, 3], (0..=11).collect()));
 
-        let sim = SliceElem::Index([0, 0, 1].to_vec());
         let sim = SliceElem::Index([0, 0, 1].to_vec());
         let result = get_item(x, sim);
 
