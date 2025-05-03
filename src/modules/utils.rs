@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{s, Array, Axis, Dimension, IxDyn};
+use ndarray::{s, Array, Axis, Dimension, IxDyn, Zip};
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
@@ -730,7 +730,7 @@ pub fn get_slice<V: MathOps>(x: Array<V, IxDyn>, slice: SliceElem) -> Option<Arr
 ///
 /// Return
 /// * Option<Array<V, IxDyn>>: 処理結果
-pub fn add_at<V: MathOps>(
+pub fn add_at<V: MathOps + std::ops::AddAssign<V>>(
     mut arr: Array<V, IxDyn>,
     slice: SliceElem,
     // values: &[V],
@@ -743,16 +743,16 @@ pub fn add_at<V: MathOps>(
     match slice.clone() {
         SliceElem::Slice { start, end, step } => match (start, end, step) {
             (Some(start), Some(end), step) => {
-                for (idx, val) in arr
-                    .slice(s![0,0, start..end;step])
-                    .axis_iter(Axis(0))
-                    .enumerate()
-                {
-                    println!("idx: {:?}, val: {:?}", idx, val);
+                let mut sliced = arr.slice_mut(s![0,0, start..end;step]);
+
+                // 明示的にスライスの各要素に対して加算操作を実行
+                for (i, val) in sliced.iter_mut().enumerate() {
+                    // values配列を循環して使用
+                    let add_val = values[i % values.len()].clone();
+                    *val += add_val; // 値を直接変更
                 }
-                // let result = arr.slice(s![0, 0, start..end;step]).into_dyn().to_owned();
-                // Some(result)
-                None
+
+                Some(arr)
             }
             _ => None,
         },
@@ -1040,19 +1040,47 @@ mod test {
 
         let sim = SliceElem::Slice {
             start: Some(0),
-            end: None,
+            end: Some(3),
             step: 1,
         };
 
         let values = Array::from_vec(vec![1, 1, 1]).into_dyn();
-        let test = get_slice(array.clone(), sim.clone()).unwrap();
-        println!("array sliced: {:?}", test);
 
         let result = add_at(array.clone(), sim, values).unwrap();
 
         println!("result: {:?}", result);
-        assert_eq!(vec![3], result.shape().to_vec());
-        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
+        assert_eq!(array.shape().to_vec(), result.shape().to_vec());
+        assert_eq!(
+            vec![1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+            result.flatten().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_add_at_4() {
+        // Python 参考
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
+        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
+
+        let array = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
+        println!("array : {:?}", array);
+
+        // let sim = SliceElem::Slice {
+        //     start: Some(0),
+        //     end: Some(0),
+        //     step: 1,
+        // };
+        let sim = SliceElem::Index(vec![0, 0, 1]);
+
+        let values = Array::from_vec(vec![1, 1, 1]).into_dyn();
+
+        let result = add_at(array.clone(), sim, values).unwrap();
+
+        println!("result: {:?}", result);
+        assert_eq!(array.shape().to_vec(), result.shape().to_vec());
+        assert_eq!(vec![2, 3, 4, 4, 5, 6], result.flatten().to_vec());
     }
 
     #[test]
