@@ -2,15 +2,20 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{s, Array, Axis, Dimension, IxDyn, Zip};
+use ndarray::{
+    s, stack, Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix0, Ix1, IxDyn, Slice, SliceInfo,
+    SliceInfoElem, Zip,
+};
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
 use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::fs::File;
 use std::io::{Result, Write};
+use std::ops::AddAssign;
 use std::path::Path;
 use std::rc::Rc;
 use std::slice::Iter;
@@ -684,109 +689,427 @@ impl<T: Clone> Iterator for OrderedHashMap<T> {
     }
 }
 
-/// スライスを取得する。
-///
-/// Arguments
-/// * x (Array<V, IxDyn>): 対象のテンソル
-/// * slice (SliceElem): スライスの指定
-///
-/// Return
-/// * Option<Array<V, IxDyn>>: スライス結果
-pub fn get_slice<V: MathOps>(x: Array<V, IxDyn>, slice: SliceElem) -> Option<Array<V, IxDyn>> {
-    match slice.clone() {
-        SliceElem::Index(indices) => {
-            let result = x.select(Axis(0), &indices);
-            Some(result)
-        }
-        SliceElem::Slice { start, end, step } => match (start, end, step) {
-            (Some(start), Some(end), step) => {
-                let result = x.slice(s![0, 0, start..end;step]).into_dyn().to_owned();
-                Some(result)
-            }
-            (None, Some(end), step) => {
-                let result = x.slice(s![0, 0, ..end;step]).into_dyn().to_owned();
-                Some(result)
-            }
-            (Some(start), None, step) => {
-                let result = x.slice(s![0, 0, start..;step]).into_dyn().to_owned();
-                Some(result)
-            }
-            (None, None, step) => {
-                let result = x.slice(s![.., .., step]).into_dyn().to_owned();
-                Some(result)
-            }
-        },
-        _ => None,
-    }
+// #[derive(Debug, Clone)]
+// pub enum SliceElem {
+//     Slice {
+//         /// start index; negative are counted from the back of the axis
+//         start: Option<isize>,
+//         /// end index; negative are counted from the back of the axis; when not present
+//         /// the default is the full length of the axis.
+//         end: Option<isize>,
+//         /// step size in elements; the default is 1, for every element.
+//         step: isize,
+//     },
+//     /// A single index.
+//     Index(Vec<usize>),
+//     /// A new axis of length 1.
+//     NewAxis,
+// }
+
+/// スライスの指定を表す構造体
+#[derive(Debug, Clone)]
+pub enum DynamicSlice {
+    Range {
+        start: Option<isize>,
+        end: Option<isize>,
+        step: isize,
+    },
+    Index(isize),
+    Indices(Vec<isize>),
+    MultidimIndices(Vec<Vec<isize>>),
+    Full,
 }
 
-/// 配列 arr の指定したindicesに対して、値 vlaues をインプレースで加算する。
-/// 重複したインデックスがあってもすべて加算する。
-///
-/// Arguments
-/// * arr (Array<V, IxDyn>): 対象のテンソル
-/// * slice (SliceElem): スライスの指定
-/// * values (&[V]): 加算する値
-///
-/// Return
-/// * Option<Array<V, IxDyn>>: 処理結果
-pub fn add_at<V: MathOps + std::ops::AddAssign<V>>(
-    mut arr: Array<V, IxDyn>,
-    slice: SliceElem,
-    // values: &[V],
-    values: Array<V, IxDyn>,
-) -> Option<Array<V, IxDyn>> {
-    println!("arr: {:?}", arr);
-    println!("slice: {:?}", slice);
-    println!("values: {:?}", values);
+/// 動的スライサー構造体
+#[derive(Debug, Clone)]
+pub struct DynamicSlicer {
+    slices: Vec<Option<DynamicSlice>>,
+}
 
-    match slice.clone() {
-        SliceElem::Slice { start, end, step } => match (start, end, step) {
-            (Some(start), Some(end), step) => {
-                let mut sliced = arr.slice_mut(s![0,0, start..end;step]);
-
-                // 明示的にスライスの各要素に対して加算操作を実行
-                for (i, val) in sliced.iter_mut().enumerate() {
-                    // values配列を循環して使用
-                    let add_val = values[i % values.len()].clone();
-                    *val += add_val; // 値を直接変更
-                }
-
-                Some(arr)
-            }
-            _ => None,
-        },
-        SliceElem::Index(indices) => {
-            for (idx, val) in indices.iter().zip(values.iter()) {
-                let mut slice = arr.index_axis_mut(Axis(0), *idx);
-
-                // 1次元の場合は単純に値を加算
-                if slice.ndim() == 0 {
-                    *slice.first_mut().unwrap() = slice.first_mut().unwrap().clone() + val.clone();
-                }
-                // 複数次元の場合、最初の要素のみに加算
-                else if values.ndim() == 0 {
-                    *slice.first_mut().unwrap() = slice.first_mut().unwrap().clone() + val.clone();
-                }
-                // 形状が一致する場合、要素ごとに加算
-                else if slice.shape() == values.shape() {
-                    for (s, v) in slice.iter_mut().zip(values.iter()) {
-                        *s = s.clone() + v.clone();
-                    }
-                }
-                // 1次元の値を各要素に加算
-                else if values.ndim() == 1
-                    && slice.ndim() >= 1
-                    && slice.len_of(Axis(0)) == values.len()
-                {
-                    for (i, v) in values.iter().enumerate() {
-                        slice[i] = slice[i].clone() + v.clone();
-                    }
-                }
-            }
-            Some(arr)
+impl DynamicSlicer {
+    pub fn new(dims: usize) -> Self {
+        Self {
+            slices: vec![None; dims],
         }
-        _ => None,
+    }
+
+    pub fn set_slice(&mut self, dim: usize, slice: DynamicSlice) -> &mut Self {
+        if dim < self.slices.len() {
+            self.slices[dim] = Some(slice);
+        } else {
+            self.slices.resize(dim + 1, None);
+            self.slices[dim] = Some(slice);
+        }
+        self
+    }
+
+    // 戻り値の型を変更：ArrayView ではなく Array を返す
+    pub fn slice<T>(&self, array: &Array<T, IxDyn>) -> Array<T, IxDyn>
+    where
+        T: Clone + std::fmt::Debug,
+    {
+        // 多次元インデックスが含まれている場合はファンシーインデックス用の処理
+        for (dim, slice_opt) in self.slices.iter().enumerate() {
+            if let Some(DynamicSlice::MultidimIndices(_)) = slice_opt {
+                return self.fancy_index(array);
+            }
+        }
+
+        // 通常のスライスの場合は結果をクローンして所有権を持つ配列を返す
+        array
+            .slice_each_axis(|ax| {
+                let dim = ax.axis.index();
+                let dim_len = array.shape()[dim];
+
+                if dim < self.slices.len() {
+                    match &self.slices[dim] {
+                        Some(DynamicSlice::Range { start, end, step }) => {
+                            let start_val = start.unwrap_or(0);
+                            let end_val = end.map(|e| e).unwrap_or_else(|| dim_len as isize);
+                            Slice {
+                                start: start_val,
+                                end: Some(end_val),
+                                step: *step,
+                            }
+                        }
+                        Some(DynamicSlice::Index(idx)) => Slice {
+                            start: *idx,
+                            end: Some(*idx + 1),
+                            step: 1,
+                        },
+                        Some(DynamicSlice::Indices(indices)) => Slice {
+                            start: 0,
+                            end: None,
+                            step: 1,
+                        },
+                        Some(DynamicSlice::MultidimIndices(_)) => Slice {
+                            start: 0,
+                            end: None,
+                            step: 1,
+                        },
+                        Some(DynamicSlice::Full) | None => Slice {
+                            start: 0,
+                            end: None,
+                            step: 1,
+                        },
+                    }
+                } else {
+                    Slice {
+                        start: 0,
+                        end: None,
+                        step: 1,
+                    }
+                }
+            })
+            .squeeze()
+            .to_owned()
+    }
+
+    // ファンシーインデックス用のメソッド - 所有権を持つ配列を返す
+    fn fancy_index<T>(&self, array: &Array<T, IxDyn>) -> Array<T, IxDyn>
+    where
+        T: Clone + std::fmt::Debug,
+    {
+        // 多次元インデックス配列を探す
+        for (dim, slice_opt) in self.slices.iter().enumerate() {
+            println!("処理する多次元インデックス(fancy): {:?}", slice_opt);
+            if let Some(DynamicSlice::MultidimIndices(indices)) = slice_opt {
+                // 結果を格納する配列を準備
+                let mut result_views = Vec::new();
+
+                // 各行に対して処理
+                for row_indices in indices.iter() {
+                    println!("fancy 処理する行 {:?}", row_indices);
+                    let mut row_views = Vec::new();
+
+                    // 各列に対して処理
+                    for &idx in row_indices.iter() {
+                        println!("fancy 処理する列 {:?}", &idx);
+                        // その次元のインデックスに対応する部分配列を取得
+                        let mut slicer = DynamicSlicer::new(array.ndim());
+                        slicer.set_slice(dim, DynamicSlice::Index(idx));
+
+                        // 他の次元のスライスをコピー
+                        for (other_dim, other_slice) in self.slices.iter().enumerate() {
+                            if other_dim != dim && other_slice.is_some() {
+                                slicer.set_slice(other_dim, other_slice.clone().unwrap());
+                            }
+                        }
+
+                        // 基本的なスライシングは to_owned で所有権を持つ配列にして追加
+                        let view = slicer.slice(array);
+                        row_views.push(view);
+                    }
+
+                    // 行方向に結合
+                    if !row_views.is_empty() {
+                        // ここで row_views を結合したものを result_views に追加
+                        let stacked = stack(
+                            Axis(0),
+                            &row_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+                        )
+                        .expect("Failed to stack arrays");
+                        result_views.push(stacked);
+                    }
+                }
+
+                // 列方向に結合
+                if !result_views.is_empty() {
+                    let final_array = stack(
+                        Axis(0),
+                        &result_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
+                    )
+                    .expect("Failed to stack arrays");
+                    return final_array.into_dyn().squeeze();
+                }
+            }
+        }
+
+        // デフォルトとして元の配列のコピーを返す
+        array.to_owned().squeeze()
+    }
+
+    // add.at機能を実装 - 指定された位置に値を加算する
+    pub fn add_at<T>(&self, array: &mut Array<T, IxDyn>, values: &Array<T, IxDyn>)
+    where
+        T: Clone + AddAssign + Debug,
+    {
+        // まず特殊なスライス（Indices）を持つ次元を探す
+        for (i, slice_opt) in self.slices.iter().enumerate() {
+            if let Some(DynamicSlice::Indices(idxs)) = slice_opt {
+                self.add_at_indices(array, idxs, values, i);
+                return;
+            } else if let Some(DynamicSlice::MultidimIndices(multi_idxs)) = slice_opt {
+                self.add_at_multidim_indices(array, multi_idxs, values, i);
+                return;
+            }
+        }
+
+        // 単一インデックスケース (例: x[0, 1] += 5)
+        let mut is_single_index = true;
+        let mut indices = Vec::new();
+
+        // スライスの種類に応じて処理を分岐する。
+        // 複数インデックス指定や多次元インデックス指定の場合は他の処理を呼び出す。
+        for (i, slice_opt) in self.slices.iter().enumerate() {
+            match slice_opt {
+                Some(DynamicSlice::Index(idx)) => {
+                    indices.push(*idx as usize);
+                }
+                _ => {
+                    is_single_index = false;
+                    break;
+                }
+            }
+        }
+
+        // 単一要素への加算
+        if is_single_index && indices.len() == array.ndim() {
+            let index = ndarray::IxDyn(&indices);
+            array[&index] += values.flatten().to_vec()[0].clone();
+            return;
+        }
+
+        // その他のケース: スライスを取得して値を加算
+        let mut slice_info = self.create_slice_info(array.shape());
+
+        // スコープを使って mutable borrowing を制限
+        {
+            let mut target = array.slice_mut(slice_info.as_ref());
+
+            if target.shape() == values.shape() {
+                // シェイプが一致する場合、要素ごとに加算
+                target += values;
+            } else {
+                // シェイプが異なる場合はブロードキャストを試みる
+                let shaped_values = values.broadcast(target.shape()).unwrap();
+                target += &shaped_values;
+            }
+        }
+    }
+
+    /// 単一次元の複数インデックスに対する add_at
+    ///
+    /// Arguments
+    /// * array (&mut Array<T, IxDyn>): 対象の多次元配列
+    /// * indices (&[isize]): 選択する複数のインデックス値
+    /// * values (&Array<T, IxDyn>): 加算する値の配列
+    /// * dim (usize): インデックスを適用する次元
+    fn add_at_indices<T>(
+        &self,
+        array: &mut Array<T, IxDyn>, // 加算対象の多次元配列
+        indices: &[isize],           // 選択する複数のインデックス値
+        values: &Array<T, IxDyn>,    // 加算する値の配列
+        dim: usize,                  // インデックスを適用する次元
+    ) where
+        T: Clone + AddAssign + Debug,
+    {
+        // 各インデックスに対して処理
+        for (i, &idx) in indices.iter().enumerate() {
+            // インデックス用の Slicer を作成
+            let mut index_slicer = DynamicSlicer::new(array.ndim());
+            index_slicer.set_slice(dim, DynamicSlice::Index(idx));
+
+            // 対象の次元以外の次元について、スライスをコピー
+            for (other_dim, other_slice) in self.slices.iter().enumerate() {
+                if other_dim != dim && other_slice.is_some() {
+                    index_slicer.set_slice(other_dim, other_slice.clone().unwrap());
+                }
+            }
+
+            // 値を取得 (values 配列の対応する部分)
+            // 現在処理中のインデックス（i）が値配列の第一次元の範囲内にあるか
+            let value_slice = if values.ndim() > 0 && i < values.shape()[0] {
+                values.index_axis(Axis(0), i).to_owned()
+            } else {
+                values.clone() // 単一値として使用
+            };
+
+            // スライスを取得して値を加算
+            let slice_info = index_slicer.create_slice_info(array.shape());
+
+            {
+                let mut target = array.slice_mut(slice_info.as_ref());
+                dbg!(&target);
+                if target.shape() == value_slice.shape() {
+                    target += &value_slice;
+                } else {
+                    // let shaped_value_slice =
+                    //     value_slice.broadcast(target.shape()).unwrap_or(panic!(
+                    //         "Shape mismatch at index {}: {:?} vs {:?}",
+                    //         idx,
+                    //         target.shape(),
+                    //         value_slice.shape()
+                    //     ));
+                    let shaped_value_slice = value_slice.broadcast(target.shape()).unwrap();
+                    dbg!(&shaped_value_slice);
+
+                    target += &shaped_value_slice;
+                }
+            }
+        }
+    }
+
+    // 多次元インデックス配列に対するadd_at
+    fn add_at_multidim_indices<T>(
+        &self,
+        array: &mut Array<T, IxDyn>,
+        indices: &[Vec<isize>],
+        values: &Array<T, IxDyn>,
+        dim: usize,
+    ) where
+        T: Clone + AddAssign + Debug,
+    {
+        println!("add_at_multi 処理する多次元インデックス: {:?}", indices);
+
+        for (i, idx_vec) in indices.iter().enumerate() {
+            println!("add_at_multi i: {}, idx_vec: {:?}", i, idx_vec);
+            // 配列のインデックスを作成
+            let mut index = Vec::with_capacity(array.ndim());
+            for j in 0..array.ndim() {
+                if j < idx_vec.len() {
+                    // 多次元インデックスの要素を使用
+                    index.push(idx_vec[j] as usize);
+                } else {
+                    // 不足している次元は0で埋める
+                    index.push(0);
+                }
+            }
+
+            println!("インデックス位置 {}: {:?}", i, index);
+
+            // 値を取得
+            let value = if values.ndim() > 0 && i < values.shape()[0] {
+                println!(
+                    "values ndim: {}, shape: {:?}, len: {}",
+                    values.ndim(),
+                    values.shape(),
+                    values.len()
+                );
+                //dbg!(&values);
+                // let idx = IxDyn(&index);
+                let idx = IxDyn(&index);
+                println!(
+                    "index: {:?}, idx: {:?} /  array[idx]: {:?}",
+                    &index, idx, array[&idx]
+                );
+
+                dbg!(&values[&idx]);
+                // values[i].clone()
+                values[&idx].clone()
+            } else {
+                values.iter().next().unwrap().clone() // 最初の値を使用
+            };
+
+            println!("加算する値: {:?}", value);
+
+            // 指定位置に値を加算
+            let idx = IxDyn(&index);
+            println!("index: {:?}, idx: {:?}", &index, idx);
+            dbg!(&array);
+            dbg!(&array[&idx]);
+            array[&idx] += value;
+        }
+    }
+
+    /// SliceInfoElem を使用したスライス情報を作成するメソッド
+    fn create_slice_info(
+        &self,
+        shape: &[usize],
+    ) -> ndarray::SliceInfo<Vec<SliceInfoElem>, IxDyn, IxDyn> {
+        let ndim = shape.len();
+        let mut slice_info_elems = Vec::with_capacity(ndim);
+
+        // 各次元に対してスライス情報を構築する。
+        for dim in 0..ndim {
+            let dim_len = shape[dim];
+
+            // その次元に対応するスライスが存在する場合、スライスの種類に応じて処理する。
+            if dim < self.slices.len() {
+                match &self.slices[dim] {
+                    // レンジ指定のスライスの場合
+                    Some(DynamicSlice::Range { start, end, step }) => {
+                        let start_val = start.unwrap_or(0);
+                        let end_val = end.map(|e| e).unwrap_or_else(|| dim_len as isize);
+                        slice_info_elems.push(SliceInfoElem::Slice {
+                            start: start_val,
+                            end: Some(end_val),
+                            step: *step,
+                        });
+                    }
+                    // 単一インデックスのスライスの場合
+                    Some(DynamicSlice::Index(idx)) => {
+                        slice_info_elems.push(SliceInfoElem::Index(*idx));
+                    }
+                    // 複数インデックスのスライスの場合
+                    Some(DynamicSlice::Indices(_)) | Some(DynamicSlice::MultidimIndices(_)) => {
+                        // これらは通常のスライス操作ではサポートされていないので、フル範囲として扱う
+                        slice_info_elems.push(SliceInfoElem::Slice {
+                            start: 0,
+                            end: None,
+                            step: 1,
+                        });
+                    }
+                    // 全範囲もしくはスライス指定なしの場合、全要素を選択する。
+                    Some(DynamicSlice::Full) | None => {
+                        slice_info_elems.push(SliceInfoElem::Slice {
+                            start: 0,
+                            end: None,
+                            step: 1,
+                        });
+                    }
+                }
+            } else {
+                // スライス指定のない次元の場合、全範囲とする。
+                slice_info_elems.push(SliceInfoElem::Slice {
+                    start: 0,
+                    end: None,
+                    step: 1,
+                });
+            }
+        }
+
+        SliceInfo::<_, _, _>::try_from(slice_info_elems).unwrap()
     }
 }
 
@@ -800,7 +1123,476 @@ mod test {
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
 
-    // use std::time::{Duration, Instant};
+    #[test]
+    fn test_add_at_multidim_04() {
+        // 4次元配列（2x3x4x2）を作成
+        let mut array = Array::zeros((2, 3, 4, 2)).into_dyn();
+
+        // 第2次元と第3次元の特定の組み合わせを指定
+        let multi_indices = vec![
+            vec![1, 2, 0, 0], // 第0次元=1, 第1次元=2, 第2次元=0, 第3次元=0
+            vec![1, 2, 1, 1], // 第0次元=1, 第1次元=2, 第2次元=1, 第3次元=1
+            vec![1, 2, 2, 0], // 第0次元=1, 第1次元=2, 第2次元=2, 第3次元=0
+            vec![1, 2, 3, 1], // 第0次元=1, 第1次元=2, 第2次元=3, 第3次元=1
+        ];
+
+        // 加算する値
+        let values = Array::from_vec(vec![5.0, 10.0, 15.0, 20.0]).into_dyn();
+
+        // スライサーを設定
+        let mut slicer = DynamicSlicer::new(4);
+        slicer.set_slice(0, DynamicSlice::Index(1)); // 第0次元は固定
+        slicer.set_slice(1, DynamicSlice::Index(2)); // 第1次元も固定
+        slicer.set_slice(2, DynamicSlice::MultidimIndices(multi_indices)); // 第2・第3次元の組み合わせ
+
+        // add_atを実行
+        slicer.add_at(&mut array, &values);
+
+        println!("4次元配列の特定位置に加算後:");
+
+        println!("array: {:?}", array.slice(s![.., 0..2, .., ..]));
+        assert_eq!(
+            std::iter::repeat(0.0).take(32).collect::<Vec<_>>(),
+            array.slice(s![.., 0..2, .., ..]).flatten().to_vec()
+        );
+
+        println!("array: {:?}", array.slice(s![1, 2, .., ..]));
+        assert_eq!(
+            vec![5.0, 0.0, 0.0, 10.0, 15.0, 0.0, 0.0, 20.0],
+            array.slice(s![1, 2, .., ..]).flatten().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_add_at_multidim_03() {
+        // 8x8のチェスボード状の行列を作成
+        let mut array = Array::zeros((8, 8)).into_dyn();
+
+        // チェス盤のナイトの動きのような位置を指定
+        let multi_indices = vec![
+            vec![0, 0], // 起点
+            vec![1, 2], // ナイトの動き1
+            vec![2, 4], // ナイトの動き2
+            vec![3, 6], // ナイトの動き3
+            vec![4, 7], // 別の位置
+            vec![5, 5], // 別の位置
+            vec![6, 3], // 別の位置
+            vec![7, 1], // 別の位置
+        ];
+
+        // すべての位置に同じ値を加算
+        let values = Array::from_elem(8, 1.0).into_dyn();
+
+        // スライサーを設定
+        let mut slicer = DynamicSlicer::new(2);
+        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+
+        // add_atを実行
+        slicer.add_at(&mut array, &values);
+
+        println!("パターン化された位置に加算後の配列:");
+        println!("{:?}", array);
+
+        assert_eq!(array.slice(s![0, 0]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![1, 2]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![2, 4]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![3, 6]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![4, 7]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![5, 5]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![6, 3]).flatten().to_vec(), vec!(1.0));
+        assert_eq!(array.slice(s![7, 1]).flatten().to_vec(), vec!(1.0));
+    }
+    #[test]
+    fn test_add_at_multidim_02() {
+        // 3次元配列（3x3x3）を作成
+        let mut array = Array::zeros((3, 3, 3)).into_dyn();
+
+        // 3D座標を指定（四隅）
+        let multi_indices = vec![
+            vec![0, 0, 0], // 原点
+            vec![0, 0, 2], // z軸上の端点
+            vec![0, 2, 0], // y軸上の端点
+            vec![2, 0, 0], // x軸上の端点
+        ];
+
+        // 加算する値
+        let values = Array::from_vec(vec![100.0, 200.0, 300.0, 400.0]).into_dyn();
+
+        // スライサーを設定
+        let mut slicer = DynamicSlicer::new(3);
+        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+
+        // add_atを実行
+        slicer.add_at(&mut array, &values);
+
+        println!("加算後の3D配列（断面表示）:");
+        for i in 0..3 {
+            println!("z = {}:", i);
+            println!("{:?}", array.slice(s![.., .., i]));
+        }
+        assert_eq!(array.slice(s![0, 0, 0]).flatten().to_vec(), vec![100.0]);
+        assert_eq!(array.slice(s![0, 0, 2]).flatten().to_vec(), vec![200.0]);
+        assert_eq!(array.slice(s![0, 2, 0]).flatten().to_vec(), vec![300.0]);
+        assert_eq!(array.slice(s![2, 0, 0]).flatten().to_vec(), vec![400.0]);
+    }
+
+    #[test]
+    fn test_add_at_multidim_01() {
+        // 2次元配列（5x5）を作成
+        let mut x = Array::zeros((5, 5)).into_dyn();
+        println!("Original array:");
+        println!("{:?}", x);
+
+        // 多次元インデックスを設定（対角線の位置を指定）
+        let multi_indices = vec![
+            vec![0, 0], // 左上
+            vec![1, 1], // 対角線上の2番目
+            vec![2, 2], // 対角線上の3番目
+            vec![3, 3], // 対角線上の4番目
+        ];
+
+        // 加算する値
+        let values = Array::from_vec(vec![10.0, 20.0, 30.0, 40.0]).into_dyn();
+
+        // スライサーを設定
+        let mut slicer = DynamicSlicer::new(2);
+        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+
+        // add_atを実行
+        slicer.add_at(&mut x, &values);
+
+        println!("\n加算後の配列:");
+        println!("{:?}", x);
+    }
+
+    #[test]
+    fn test_add_at_2dim_multi_cols() {
+        // 3次元配列の作成 (2×3x4)
+        let mut x = Array::zeros((2, 3, 4)).into_dyn();
+        println!("Original array:");
+        println!("{:?}", x);
+
+        // 加算する値 (インデックス0 に 10、インデックス2 に 20 を加算)
+        let values = Array::from_vec(vec![10.0, 20.0]).into_dyn();
+        let mut slicer = DynamicSlicer::new(3);
+
+        // スライスの設定
+        slicer.set_slice(2, DynamicSlice::Indices(vec![0, 2]));
+
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter");
+        println!("{:?}", x);
+
+        assert_eq!(vec![2, 3, 4], x.shape().to_vec());
+        assert_eq!(
+            vec![
+                10., 0., 20., 0., 10., 0., 20., 0., 10., 0., 20., 0., 10., 0., 20., 0., 10., 0.,
+                20., 0., 10., 0., 20., 0.,
+            ],
+            x.flatten().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_add_at_2dim_multi_rows() {
+        // 2次元配列の作成（3行4列）
+        let mut x = Array::zeros((3, 4)).into_dyn();
+        x.fill(1.0); // すべての要素を1.0に設定
+        println!("Original array:");
+        println!("{:?}", x);
+
+        // 加算する値
+        let values = Array::from_shape_vec(
+            (2, 4),
+            vec![
+                1.0, 2.0, 3.0, 4.0, // 1行目への加算値
+                5.0, 6.0, 7.0, 8.0, // 2行目への加算値
+            ],
+        )
+        .unwrap()
+        .into_dyn();
+
+        // インデックス [0, 2] の行に値を加算（行 = 次元0）
+        let mut slicer = DynamicSlicer::new(0);
+        slicer.set_slice(0, DynamicSlice::Indices(vec![0, 2]));
+
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter");
+        println!("{:?}", x);
+
+        assert_eq!(vec![3, 4], x.shape().to_vec());
+        assert_eq!(
+            vec![2., 3., 4., 5., 1., 1., 1., 1., 6., 7., 8., 9.,],
+            x.flatten().to_vec()
+        );
+    }
+
+    #[test]
+    fn test_add_at_1dim_indices_01() {
+        // 1次元配列の作成
+        let mut x = Array::linspace(0., 9., 10).into_dyn(); // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        println!("Original array:");
+        println!("{:?}", x);
+
+        let values = Array::from_vec(vec![10.0, 20.0, 30.0]).into_dyn();
+
+        // インデックス [1, 3, 7] の位置に値を加算
+        let mut slicer = DynamicSlicer::new(0);
+        slicer.set_slice(0, DynamicSlice::Indices(vec![1, 3, 7])); // 2行目
+
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter");
+        println!("{:?}", x);
+        assert_eq!(
+            vec![0.0, 11.0, 2.0, 23.0, 4.0, 5.0, 6.0, 37.0, 8.0, 9.0],
+            x.flatten().to_vec()
+        );
+    }
+
+    /// 2行目の2列目に10を足す。
+    /// [1, 1] += 10 と同等の操作
+    #[test]
+    fn test_add_at_simple_index_01() {
+        // テスト用の配列を作成 (3x3の2次元配列)
+        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+            .unwrap()
+            .into_dyn();
+        println!("Original array:");
+        println!("{:?}", x);
+
+        // x[1, 1] += 10 と同等の操作
+        let mut slicer = DynamicSlicer::new(2);
+        slicer.set_slice(0, DynamicSlice::Index(1)); // 2行目
+        slicer.set_slice(1, DynamicSlice::Index(1)); // 2列目
+
+        let values = Array::from_elem((), 10);
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter x[1, 1] += 10:");
+        println!("{:?}", x);
+
+        assert_eq!(vec![3, 3], x.shape().to_vec());
+        assert_eq!(vec![0, 1, 2, 3, 14, 5, 6, 7, 8], x.flatten().to_vec());
+    }
+
+    /// 1行目と3行目に1を足す。
+    /// x[[0, 2], :] += 1 と同等の操作
+    #[test]
+    fn test_add_at_slice_01() {
+        // テスト用の配列を作成 (3x3の2次元配列)
+        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+            .unwrap()
+            .into_dyn();
+        println!("Original array:");
+        println!("{:?}", x);
+
+        let mut slicer = DynamicSlicer::new(1);
+        slicer.set_slice(0, DynamicSlice::MultidimIndices(vec![vec![0, 2]])); // 1行目と3行目
+
+        dbg!(&slicer);
+
+        let sliced_result = slicer.slice(&x);
+        dbg!(&sliced_result);
+
+        // x[[0, 2], :] += 1 と同等の操作
+        let values = Array::from_elem(vec![2, 3], 1); // 2行3列の配列で、全て1
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter x[[0, 2], :] += 1:");
+        println!("{:?}", x);
+
+        // assert_eq!(vec![3, 3], x.shape().to_vec());
+        // assert_eq!(vec![1, 2, 3, 3, 4, 5, 7, 8, 9], x.flatten().to_vec());
+    }
+
+    /// 1行目と3行目に1を足す。
+    /// x[[[0, 2], [1, 1]], :] += 5 と同等の操作
+    #[test]
+    fn test_add_at_multi_indices_01() {
+        // テスト用の配列を作成 (3x3の2次元配列)
+        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+            .unwrap()
+            .into_dyn();
+        println!("Original array:");
+        println!("{:?}", x);
+
+        let mut slicer = DynamicSlicer::new(2);
+        slicer.set_slice(
+            0,
+            DynamicSlice::MultidimIndices(vec![vec![0, 2], vec![1, 1]]),
+        );
+
+        // x[[[0, 2], [1, 1]], :] += 5 と同等の操作
+        // let values = Array::from_elem(vec![2, 2, 3], 5); // 2x2x3の配列で、全て5
+        let values = Array::from_elem(vec![2], 10); // 2x2x3の配列で、全て5
+
+        let result = slicer.slice(&x);
+        dbg!(&result);
+
+        slicer.add_at(&mut x, &values.into_dyn());
+
+        println!("\nAfter x[[[0, 2], [1, 1]], :] += 5:");
+        println!("{:?}", x);
+
+        assert_eq!(vec![3, 3], x.shape().to_vec());
+        assert_eq!(vec![0, 1, 12, 3, 14, 5, 6, 7, 8], x.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_slice_multi_01() {
+        // Python の例
+        // x = np.arange(9).reshape((3, 3))
+        // result = x[[[0,2],[1,1]]]
+        // x: [[0 1 2] [3 4 5] [6 7 8]]
+        // result: [[[0 1 2] [6 7 8]] [[3 4 5] [3 4 5]]]
+
+        let array = Array::from_shape_vec(vec![3, 3], (0..=8).collect()).unwrap();
+        println!("array: {:?}", array);
+        let mut slicer = DynamicSlicer::new(array.ndim());
+
+        // 第1次元 (dim=0) のみをスライス
+        slicer.set_slice(0, DynamicSlice::Index(0)); // 第1次元の0のみを選択
+                                                     // slicer.set_slice(2, DynamicSlice::Index(2)); // 第1次元の0のみを選択
+                                                     // slicer.set_slice(1, DynamicSlice::Index(1)); // 第1次元の0のみを選択
+                                                     // slicer.set_slice(1, DynamicSlice::Index(1)); // 第1次元の0のみを選択
+
+        let dim0_slice = slicer.slice(&array);
+        println!("\nDim 0, Index 0:");
+        println!("Sliced shape: {:?}", dim0_slice.shape());
+        println!("Sliced: {:?}", dim0_slice);
+
+        // assert_eq!(vec![2, 3], dim0_slice.shape().to_vec());
+        // assert_eq!(vec![0, 1, 2, 3, 4, 5], dim0_slice.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_slice_index_01() {
+        // Python の例
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, 0)
+        // self.assertTrue(array_allclose(y.data, x_data[0]))
+        // [[0 1 2] [3 4 5]]
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        println!("array: {:?}", array);
+
+        let mut slicer = DynamicSlicer::new(array.ndim());
+        // 第1次元 (dim=0) のみをスライス
+        slicer.set_slice(0, DynamicSlice::Index(0)); // 第1次元の0のみを選択
+
+        let dim0_slice = slicer.slice(&array);
+        println!("\nDim 0, Index 0:");
+        println!("Sliced shape: {:?}", dim0_slice.shape());
+        println!("Sliced: {:?}", dim0_slice);
+        assert_eq!(vec![2, 3], dim0_slice.shape().to_vec());
+        assert_eq!(vec![0, 1, 2, 3, 4, 5], dim0_slice.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_slice_index_and_range_01() {
+        // Python の例
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        // x = Variable(x_data)
+        // y = F.get_item(x, (0, 0, slice(0, 2, 1)))
+        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0:2:1]))
+        // [[0 1]
+
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        println!("array: {:?}", array);
+
+        let slice = DynamicSlice::Range {
+            start: Some(0),
+            end: Some(2),
+            step: 1,
+        };
+
+        let mut slicer = DynamicSlicer::new(array.ndim());
+        slicer
+            .set_slice(0, DynamicSlice::Index(0)) // 第1次元: インデックス0
+            .set_slice(1, DynamicSlice::Index(0)) // 第2次元: インデックス0
+            .set_slice(
+                2,
+                DynamicSlice::Range {
+                    // 第3次元: 0から2未満 (0, 1)
+                    start: Some(0),
+                    end: Some(2),
+                    step: 1,
+                },
+            );
+
+        let dim0_slice = slicer.slice(&array);
+        println!("\nDim 0, Index 0:");
+        println!("Sliced shape: {:?}", dim0_slice.shape());
+        println!("Sliced: {:?}", dim0_slice);
+        assert_eq!(vec![2], dim0_slice.shape().to_vec());
+        assert_eq!(vec![0, 1], dim0_slice.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_slice_range_01() {
+        // Python の例
+        // x_data = np.arange(12).reshape((2, 2, 3))
+        //   x = Variable(x_data)
+        //   y = F.get_item(x, (Ellipsis, 2))
+        //   self.assertTrue(array_allclose(y.data, x_data[..., 2]))
+        // [[ 2  5] [ 8 11]]
+        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+
+        println!("array: {:?}", array);
+
+        let slice = DynamicSlice::Range {
+            start: Some(0),
+            end: Some(2),
+            step: 1,
+        };
+
+        let mut slicer = DynamicSlicer::new(array.ndim());
+        // 全ての次元の最後の要素を取得
+        slicer.set_slice(
+            2,
+            DynamicSlice::Range {
+                start: Some(2),
+                end: Some(3),
+                step: 1,
+            },
+        );
+
+        let dim0_slice = slicer.slice(&array);
+        println!("\nDim 0, Index 0:");
+        println!("Sliced shape: {:?}", dim0_slice.shape());
+        println!("Sliced: {:?}", dim0_slice);
+        assert_eq!(vec![2, 2], dim0_slice.shape().to_vec());
+        assert_eq!(vec![2, 5, 8, 11], dim0_slice.flatten().to_vec());
+    }
+
+    #[test]
+    fn test_slice_fancy_01() {
+        // Python の例
+        // x_data = np.array([[1,2,3],[4,5,6]])
+        // indices = np.array([0, 0, 1])
+        //   x = Variable(x_data)
+        //   y = x[self.slices]
+        // [[1 2 3] [1 2 3] [4 5 6]
+        let array = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
+
+        println!("array: {:?}", array);
+
+        let indices = vec![vec![0, 0, 1]];
+
+        let mut slicer = DynamicSlicer::new(2);
+        slicer.set_slice(0, DynamicSlice::MultidimIndices(indices));
+
+        let result = slicer.slice(&array);
+
+        println!("Sliced shape: {:?}", result.shape());
+        println!("Sliced: {:?}", result);
+        assert_eq!(vec![3, 3], result.shape().to_vec());
+        assert_eq!(vec![0, 1, 2, 0, 1, 2, 3, 4, 5], result.flatten().to_vec());
+    }
 
     #[test]
     fn test_perform_1() {
@@ -997,177 +1789,5 @@ mod test {
         var.set_name("2x2dim".to_string());
         let result = dot_var!(var);
         println!("{}", result);
-    }
-
-    #[test]
-    fn test_add_at_1() {
-        let arr = Array::from(vec![0, 0, 0, 0, 0]).into_dyn();
-        // let indices = [0, 2, 2, 3];
-        let indices = SliceElem::Index(vec![0, 2, 2, 3]);
-        let values = Array::from(vec![1, 2, 3, 4]).into_dyn();
-
-        let result = add_at(arr.clone(), indices, values).unwrap();
-        println!("{:?}", result); // [1, 0, 5, 4, 0]
-        assert_eq!(result.shape().to_vec(), arr.shape().to_vec());
-        assert_eq!(result.flatten().to_vec(), vec![1, 0, 5, 4, 0])
-    }
-
-    #[test]
-    fn test_add_at_2() {
-        let arr = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
-        let indices = [1];
-        let values = Array::from(vec![1, 1, 1]).into_dyn();
-
-        let slice = SliceElem::Index(indices.to_vec());
-
-        let result = add_at(arr.clone(), slice, values).unwrap();
-
-        println!("{:?}", result); // [0, 1, 2, 4, 5, 6]
-        assert_eq!(result.shape().to_vec(), arr.shape().to_vec());
-        assert_eq!(result.flatten().to_vec(), vec![0, 1, 2, 4, 5, 6])
-    }
-
-    #[test]
-    fn test_add_at_3() {
-        // Python 参考
-        // x_data = np.arange(12).reshape((2, 2, 3))
-        // x = Variable(x_data)
-        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
-        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
-
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-        println!("array : {:?}", array);
-
-        let sim = SliceElem::Slice {
-            start: Some(0),
-            end: Some(3),
-            step: 1,
-        };
-
-        let values = Array::from_vec(vec![1, 1, 1]).into_dyn();
-
-        let result = add_at(array.clone(), sim, values).unwrap();
-
-        println!("result: {:?}", result);
-        assert_eq!(array.shape().to_vec(), result.shape().to_vec());
-        assert_eq!(
-            vec![1, 2, 3, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-            result.flatten().to_vec()
-        );
-    }
-
-    #[test]
-    fn test_add_at_4() {
-        // Python 参考
-        // x_data = np.arange(12).reshape((2, 2, 3))
-        // x = Variable(x_data)
-        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
-        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
-
-        let array = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
-        println!("array : {:?}", array);
-
-        // let sim = SliceElem::Slice {
-        //     start: Some(0),
-        //     end: Some(0),
-        //     step: 1,
-        // };
-        let sim = SliceElem::Index(vec![0, 0, 1]);
-
-        let values = Array::from_vec(vec![1, 1, 1]).into_dyn();
-
-        let result = add_at(array.clone(), sim, values).unwrap();
-
-        println!("result: {:?}", result);
-        assert_eq!(array.shape().to_vec(), result.shape().to_vec());
-        assert_eq!(vec![2, 3, 4, 4, 5, 6], result.flatten().to_vec());
-    }
-
-    #[test]
-    fn test_get_slice_by_index_0() {
-        // Python 参考
-        // x_data = np.arange(12).reshape((2, 2, 3))
-        // x = Variable(x_data)
-        // y = F.get_item(x, 0)
-        // self.assertTrue(array_allclose(y.data, x_data[0]))
-
-        // let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-        // let indices = vec![0_usize];
-        // let result = array.index_axis(Axis(0), indices[0]);
-        // println!("array: {:?}\nresult: {:?}", array, result);
-
-        let x = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-
-        let sim = SliceElem::Index([0, 0, 1].to_vec());
-        let result = get_slice(x, sim).unwrap();
-
-        assert_eq!(vec![3, 2, 3], result.shape().to_vec());
-        assert_eq!(
-            vec![0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-            result.flatten().to_vec()
-        );
-    }
-
-    #[test]
-    fn test_get_slice_1() {
-        // Python 参考
-        // x_data = np.arange(12).reshape((2, 2, 3))
-        // x = Variable(x_data)
-        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
-        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
-
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-
-        let sim = SliceElem::Slice {
-            start: Some(0),
-            end: Some(3),
-            step: 1,
-        };
-
-        let result = get_slice(array.clone(), sim).unwrap();
-
-        println!("result: {:?}", result);
-        assert_eq!(vec![3], result.shape().to_vec());
-        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
-    }
-
-    #[test]
-    fn test_get_slice_2() {
-        // Python 参考
-        // x_data = np.arange(12).reshape((2, 2, 3))
-        // x = Variable(x_data)
-        // y = F.get_item(x, (0, 0, slice(0, .., 1)))
-        // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0::1]))
-
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-
-        let sim = SliceElem::Slice {
-            start: Some(0),
-            end: None,
-            step: 1,
-        };
-
-        let result = get_slice(array.clone(), sim).unwrap();
-
-        println!("result: {:?}", result);
-        assert_eq!(vec![3], result.shape().to_vec());
-        assert_eq!(vec![0, 1, 2], result.flatten().to_vec());
-    }
-
-    #[test]
-    fn test_get_slice_ellipsis_2() {
-        let arr = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
-
-        let slice = SliceElem::Slice {
-            start: None,
-            end: None,
-            step: 2,
-        };
-
-        let result = get_slice(arr.clone(), slice).unwrap();
-
-        println!("{:?}", result); // [0, 1, 2, 4, 5, 6]
-        assert_eq!(vec![2, 2], result.shape().to_vec());
-        assert_eq!(result.flatten().to_vec(), vec![2, 5, 8, 11])
     }
 }

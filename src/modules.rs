@@ -23,6 +23,8 @@ pub use crate::modules::layer_modules::linear::*;
 #[allow(unused_imports)]
 pub use crate::modules::layer_modules::mlp::*;
 #[allow(unused_imports)]
+pub use crate::modules::layer_modules::softmax::*;
+#[allow(unused_imports)]
 pub use crate::modules::layer_modules::two_layer_net::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
