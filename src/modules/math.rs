@@ -7,6 +7,7 @@ pub mod factorial;
 pub mod get_item;
 pub mod get_item_grad;
 pub mod linear;
+pub mod logarithm;
 pub mod matmul;
 pub mod mean_squared_error;
 pub mod mul;
