@@ -4,9 +4,111 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Array1, Axis};
+use ndarray::{Array, Array1, Axis, IxDyn};
+use std::{
+    cell::RefCell,
+    rc::{Rc, Weak},
+};
 
 use super::math::logarithm::log;
+
+/// Softmax 関数
+#[derive(Debug, Clone)]
+pub struct SoftmaxFunction {
+    axis: Axis,
+}
+
+impl<V: MathOps> Function<V> for SoftmaxFunction {
+    /// 関数名を取得する。
+    ///
+    /// Return
+    /// ＊String: 関数の名前
+    fn get_name(&self) -> String {
+        "Softmax".to_string()
+    }
+
+    // 順伝播
+    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+        // class Softmax(Function):
+        //     def __init__(self, axis=1):
+        //         self.axis = axis
+        //
+        //     def forward(self, x):
+        //         xp = cuda.get_array_module(x)
+        //         y = x - x.max(axis=self.axis, keepdims=True)
+        //         y = xp.exp(y)
+        //         y /= y.sum(axis=self.axis, keepdims=True)
+        //         return y
+
+        info!("softmax(forward)");
+
+        let x_max = xs[0]
+            .map_axis(self.axis, |view| {
+                // view.iter().max().unwrap().clone()
+                let tmp_x: Vec<f64> = view.iter().map(|x| V::to_f64(x).unwrap()).collect();
+                let max = tmp_x.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+                V::from(max.to_owned()).unwrap()
+            })
+            .insert_axis(self.axis);
+
+        let y = xs[0].clone() - x_max;
+        let y_exp = y.mapv_into(|y| V::from(V::to_f64(&y).unwrap().exp()).unwrap());
+        let y_exp_sum = y_exp.sum_axis(self.axis).insert_axis(self.axis);
+        let y_div_y_exp_sum = y_exp.clone() / y_exp_sum;
+
+        let outputs = vec![y_div_y_exp_sum];
+
+        outputs
+    }
+
+    /// 逆伝播
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
+        // class Softmax(Function):
+        //     def backward(self, gy):
+        //         y = self.outputs[0]()
+        //         gx = y * gy
+        //         sumdx = gx.sum(axis=self.axis, keepdims=True)
+        //         gx -= y * sumdx
+        //         return gx
+
+        info!("softmax(backward)");
+
+        let y = outputs[0].upgrade().unwrap().borrow().get_data().clone();
+
+        let gx = y.clone() * gys[0].get_data();
+        let sumdx = gx.clone().sum_axis(self.axis).insert_axis(self.axis);
+        let result_array = gx - (y * sumdx);
+
+        let result = Variable::new(RawData::from_shape_vec(
+            result_array.shape().to_vec(),
+            result_array.flatten().to_vec(),
+        ));
+
+        vec![result]
+    }
+}
+
+/// softmax 関数
+///
+/// Arguments
+/// * x (Variable<V>): 変数
+///
+/// Return
+/// * Rc<RefCell<RawData>>: log 結果
+pub fn softmax<V: MathOps>(x: Variable<V>, axis: Axis) -> Variable<V> {
+    debug!("SoftmaxFunction::softmax");
+
+    let mut softmax = FunctionExecutor::new(Rc::new(RefCell::new(SoftmaxFunction { axis: axis })));
+
+    // 順伝播
+    let output = softmax.forward(vec![x.clone()]).get(0).unwrap().clone();
+    output
+}
 
 /// ソフトマックス関数
 ///
@@ -128,5 +230,51 @@ mod tests {
         let expect = 0.4401896;
 
         assert!(1e-4 > (y - expect));
+    }
+
+    #[test]
+    fn test_softmax_forward_01() {
+        // def test_forward1(self):
+        //     x = np.array([[0, 1, 2], [0, 2, 4]], np.float32)
+        //     y2 = CF.softmax(x, axis=1)
+        //     y = F.softmax(Variable(x))
+        //     res = array_allclose(y.data, y2.data)
+        //     self.assertTrue(res)
+        // y: variable([[0.09003057 0.24472849 0.66524094] [0.01587624 0.11731042 0.8668133 ]])
+        let x = Variable::new(RawData::from_shape_vec(
+            vec![2, 3],
+            vec![0., 1., 2., 0., 2., 4.],
+        ));
+        let y = softmax(x.clone(), Axis(1));
+        assert_eq!(vec![2, 3], y.get_data().shape().to_vec());
+
+        let expect_values = vec![
+            0.09003057, 0.24472849, 0.66524094, 0.01587624, 0.11731042, 0.8668133,
+        ];
+
+        let expects = Array::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
+        assert!(y.get_data().abs_diff_eq(&expects, 1e-4));
+    }
+
+    #[test]
+    fn test_softmax_backward_01() {
+        let x = Variable::new(RawData::from_shape_vec(
+            vec![2, 3],
+            vec![0., 1., 2., 0., 2., 4.],
+        ));
+        let y = softmax(x.clone(), Axis(1));
+        assert_eq!(vec![2, 3], y.get_data().shape().to_vec());
+
+        let expect_values = vec![
+            0.09003057, 0.24472849, 0.66524094, 0.01587624, 0.11731042, 0.8668133,
+        ];
+
+        let expects = Array::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
+        assert!(y.get_data().abs_diff_eq(&expects, 1e-4));
+
+        let mut softmax =
+            FunctionExecutor::new(Rc::new(RefCell::new(SoftmaxFunction { axis: Axis(1) })));
+
+        utils::gradient_check(&mut softmax, vec![x.clone()]);
     }
 }

@@ -6,7 +6,7 @@ use ::core::fmt::Debug;
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 転置関数
 #[derive(Debug, Clone)]
@@ -53,7 +53,12 @@ impl<V: MathOps> Function<V> for TransposeFunction {
     }
 
     /// 逆伝播
-    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        _inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         if let Some(axes) = self.axes.clone() {
             info!("transpose_axes(backward)");
 

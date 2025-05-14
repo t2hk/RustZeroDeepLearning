@@ -8,7 +8,7 @@ use ndarray::{Array, IxDyn};
 use num_traits::abs;
 use std::cell::RefCell;
 use std::ops::BitXor;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 累乗関数
 #[derive(Debug, Clone)]
@@ -54,7 +54,12 @@ impl<V: MathOps> Function<V> for PowFunction {
 
     /// 逆伝播
     /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("pow(backward)");
         debug!(
             "pow(backward) {:?} * ({:?} ^ ({:?} - 1)) * {:?}",

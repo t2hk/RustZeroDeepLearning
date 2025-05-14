@@ -6,7 +6,7 @@ use ::core::fmt::Debug;
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// ブロードキャスト関数
 #[derive(Debug, Clone)]
@@ -37,7 +37,12 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
     }
 
     /// 逆伝播
-    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        _inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("broadcast_to(backward)");
 
         let gx = sum_to(gys[0].clone(), self.x_shape.clone());
