@@ -16,6 +16,8 @@ pub mod pow;
 pub mod reshape;
 pub mod sigmoid;
 pub mod sin;
+pub mod softmax;
+pub mod softmax_cross_entropy;
 pub mod square;
 pub mod sub;
 pub mod sum;

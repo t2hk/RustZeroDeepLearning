@@ -23,8 +23,6 @@ pub use crate::modules::layer_modules::linear::*;
 #[allow(unused_imports)]
 pub use crate::modules::layer_modules::mlp::*;
 #[allow(unused_imports)]
-pub use crate::modules::layer_modules::softmax::*;
-#[allow(unused_imports)]
 pub use crate::modules::layer_modules::two_layer_net::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::add::*;
@@ -60,6 +58,10 @@ pub use crate::modules::math::reshape::*;
 pub use crate::modules::math::sigmoid::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sin::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::softmax::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::softmax_cross_entropy::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::square::*;
 #[allow(unused_imports)]
