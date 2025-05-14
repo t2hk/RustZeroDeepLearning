@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{Array, Axis, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -61,6 +61,47 @@ pub fn log<V: MathOps>(x: Variable<V>) -> Variable<V> {
     log.forward(vec![x.clone()]).get(0).unwrap().clone()
 }
 
+/// logsumexp 関数
+///
+/// Arguments:
+/// * x (Variable<V>): 変数
+/// * axis (Axis): 軸
+/// Return
+/// * Variable<V>:
+pub fn logsumexp<V: MathOps>(x: Variable<V>, axis: Axis) -> Variable<V> {
+    // def logsumexp(x, axis=1):
+    //   xp = cuda.get_array_module(x)
+    //   m = x.max(axis=axis, keepdims=True)
+    //   y = x - m
+    //   xp.exp(y, out=y)
+    //   s = y.sum(axis=axis, keepdims=True)
+    //   xp.log(s, out=s)
+    //   m += s
+    //   return m
+
+    let m = x
+        .get_data()
+        .map_axis(axis, |view| {
+            // view.iter().max().unwrap().clone()
+            let tmp_x: Vec<f64> = view.iter().map(|x| V::to_f64(x).unwrap()).collect();
+            let max = tmp_x.iter().max_by(|a, b| a.total_cmp(b)).unwrap();
+            V::from(max.to_owned()).unwrap()
+        })
+        .insert_axis(axis);
+    let y = x.get_data() - m.clone();
+    let exp_y = y.mapv_into(|y| V::from(V::to_f64(&y).unwrap().exp()).unwrap());
+    let s = exp_y.sum_axis(axis).insert_axis(axis);
+    let log_s = s.mapv(|s| V::from(V::to_f64(&s).unwrap().ln()).unwrap());
+
+    let m_s = m + log_s;
+
+    // dbg!(&m);
+    Variable::new(RawData::from_shape_vec(
+        m_s.shape().to_vec(),
+        m_s.flatten().to_vec(),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,6 +114,50 @@ mod tests {
             a,
             b
         );
+    }
+
+    #[test]
+    fn test_logsumexp_01() {
+        // python 結果: [1000.69314718]
+        let x = Variable::new(RawData::from_vec(vec![1000.0, 1000.0]));
+        let y = logsumexp(x, Axis(0));
+        dbg!(&y);
+        assert_eq!(vec![1], y.get_data().shape().to_vec());
+        let expect = vec![1000.69314718];
+        let result = y.get_data().flatten().to_vec();
+        assert_close(expect[0], result[0], 1e-8f64);
+    }
+
+    #[test]
+    fn test_logsumexp_02() {
+        // python 結果: y: [[2000.69314718 2000.69314718]]
+        let x = Variable::new(RawData::from_shape_vec(
+            vec![2, 2],
+            vec![2000.0, 2000.0, 2000.0, 2000.0],
+        ));
+        let y = logsumexp(x, Axis(0));
+        dbg!(&y);
+        assert_eq!(vec![1, 2], y.get_data().shape().to_vec());
+        let expect = vec![2000.69314718, 2000.69314718];
+        let result = y.get_data().flatten().to_vec();
+        assert_close(expect[0], result[0], 1e-8f64);
+        assert_close(expect[1], result[1], 1e-8f64);
+    }
+
+    #[test]
+    fn test_logsumexp_03() {
+        // python 結果: y: [[2000.69314718] [2000.69314718]] (shape: [2, 1])
+        let x = Variable::new(RawData::from_shape_vec(
+            vec![2, 2],
+            vec![2000.0, 2000.0, 2000.0, 2000.0],
+        ));
+        let y = logsumexp(x, Axis(1));
+        dbg!(&y);
+        assert_eq!(vec![2, 1], y.get_data().shape().to_vec());
+        let expect = vec![2000.69314718, 2000.69314718, 2000.69314718, 2000.69314718];
+        let result = y.get_data().flatten().to_vec();
+        assert_close(expect[0], result[0], 1e-8f64);
+        assert_close(expect[1], result[1], 1e-8f64);
     }
 
     #[test]

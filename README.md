@@ -256,3 +256,4 @@ cargo run
 * softmax1d, softmax_simple を追加。
 * log を追加。
 * 交差エントロピー誤差(softmax_cross_entropy_simple)を追加。
+* logsumexp を追加。
