@@ -64,7 +64,7 @@ impl<V: MathOps> Function<V> for SoftmaxFunction {
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        _inputs: Vec<Variable<V>>,
         outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
