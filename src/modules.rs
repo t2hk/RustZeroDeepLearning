@@ -1,5 +1,6 @@
 pub mod big_int_wrapper;
 pub mod core;
+pub mod datasets;
 pub mod layer_modules;
 pub mod math;
 pub mod optimizers;
@@ -18,6 +19,8 @@ pub use crate::modules::core::layer::*;
 pub use crate::modules::core::raw_data::*;
 #[allow(unused_imports)]
 pub use crate::modules::core::variable::*;
+#[allow(unused_imports)]
+pub use crate::modules::datasets::*;
 #[allow(unused_imports)]
 pub use crate::modules::layer_modules::linear::*;
 #[allow(unused_imports)]
