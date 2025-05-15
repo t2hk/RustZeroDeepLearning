@@ -8,7 +8,7 @@ use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Sub;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 減算関数
 #[derive(Debug, Clone)]
@@ -36,7 +36,12 @@ impl<V: MathOps> Function<V> for SubFunction {
 
     /// 逆伝播
     /// y=x0-x1 の微分であるため、dy/dx0=1, dy/dx1=-1 である。
-    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        _inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("sub(backward)");
         debug!(
             "sub(backward): dy/dx0 = 1 * {:?}, dy/dx1 = -1 * {:?}",

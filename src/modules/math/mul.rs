@@ -7,7 +7,7 @@ use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Mul;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 乗算関数
 #[derive(Debug, Clone)]
@@ -35,7 +35,12 @@ impl<V: MathOps> Function<V> for MulFunction {
 
     /// 逆伝播
     /// y=x0 * x1 の微分であるため、dy/dx0=x1 * gy, dy/dx1= x0 * gy である。
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("mul(backward)");
         let x0 = &inputs[0];
         let x1 = &inputs[1];

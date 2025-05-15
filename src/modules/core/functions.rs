@@ -35,7 +35,12 @@ where
     ///
     /// Returns
     /// * Vec<Variable<V>>: 入力値に対する微分値
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>>;
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>>;
 }
 
 /// 関数の実行用ラッパー
@@ -227,7 +232,10 @@ impl<V: MathOps> FunctionExecutor<V> {
 
         // if Setting::is_enable_backprop() {
         // 逆伝播を実行する。
-        let gxs = self.creator.borrow().backward(self.inputs.clone(), gys);
+        let gxs = self
+            .creator
+            .borrow()
+            .backward(self.inputs.clone(), self.outputs.clone(), gys);
 
         // 逆伝播の結果を入力値に設定する。
         // 入力値にすでに逆伝播による微分値が設定されている場合、加算する。

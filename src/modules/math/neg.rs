@@ -8,7 +8,7 @@ use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Neg;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 負数 Neg 関数
 #[derive(Debug, Clone)]
@@ -33,7 +33,12 @@ impl<V: MathOps> Function<V> for NegFunction {
 
     /// 逆伝播
     /// y=-x の微分 dy/dx=-1 である。
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("neg(backward)");
         let x = inputs[0].get_data();
         let gys_val = gys[0].get_data();

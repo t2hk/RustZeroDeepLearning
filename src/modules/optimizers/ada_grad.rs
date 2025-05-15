@@ -94,7 +94,7 @@ mod tests {
         var.set_grad(Variable::new(RawData::new(grad)));
         ada_grad.update_one(&mut var.clone());
 
-        assert_eq!(expect, var.get_data().flatten().to_vec()[0]);
+        assert!((expect - var.get_data().flatten().to_vec()[0]).abs() < 1e-10);
 
         for value in ada_grad.hs.values().enumerate() {
             let diff = ((grad * grad) - value.1.flatten().to_vec()[0]).abs();

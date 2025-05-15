@@ -7,7 +7,7 @@ use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
 use std::ops::Div;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// 除算関数
 #[derive(Debug, Clone)]
@@ -35,7 +35,12 @@ impl<V: MathOps> Function<V> for DivFunction {
 
     /// 逆伝播
     /// y=x0 / x1 の微分であるため、dy/dx0=1/x1 * gy, dy/dx1= -x0/(x1^2) * gy である。
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("div(backward)");
 
         let gx_x0 = &gys[0] / &inputs[1];

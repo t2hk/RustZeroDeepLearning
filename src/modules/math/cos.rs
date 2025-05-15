@@ -7,7 +7,7 @@ use ::core::fmt::Debug;
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// Cos 関数
 #[derive(Debug, Clone)]
@@ -36,7 +36,12 @@ impl<V: MathOps> Function<V> for CosFunction {
 
     /// 逆伝播
     /// dy/dx=-sin(x) である。
-    fn backward(&self, inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("cos(backward)");
         debug!(
             "cos(backward): -sin({:?}) * {:?}",

@@ -6,7 +6,7 @@ use ::core::fmt::Debug;
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
 use std::cell::RefCell;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 
 /// リシェイプ関数
 #[derive(Debug, Clone)]
@@ -42,7 +42,12 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
 
     /// 逆伝播
     /// 順伝播の入力値と同じ形状に微分値の形状を返還する。
-    fn backward(&self, _inputs: Vec<Variable<V>>, gys: Vec<Variable<V>>) -> Vec<Variable<V>> {
+    fn backward(
+        &self,
+        _inputs: Vec<Variable<V>>,
+        _outputs: Vec<Weak<RefCell<RawData<V>>>>,
+        gys: Vec<Variable<V>>,
+    ) -> Vec<Variable<V>> {
         info!("reshape(backward)");
         debug!(
             "reshape(backward) {:?} -> {:?}",

@@ -37,6 +37,10 @@ pub use crate::modules::math::exp::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::factorial::*;
 #[allow(unused_imports)]
+pub use crate::modules::math::get_item::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::get_item_grad::*;
+#[allow(unused_imports)]
 pub use crate::modules::math::linear::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::matmul::*;
@@ -54,6 +58,10 @@ pub use crate::modules::math::reshape::*;
 pub use crate::modules::math::sigmoid::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::sin::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::softmax::*;
+#[allow(unused_imports)]
+pub use crate::modules::math::softmax_cross_entropy::*;
 #[allow(unused_imports)]
 pub use crate::modules::math::square::*;
 #[allow(unused_imports)]
