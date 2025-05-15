@@ -259,3 +259,5 @@ cargo run
 * 交差エントロピー誤差(softmax_cross_entropy_simple, softmax_cross_entropy)を追加。
 * logsumexp を追加。
 * softmax の順伝播の結果を逆伝播で使用するため、function の逆伝播関数の API を修正し、順伝播の結果を渡すように変更した。
+
+### ステップ48 多値分類
