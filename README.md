@@ -255,6 +255,6 @@ cargo run
 * get_item や get_item_grad の前準備として、utils に get_slice や add_at を実装中だが、ファンシーインデックスや add_at に難航中。
 * softmax1d, softmax_simple, softmax を追加。
 * log を追加。
-* 交差エントロピー誤差(softmax_cross_entropy_simple)を追加。
+* 交差エントロピー誤差(softmax_cross_entropy_simple, softmax_cross_entropy)を追加。
 * logsumexp を追加。
 * softmax の順伝播の結果を逆伝播で使用するため、function の逆伝播関数の API を修正し、順伝播の結果を渡すように変更した。
