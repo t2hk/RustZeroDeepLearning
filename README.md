@@ -253,6 +253,7 @@ cargo run
 
 ### ステップ47　ソフトマックス関数と交差エントロピー誤差
 * get_item や get_item_grad の前準備として、utils に get_slice や add_at を実装中だが、ファンシーインデックスや add_at に難航中。
+  * ファンシーインデックスや add_at の実装は保留にして次に進めることにする。
 * softmax1d, softmax_simple, softmax を追加。
 * log を追加。
 * 交差エントロピー誤差(softmax_cross_entropy_simple, softmax_cross_entropy)を追加。

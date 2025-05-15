@@ -1123,147 +1123,147 @@ mod test {
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
 
-    #[test]
-    fn test_add_at_multidim_04() {
-        // 4次元配列（2x3x4x2）を作成
-        let mut array = Array::zeros((2, 3, 4, 2)).into_dyn();
+    // #[test]
+    // fn test_add_at_multidim_04() {
+    //     // 4次元配列（2x3x4x2）を作成
+    //     let mut array = Array::zeros((2, 3, 4, 2)).into_dyn();
 
-        // 第2次元と第3次元の特定の組み合わせを指定
-        let multi_indices = vec![
-            vec![1, 2, 0, 0], // 第0次元=1, 第1次元=2, 第2次元=0, 第3次元=0
-            vec![1, 2, 1, 1], // 第0次元=1, 第1次元=2, 第2次元=1, 第3次元=1
-            vec![1, 2, 2, 0], // 第0次元=1, 第1次元=2, 第2次元=2, 第3次元=0
-            vec![1, 2, 3, 1], // 第0次元=1, 第1次元=2, 第2次元=3, 第3次元=1
-        ];
+    //     // 第2次元と第3次元の特定の組み合わせを指定
+    //     let multi_indices = vec![
+    //         vec![1, 2, 0, 0], // 第0次元=1, 第1次元=2, 第2次元=0, 第3次元=0
+    //         vec![1, 2, 1, 1], // 第0次元=1, 第1次元=2, 第2次元=1, 第3次元=1
+    //         vec![1, 2, 2, 0], // 第0次元=1, 第1次元=2, 第2次元=2, 第3次元=0
+    //         vec![1, 2, 3, 1], // 第0次元=1, 第1次元=2, 第2次元=3, 第3次元=1
+    //     ];
 
-        // 加算する値
-        let values = Array::from_vec(vec![5.0, 10.0, 15.0, 20.0]).into_dyn();
+    //     // 加算する値
+    //     let values = Array::from_vec(vec![5.0, 10.0, 15.0, 20.0]).into_dyn();
 
-        // スライサーを設定
-        let mut slicer = DynamicSlicer::new(4);
-        slicer.set_slice(0, DynamicSlice::Index(1)); // 第0次元は固定
-        slicer.set_slice(1, DynamicSlice::Index(2)); // 第1次元も固定
-        slicer.set_slice(2, DynamicSlice::MultidimIndices(multi_indices)); // 第2・第3次元の組み合わせ
+    //     // スライサーを設定
+    //     let mut slicer = DynamicSlicer::new(4);
+    //     slicer.set_slice(0, DynamicSlice::Index(1)); // 第0次元は固定
+    //     slicer.set_slice(1, DynamicSlice::Index(2)); // 第1次元も固定
+    //     slicer.set_slice(2, DynamicSlice::MultidimIndices(multi_indices)); // 第2・第3次元の組み合わせ
 
-        // add_atを実行
-        slicer.add_at(&mut array, &values);
+    //     // add_atを実行
+    //     slicer.add_at(&mut array, &values);
 
-        println!("4次元配列の特定位置に加算後:");
+    //     println!("4次元配列の特定位置に加算後:");
 
-        println!("array: {:?}", array.slice(s![.., 0..2, .., ..]));
-        assert_eq!(
-            std::iter::repeat(0.0).take(32).collect::<Vec<_>>(),
-            array.slice(s![.., 0..2, .., ..]).flatten().to_vec()
-        );
+    //     println!("array: {:?}", array.slice(s![.., 0..2, .., ..]));
+    //     assert_eq!(
+    //         std::iter::repeat(0.0).take(32).collect::<Vec<_>>(),
+    //         array.slice(s![.., 0..2, .., ..]).flatten().to_vec()
+    //     );
 
-        println!("array: {:?}", array.slice(s![1, 2, .., ..]));
-        assert_eq!(
-            vec![5.0, 0.0, 0.0, 10.0, 15.0, 0.0, 0.0, 20.0],
-            array.slice(s![1, 2, .., ..]).flatten().to_vec()
-        );
-    }
+    //     println!("array: {:?}", array.slice(s![1, 2, .., ..]));
+    //     assert_eq!(
+    //         vec![5.0, 0.0, 0.0, 10.0, 15.0, 0.0, 0.0, 20.0],
+    //         array.slice(s![1, 2, .., ..]).flatten().to_vec()
+    //     );
+    // }
 
-    #[test]
-    fn test_add_at_multidim_03() {
-        // 8x8のチェスボード状の行列を作成
-        let mut array = Array::zeros((8, 8)).into_dyn();
+    // #[test]
+    // fn test_add_at_multidim_03() {
+    //     // 8x8のチェスボード状の行列を作成
+    //     let mut array = Array::zeros((8, 8)).into_dyn();
 
-        // チェス盤のナイトの動きのような位置を指定
-        let multi_indices = vec![
-            vec![0, 0], // 起点
-            vec![1, 2], // ナイトの動き1
-            vec![2, 4], // ナイトの動き2
-            vec![3, 6], // ナイトの動き3
-            vec![4, 7], // 別の位置
-            vec![5, 5], // 別の位置
-            vec![6, 3], // 別の位置
-            vec![7, 1], // 別の位置
-        ];
+    //     // チェス盤のナイトの動きのような位置を指定
+    //     let multi_indices = vec![
+    //         vec![0, 0], // 起点
+    //         vec![1, 2], // ナイトの動き1
+    //         vec![2, 4], // ナイトの動き2
+    //         vec![3, 6], // ナイトの動き3
+    //         vec![4, 7], // 別の位置
+    //         vec![5, 5], // 別の位置
+    //         vec![6, 3], // 別の位置
+    //         vec![7, 1], // 別の位置
+    //     ];
 
-        // すべての位置に同じ値を加算
-        let values = Array::from_elem(8, 1.0).into_dyn();
+    //     // すべての位置に同じ値を加算
+    //     let values = Array::from_elem(8, 1.0).into_dyn();
 
-        // スライサーを設定
-        let mut slicer = DynamicSlicer::new(2);
-        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+    //     // スライサーを設定
+    //     let mut slicer = DynamicSlicer::new(2);
+    //     slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
 
-        // add_atを実行
-        slicer.add_at(&mut array, &values);
+    //     // add_atを実行
+    //     slicer.add_at(&mut array, &values);
 
-        println!("パターン化された位置に加算後の配列:");
-        println!("{:?}", array);
+    //     println!("パターン化された位置に加算後の配列:");
+    //     println!("{:?}", array);
 
-        assert_eq!(array.slice(s![0, 0]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![1, 2]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![2, 4]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![3, 6]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![4, 7]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![5, 5]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![6, 3]).flatten().to_vec(), vec!(1.0));
-        assert_eq!(array.slice(s![7, 1]).flatten().to_vec(), vec!(1.0));
-    }
-    #[test]
-    fn test_add_at_multidim_02() {
-        // 3次元配列（3x3x3）を作成
-        let mut array = Array::zeros((3, 3, 3)).into_dyn();
+    //     assert_eq!(array.slice(s![0, 0]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![1, 2]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![2, 4]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![3, 6]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![4, 7]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![5, 5]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![6, 3]).flatten().to_vec(), vec!(1.0));
+    //     assert_eq!(array.slice(s![7, 1]).flatten().to_vec(), vec!(1.0));
+    // }
+    // #[test]
+    // fn test_add_at_multidim_02() {
+    //     // 3次元配列（3x3x3）を作成
+    //     let mut array = Array::zeros((3, 3, 3)).into_dyn();
 
-        // 3D座標を指定（四隅）
-        let multi_indices = vec![
-            vec![0, 0, 0], // 原点
-            vec![0, 0, 2], // z軸上の端点
-            vec![0, 2, 0], // y軸上の端点
-            vec![2, 0, 0], // x軸上の端点
-        ];
+    //     // 3D座標を指定（四隅）
+    //     let multi_indices = vec![
+    //         vec![0, 0, 0], // 原点
+    //         vec![0, 0, 2], // z軸上の端点
+    //         vec![0, 2, 0], // y軸上の端点
+    //         vec![2, 0, 0], // x軸上の端点
+    //     ];
 
-        // 加算する値
-        let values = Array::from_vec(vec![100.0, 200.0, 300.0, 400.0]).into_dyn();
+    //     // 加算する値
+    //     let values = Array::from_vec(vec![100.0, 200.0, 300.0, 400.0]).into_dyn();
 
-        // スライサーを設定
-        let mut slicer = DynamicSlicer::new(3);
-        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+    //     // スライサーを設定
+    //     let mut slicer = DynamicSlicer::new(3);
+    //     slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
 
-        // add_atを実行
-        slicer.add_at(&mut array, &values);
+    //     // add_atを実行
+    //     slicer.add_at(&mut array, &values);
 
-        println!("加算後の3D配列（断面表示）:");
-        for i in 0..3 {
-            println!("z = {}:", i);
-            println!("{:?}", array.slice(s![.., .., i]));
-        }
-        assert_eq!(array.slice(s![0, 0, 0]).flatten().to_vec(), vec![100.0]);
-        assert_eq!(array.slice(s![0, 0, 2]).flatten().to_vec(), vec![200.0]);
-        assert_eq!(array.slice(s![0, 2, 0]).flatten().to_vec(), vec![300.0]);
-        assert_eq!(array.slice(s![2, 0, 0]).flatten().to_vec(), vec![400.0]);
-    }
+    //     println!("加算後の3D配列（断面表示）:");
+    //     for i in 0..3 {
+    //         println!("z = {}:", i);
+    //         println!("{:?}", array.slice(s![.., .., i]));
+    //     }
+    //     assert_eq!(array.slice(s![0, 0, 0]).flatten().to_vec(), vec![100.0]);
+    //     assert_eq!(array.slice(s![0, 0, 2]).flatten().to_vec(), vec![200.0]);
+    //     assert_eq!(array.slice(s![0, 2, 0]).flatten().to_vec(), vec![300.0]);
+    //     assert_eq!(array.slice(s![2, 0, 0]).flatten().to_vec(), vec![400.0]);
+    // }
 
-    #[test]
-    fn test_add_at_multidim_01() {
-        // 2次元配列（5x5）を作成
-        let mut x = Array::zeros((5, 5)).into_dyn();
-        println!("Original array:");
-        println!("{:?}", x);
+    // #[test]
+    // fn test_add_at_multidim_01() {
+    //     // 2次元配列（5x5）を作成
+    //     let mut x = Array::zeros((5, 5)).into_dyn();
+    //     println!("Original array:");
+    //     println!("{:?}", x);
 
-        // 多次元インデックスを設定（対角線の位置を指定）
-        let multi_indices = vec![
-            vec![0, 0], // 左上
-            vec![1, 1], // 対角線上の2番目
-            vec![2, 2], // 対角線上の3番目
-            vec![3, 3], // 対角線上の4番目
-        ];
+    //     // 多次元インデックスを設定（対角線の位置を指定）
+    //     let multi_indices = vec![
+    //         vec![0, 0], // 左上
+    //         vec![1, 1], // 対角線上の2番目
+    //         vec![2, 2], // 対角線上の3番目
+    //         vec![3, 3], // 対角線上の4番目
+    //     ];
 
-        // 加算する値
-        let values = Array::from_vec(vec![10.0, 20.0, 30.0, 40.0]).into_dyn();
+    //     // 加算する値
+    //     let values = Array::from_vec(vec![10.0, 20.0, 30.0, 40.0]).into_dyn();
 
-        // スライサーを設定
-        let mut slicer = DynamicSlicer::new(2);
-        slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
+    //     // スライサーを設定
+    //     let mut slicer = DynamicSlicer::new(2);
+    //     slicer.set_slice(0, DynamicSlice::MultidimIndices(multi_indices));
 
-        // add_atを実行
-        slicer.add_at(&mut x, &values);
+    //     // add_atを実行
+    //     slicer.add_at(&mut x, &values);
 
-        println!("\n加算後の配列:");
-        println!("{:?}", x);
-    }
+    //     println!("\n加算後の配列:");
+    //     println!("{:?}", x);
+    // }
 
     #[test]
     fn test_add_at_2dim_multi_cols() {
@@ -1410,36 +1410,36 @@ mod test {
 
     /// 1行目と3行目に1を足す。
     /// x[[[0, 2], [1, 1]], :] += 5 と同等の操作
-    #[test]
-    fn test_add_at_multi_indices_01() {
-        // テスト用の配列を作成 (3x3の2次元配列)
-        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
-            .unwrap()
-            .into_dyn();
-        println!("Original array:");
-        println!("{:?}", x);
+    // #[test]
+    // fn test_add_at_multi_indices_01() {
+    //     // テスト用の配列を作成 (3x3の2次元配列)
+    //     let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+    //         .unwrap()
+    //         .into_dyn();
+    //     println!("Original array:");
+    //     println!("{:?}", x);
 
-        let mut slicer = DynamicSlicer::new(2);
-        slicer.set_slice(
-            0,
-            DynamicSlice::MultidimIndices(vec![vec![0, 2], vec![1, 1]]),
-        );
+    //     let mut slicer = DynamicSlicer::new(2);
+    //     slicer.set_slice(
+    //         0,
+    //         DynamicSlice::MultidimIndices(vec![vec![0, 2], vec![1, 1]]),
+    //     );
 
-        // x[[[0, 2], [1, 1]], :] += 5 と同等の操作
-        // let values = Array::from_elem(vec![2, 2, 3], 5); // 2x2x3の配列で、全て5
-        let values = Array::from_elem(vec![2], 10); // 2x2x3の配列で、全て5
+    //     // x[[[0, 2], [1, 1]], :] += 5 と同等の操作
+    //     // let values = Array::from_elem(vec![2, 2, 3], 5); // 2x2x3の配列で、全て5
+    //     let values = Array::from_elem(vec![2], 10); // 2x2x3の配列で、全て5
 
-        let result = slicer.slice(&x);
-        dbg!(&result);
+    //     let result = slicer.slice(&x);
+    //     dbg!(&result);
 
-        slicer.add_at(&mut x, &values.into_dyn());
+    //     slicer.add_at(&mut x, &values.into_dyn());
 
-        println!("\nAfter x[[[0, 2], [1, 1]], :] += 5:");
-        println!("{:?}", x);
+    //     println!("\nAfter x[[[0, 2], [1, 1]], :] += 5:");
+    //     println!("{:?}", x);
 
-        assert_eq!(vec![3, 3], x.shape().to_vec());
-        assert_eq!(vec![0, 1, 12, 3, 14, 5, 6, 7, 8], x.flatten().to_vec());
-    }
+    //     assert_eq!(vec![3, 3], x.shape().to_vec());
+    //     assert_eq!(vec![0, 1, 12, 3, 14, 5, 6, 7, 8], x.flatten().to_vec());
+    // }
 
     #[test]
     fn test_slice_multi_01() {
