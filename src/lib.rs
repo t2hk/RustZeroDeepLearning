@@ -7,6 +7,7 @@ pub use modules::core::functions::*;
 pub use modules::core::layer::*;
 pub use modules::core::raw_data::*;
 pub use modules::core::variable::*;
+pub use modules::datasets::*;
 pub use modules::layer_modules::linear::*;
 pub use modules::layer_modules::mlp::*;
 pub use modules::layer_modules::two_layer_net::*;

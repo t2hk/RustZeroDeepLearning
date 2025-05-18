@@ -73,22 +73,22 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
         //         y = (y - t_onehot) * gy
         //         return y
 
-        info!("log(softmax_cross_entropy)");
+        info!("softmax_cross_entropy(backward)");
 
         let n = &inputs[0].get_data().shape().to_vec()[0];
         let cls_num = inputs[0].get_data().shape().to_vec()[1] as usize;
 
-        println!("n: {}, cls_num: {}", n, cls_num);
+        info!("  n: {}, cls_num: {}", n, cls_num);
 
         let t_data = self.t.get_data();
 
         let one_div_n = RawData::new(V::from(1).unwrap() / V::from(*n as f64).unwrap()).get_data();
-        println!(" 1 / n = {}", one_div_n);
 
         let gy = gys[0].get_data() * one_div_n;
         let y = softmax(inputs[0].clone(), Axis(1));
 
         let mut t_onehot = Array::zeros((*n, cls_num));
+
         for (i, &ref label) in t_data.iter().enumerate() {
             t_onehot[[i, *label]] = V::from(1).unwrap();
         }
