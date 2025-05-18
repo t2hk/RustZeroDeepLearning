@@ -3,14 +3,22 @@ extern crate rust_zero_deeplearning;
 #[path = "common/mod.rs"]
 mod common;
 
+use std::cell::RefCell;
 use std::f64::consts::PI;
+use std::rc::Rc;
 
 use ndarray_rand::RandomExt;
+use num_traits::float::TotalOrder;
 use plotters::chart::ChartBuilder;
-use plotters::prelude::{BitMapBackend, Circle, EmptyElement, IntoDrawingArea, PathElement};
+use plotters::prelude::{
+    BitMapBackend, Circle, Cross, EmptyElement, IntoDrawingArea, IntoDynElement, PathElement,
+    TriangleMarker,
+};
 use plotters::series::{LineSeries, PointSeries};
-use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
+use plotters::style::full_palette::{BLUE_300, GREEN_300, RED_300};
+use plotters::style::{Color, IntoFont, BLACK, BLUE, GREEN, RED, WHITE};
 use rand::distributions::Uniform;
+use rand::seq::SliceRandom;
 use rust_zero_deeplearning::modules::core::function_libs;
 use rust_zero_deeplearning::modules::math::sin;
 use rust_zero_deeplearning::modules::*;
@@ -18,7 +26,7 @@ use rust_zero_deeplearning::modules::*;
 // use approx::assert_abs_diff_eq;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis};
+use ndarray::{s, Array, Axis, IxDyn};
 use rand::SeedableRng;
 use rand_isaac::isaac64::Isaac64Rng;
 
@@ -608,4 +616,266 @@ fn test_predict() {
             );
         }
     }
+}
+
+#[test]
+fn test_step48_train_spiral() {
+    // ハイパーパラメータの設定
+    let max_epoch = 300;
+    let batch_size = 30;
+    let hidden_size = 10;
+    let lr = 1.0;
+
+    // データの読み込み、モデル・オプティマイザの生成
+    let (x, t) = datasets::get_spiral(true);
+    let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
+    let sgd = Sgd::new(lr);
+    let mut mlp = Mlp::new(vec![hidden_size, 3], sigmoid, sgd);
+
+    let data_size = x.shape().to_vec()[0];
+    let max_iter = data_size.div_ceil(batch_size);
+    println!(
+        "max_epoch:{}, bath_size:{}, hidden_size:{}, data_size:{}, max_iter:{}",
+        max_epoch, batch_size, hidden_size, data_size, max_iter
+    );
+
+    let seed = 0;
+    let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+    let mut loss_result = vec![];
+
+    for epoch in 0..max_epoch {
+        let mut index: Vec<usize> = (0..data_size).collect();
+        index.shuffle(&mut rng);
+
+        let mut sum_loss = 0.0;
+
+        for i in 0..max_iter {
+            // ミニバッチの作成
+            let mini_batch_from = i * batch_size;
+            let mini_batch_to = (i + 1) * batch_size;
+            let batch_index = &index[mini_batch_from..mini_batch_to];
+
+            let mut batch_x_vec = vec![];
+            let mut batch_t_vec = vec![];
+
+            for idx in batch_index.iter() {
+                let x_var = x.slice(s![*idx, ..]);
+                batch_x_vec.extend(x_var.flatten().to_vec());
+                batch_t_vec.push(t.flatten().to_vec()[*idx]);
+            }
+            let batch_x = Variable::new(RawData::from_shape_vec(vec![batch_size, 2], batch_x_vec));
+            let batch_t = Variable::new(RawData::from_shape_vec(
+                vec![1, batch_size],
+                batch_t_vec.clone(),
+            ));
+
+            // 勾配の算出、パラメータの更新
+            let y = mlp.forward(vec![batch_x.clone()]);
+            let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
+            mlp.cleargrads();
+
+            loss.backward();
+            mlp.update_parameters();
+
+            sum_loss += loss.get_data().flatten().to_vec()[0] as f64 * batch_t_vec.len() as f64;
+        }
+        let avg_loss = sum_loss / data_size as f64;
+        println!("epoch {}, loss: {}", epoch + 1, avg_loss);
+        loss_result.push(avg_loss);
+    }
+
+    // 損失結果グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step48_spiral_train_loss.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("Spiral data train loss", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0..300, 0.0..1.5)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 損失の描画
+    chart
+        .draw_series(LineSeries::new(
+            (0..loss_result.len()).map(|x| (x as i32, loss_result[x] as f64)),
+            &RED,
+        ))
+        .unwrap();
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+
+    // 学習後のニューラルネットワークの決定境界を描画する。
+    let h = 0.001;
+    let mut x_xs = vec![];
+    let mut x_ys = vec![];
+    for xs in x.axis_iter(Axis(0)) {
+        x_xs.push(xs.flatten().to_vec()[0]);
+        x_ys.push(xs.flatten().to_vec()[1]);
+    }
+
+    let mut x_min = 0f64;
+    let mut x_max = 0f64;
+    let mut y_min = 0f64;
+    let mut y_max = 0f64;
+
+    for x in x_xs.iter() {
+        if *x > x_max {
+            x_max = *x;
+        }
+        if *x < x_min {
+            x_min = *x;
+        }
+    }
+
+    for y in x_ys.iter() {
+        if *y > y_max {
+            y_max = *y;
+        }
+        if *y < y_min {
+            y_min = *y;
+        }
+    }
+
+    x_min -= 0.1;
+    x_max += 0.1;
+    y_min -= 0.1;
+    y_max += 0.1;
+
+    println!("x min: {} x max: {}", x_min, x_max);
+    println!("y min: {} y max: {}", y_min, y_max);
+
+    let xx = Array::range(x_min, x_max, h);
+    let yy = Array::range(y_min, y_max, h);
+
+    println!(
+        "x shape:{:?}, xx shape: {:?}, yy shape:{:?}",
+        x.shape(),
+        xx.shape(),
+        yy.shape()
+    );
+
+    let pred_batch_size = 100;
+    let pred_max_iter = xx.shape().to_vec()[0] * yy.shape().to_vec()[0] / pred_batch_size;
+    println!("pred max iter: {}", pred_max_iter);
+
+    // 逆伝播を実行しない。微分値を保持しない。
+    Setting::set_retain_grad_disabled();
+    // バックプロパゲーションを行わない。
+    Setting::set_backprop_disabled();
+
+    let mut x_vec = vec![];
+    for (i, xx_var) in xx.iter().enumerate() {
+        for (j, yy_var) in yy.iter().enumerate() {
+            //println!("xx: {:?} yy:{:?}", xx_var, yy_var);
+            x_vec.push(*xx_var);
+            x_vec.push(*yy_var);
+        }
+    }
+    let x_var = Variable::new(RawData::from_shape_vec(vec![x_vec.len() / 2, 2], x_vec));
+
+    dbg!(&x_var.get_data().shape());
+
+    let score = mlp.forward(vec![x_var.clone()]);
+    println!("score shape:{:?}", score[0].get_data().shape());
+
+    let predict_cls = score[0]
+        .get_data()
+        .axis_iter(ndarray::Axis(0))
+        .map(|row| {
+            row.iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                .map(|(idx, _)| idx)
+                .unwrap_or(0)
+        })
+        .collect::<Vec<_>>();
+
+    // for (i, val) in score[0].get_data().axis_iter(Axis(0)).enumerate() {
+    //     println!("{:?}: {}", val, predict_cls[i]);
+    // }
+    let x_points: Vec<f64> = x_var.get_data().slice(s![.., 0]).to_vec();
+    let y_points: Vec<f64> = x_var.get_data().slice(s![.., 1]).to_vec();
+
+    draw_decision_boundary(x, t, x_points, y_points, predict_cls);
+}
+
+/// テスト用のスパイラルデータと学習後のモデルによる決定境界を描画する。
+fn draw_decision_boundary(
+    x: Array<f64, IxDyn>,
+    t: Array<usize, IxDyn>,
+    x_points: Vec<f64>,
+    y_points: Vec<f64>,
+    predict_cls: Vec<usize>,
+) {
+    let file_path = "graph/step48_spiral_decision_boundary.png";
+    let caption = "step48_spiral_decision_boundary";
+
+    // グラフ描画
+    // 描画先の Backend を初期化する。
+    let root = BitMapBackend::new(&file_path, (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption(&caption, ("sans-serif", 30).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(-1.0..1.0, -1.0..1.0)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 決定境界の病害
+    chart
+        .draw_series((0..x_points.len()).map(|i| {
+            let x_x = x_points[i];
+            let x_y = y_points[i];
+
+            let point = (x_x, x_y);
+
+            let t_var = predict_cls[i];
+
+            match t_var {
+                0 => Circle::new(point, 1, GREEN_300.filled()).into_dyn(),
+                1 => TriangleMarker::new(point, 1, BLUE_300.filled()).into_dyn(),
+                _ => Cross::new(point, 1, RED_300.filled()).into_dyn(),
+            }
+        }))
+        .unwrap();
+
+    // テストデータの描画
+    chart
+        .draw_series((0..300).map(|i| {
+            let x_x = x[[i, 0]];
+            let x_y = x[[i, 1]];
+
+            let point = (x_x, x_y);
+
+            let t_var = t[i];
+
+            match t_var {
+                0 => Circle::new(point, 4, GREEN.filled()).into_dyn(),
+                1 => TriangleMarker::new(point, 4, BLUE.filled()).into_dyn(),
+                _ => Cross::new(point, 4, RED.filled()).into_dyn(),
+            }
+        }))
+        .unwrap();
+
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 }
