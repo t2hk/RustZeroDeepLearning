@@ -10,6 +10,8 @@ pub mod utils;
 #[allow(unused_imports)]
 pub use crate::modules::big_int_wrapper::*;
 #[allow(unused_imports)]
+pub use crate::modules::core::data_loader::*;
+#[allow(unused_imports)]
 pub use crate::modules::core::function_libs::*;
 #[allow(unused_imports)]
 pub use crate::modules::core::functions::*;
