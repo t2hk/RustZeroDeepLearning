@@ -2,8 +2,10 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{s, Array, IxDyn};
 use ndarray_rand::rand_distr::Normal;
+use std::{cell::RefCell, rc::Rc};
+
 use plotters::{
     chart::ChartBuilder,
     prelude::{BitMapBackend, Circle, Cross, IntoDrawingArea, IntoDynElement, TriangleMarker},
@@ -11,6 +13,142 @@ use plotters::{
     style::{Color, IntoFont, BLACK, BLUE, GREEN, RED, WHITE},
 };
 use rand::{prelude::Distribution, rngs::StdRng, seq::SliceRandom, SeedableRng};
+
+/// データローダー用のトレイト
+pub trait DataLoader: std::fmt::Debug {
+    /// データを読み込む。
+    ///
+    /// Arguments:
+    /// * train (bool): 学習データの場合 true、テストデータの場合 false
+    ///
+    /// Retrun
+    /// * (Array<f64, IxDyn>, Array<usize, IxDyn>): スパイラルデータと正解ラベル
+    fn prepare(&self, train: bool) -> (Array<f64, IxDyn>, Array<usize, IxDyn>);
+}
+
+/// データセット構造体
+#[derive(Debug, Clone)]
+pub struct Dataset {
+    train: bool, // 訓練データの場合 true、テストデータの場合 false
+    data_loader: Rc<RefCell<dyn DataLoader>>, // データローダのトレイトオブジェクト
+    data: Option<Array<f64, IxDyn>>, // データ
+    label: Option<Array<usize, IxDyn>>, // 正解ラベル
+}
+
+impl Dataset {
+    /// データセットの初期化
+    ///
+    /// Arguments:
+    /// * train (bool): 訓練データの場合 true、テストデータの場合 false
+    /// * batch_size (usize): バッチサイズ
+    /// * shuffle (bool): シャッフルするかどうか
+    /// * data_loader (Rc<RefCell<dyn DataLoader>>): データローダ用のトレイトオブジェクト
+    ///
+    /// Return:
+    /// * Dataset: データセット構造体
+    pub fn init(train: bool, data_loader: Rc<RefCell<dyn DataLoader>>) -> Dataset {
+        let mut ds = Dataset {
+            train: train,
+            data_loader: data_loader,
+            data: None,
+            label: None,
+        };
+        ds.prepare();
+        ds
+    }
+
+    /// データを読み込む。
+    ///
+    /// Arguments:
+    /// * train (bool): 学習データの場合 true、テストデータの場合 false
+    ///
+    /// Retrun
+    /// * (Array<f64, IxDyn>, Array<usize, IxDyn>): スパイラルデータと正解ラベル
+    pub fn prepare(&mut self) {
+        let (x, t) = self.data_loader.borrow().prepare(self.train);
+        self.data = Some(x);
+        self.label = Some(t);
+    }
+
+    /// 対象データの長さを取得する。
+    ///
+    /// Retrun
+    /// * usize: 長さ
+    pub fn len(self) -> usize {
+        if let Some(data) = self.data {
+            // data.len()
+            data.shape().to_vec()[0]
+        } else {
+            panic!("Data does not exist.");
+        }
+    }
+
+    /// 指定したインデックスのデータと正解ラベルを取得する。
+    ///
+    /// Arguments:
+    /// * index (usize): インデックス
+    ///
+    /// Retrun:
+    /// * (Array<f64, IxDyn>, Option<usize>): 対象データと正解ラベル
+    pub fn get(self, index: usize) -> (Array<f64, IxDyn>, Option<usize>) {
+        if let Some(data) = self.data {
+            let index_row = data.slice(s![index, ..]).into_owned().into_dyn();
+
+            if let Some(label) = self.label {
+                let index_label = label.flatten().to_vec()[index];
+                (index_row, Some(index_label))
+            } else {
+                (index_row, None)
+            }
+        } else {
+            panic!("Data does not exist.");
+        }
+    }
+
+    /// バッチ取得
+    /// 指定したインデックスのデータ群を取得する。
+    ///
+    /// Arguments:
+    /// * batch_index (&[usize]): バッチ取得するインデックス
+    ///
+    /// Retrun:
+    /// * (Variable<f64>, Variable<usize>): インデックスで指定したデータと正解ラベル
+    pub fn get_batch(&self, batch_index: &[usize]) -> (Variable<f64>, Variable<usize>) {
+        let mut batch_x_vec = vec![];
+        let mut batch_t_vec = vec![];
+
+        for idx in batch_index.iter() {
+            let idx_train_data = self.clone().get(*idx);
+            batch_x_vec.extend(idx_train_data.0.flatten().to_vec());
+            batch_t_vec.push(idx_train_data.1.unwrap());
+        }
+        let batch_x = Variable::new(RawData::from_shape_vec(
+            vec![batch_index.len(), 2],
+            batch_x_vec,
+        ));
+        let batch_t = Variable::new(RawData::from_shape_vec(
+            vec![1, batch_index.len()],
+            batch_t_vec.clone(),
+        ));
+        (batch_x, batch_t)
+    }
+}
+
+/// スパイラルデータセット用のデータローダー
+#[derive(Debug, Clone)]
+pub struct SpiralDataSet;
+impl DataLoader for SpiralDataSet {
+    /// データを読み込む。
+    ///
+    /// Arguments:
+    /// * train (bool): 学習データの場合 true、テストデータの場合 false
+    ///
+    /// Retrun
+    /// * (Array<f64, IxDyn>, Array<usize, IxDyn>): スパイラルデータと正解ラベル
+    fn prepare(&self, train: bool) -> (Array<f64, IxDyn>, Array<usize, IxDyn>) {
+        get_spiral(train)
+    }
+}
 
 /// スパイラルデータセット
 ///
@@ -120,6 +258,10 @@ pub fn draw_spiral_graph(train: bool) {
 
 #[cfg(test)]
 mod test {
+    use std::{cell::RefCell, rc::Rc};
+
+    use rand_isaac::Isaac64Rng;
+
     use super::*;
 
     #[test]
@@ -139,5 +281,68 @@ mod test {
 
         draw_spiral_graph(true);
         draw_spiral_graph(false);
+    }
+
+    /// Dataset を使った学習
+    #[test]
+    fn test_step49_spiral_dataset() {
+        // ハイパーパラメータの設定
+        let max_epoch = 300;
+        let batch_size = 30;
+        let hidden_size = 10;
+        let lr = 1.0;
+
+        // データの読み込み、モデル・オプティマイザの生成
+        // let (x, t) = datasets::get_spiral(true);
+        //let spiral_train_set = SpiralDataSet::init(true);
+        let mut spiral_train_set = Dataset::init(true, Rc::new(RefCell::new(SpiralDataSet {})));
+        spiral_train_set.prepare();
+
+        let data_size = spiral_train_set.clone().len();
+        let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
+        let sgd = Sgd::new(lr);
+        let mut mlp = Mlp::new(vec![hidden_size, 3], sigmoid, sgd);
+
+        // let data_size = x.shape().to_vec()[0];
+        let max_iter = data_size.div_ceil(batch_size);
+        println!(
+            "max_epoch:{}, bath_size:{}, hidden_size:{}, data_size:{}, max_iter:{}",
+            max_epoch, batch_size, hidden_size, data_size, max_iter
+        );
+
+        let seed = 0;
+        let mut rng = Isaac64Rng::seed_from_u64(seed);
+
+        let mut loss_result = vec![];
+
+        for epoch in 0..max_epoch {
+            let mut index: Vec<usize> = (0..data_size).collect();
+            index.shuffle(&mut rng);
+
+            let mut sum_loss = 0.0;
+
+            for i in 0..max_iter {
+                // ミニバッチの作成
+                let mini_batch_from = i * batch_size;
+                let mini_batch_to = (i + 1) * batch_size;
+                let batch_index = &index[mini_batch_from..mini_batch_to];
+
+                let (batch_x, batch_t) = spiral_train_set.get_batch(batch_index);
+
+                // 勾配の算出、パラメータの更新
+                let y = mlp.forward(vec![batch_x.clone()]);
+                let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
+                mlp.cleargrads();
+
+                loss.backward();
+                mlp.update_parameters();
+
+                sum_loss += loss.get_data().flatten().to_vec()[0] as f64
+                    * batch_t.get_data().flatten().to_vec().len() as f64;
+            }
+            let avg_loss = sum_loss / data_size as f64;
+            println!("epoch {}, loss: {}", epoch + 1, avg_loss);
+            loss_result.push(avg_loss);
+        }
     }
 }

@@ -1,3 +1,4 @@
+pub mod data_loader;
 pub mod function_libs;
 pub mod functions;
 pub mod layer;
