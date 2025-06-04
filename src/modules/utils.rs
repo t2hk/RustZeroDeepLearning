@@ -10,15 +10,46 @@ use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
 use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
+use reqwest::blocking;
+use reqwest::blocking::Client;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
-use std::io::{Result, Write};
+use std::io::{copy, Cursor, Result, Write};
 use std::ops::AddAssign;
 use std::path::Path;
 use std::rc::Rc;
 use std::slice::Iter;
+
+/// 指定した URL からファイルをダウンロードし、ローカルのキャッシュディレクトリに指定したファイル名で保存する。
+/// ローカルのキャッシュディレクトリは "./.cache" である。
+///
+/// Arguments:
+/// * url (&str): ダウンロードするファイルの URL
+/// * file_name (&str): 保存するファイル名
+/// Retrun:
+/// * Result<(String), Box<dyn std::error::Error>>: ダウンロードしたファイルのパスを含む Result
+pub fn get_file(
+    url: &str,
+    file_name: &str,
+) -> std::result::Result<String, Box<dyn std::error::Error>> {
+    // ファイルを保存する .dots ディレクトリが存在しない場合は作成する。
+    let output_dir = "./.cache";
+    std::fs::create_dir_all(output_dir).unwrap();
+
+    let file_path = format!("{}/{}", output_dir, file_name);
+
+    let client = Client::new();
+    let response = client.get(url).send()?;
+    //let response = blocking::get(url)?;
+
+    let mut file = File::create(&file_path)?;
+    copy(&mut response.bytes()?.as_ref(), &mut file)?;
+    // let mut content = Cursor::new(response.bytes()?);
+    // std::io::copy(&mut content, &mut file)?;
+    Ok(file_path)
+}
 
 /// Variable を graphviz の DOT 言語で出力する。
 ///

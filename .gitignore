@@ -12,3 +12,4 @@ target/
 .dots/
 .vscode/
 .backup/
+.cache/

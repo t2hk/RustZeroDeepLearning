@@ -1,9 +1,12 @@
 // ライブラリを一括でインポート
 use crate::modules::*;
+use flate2::read::GzDecoder;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{s, Array, IxDyn};
 use ndarray_rand::rand_distr::Normal;
+use std::fs::File;
+use std::io::{self, BufReader, Read};
 use std::{cell::RefCell, rc::Rc};
 
 use plotters::{
@@ -134,6 +137,57 @@ impl Dataset {
     }
 }
 
+/// MNIST データセットファイルを表す構造体。
+#[derive(Debug, Clone)]
+pub struct MnistFiles {
+    target: String,
+    label: String,
+}
+
+/// MNIST データセット用ローダー
+#[derive(Debug, Clone)]
+pub struct MnistDataSet;
+impl DataLoader for MnistDataSet {
+    /// データを読み込む。
+    ///
+    /// Arguments:
+    /// * train (bool): 学習データの場合 true、テストデータの場合 false
+    ///
+    /// Retrun
+    /// * (Array<f64, IxDyn>, Array<usize, IxDyn>): スパイラルデータと正解ラベル
+    fn prepare(&self, train: bool) -> (Array<f64, IxDyn>, Array<usize, IxDyn>) {
+        //let url = "https://yann.lecun.com/exdb/mnist/";
+        let url = "https://ossci-datasets.s3.amazonaws.com/mnist/"; //mirror site
+
+        let train_files = MnistFiles {
+            target: "train-images-idx3-ubyte.gz".to_string(),
+            label: "train-labels-idx1-ubyte.gz".to_string(),
+        };
+
+        let test_files = MnistFiles {
+            target: "t10k-images-idx3-ubyte.gz".to_string(),
+            label: "t10k-labels-idx1-ubyte.gz".to_string(),
+        };
+
+        let files = if train { train_files } else { test_files };
+
+        let data_path =
+            utils::get_file(&format!("{}{}", url, files.target), files.target.as_str()).unwrap();
+        let label_path =
+            utils::get_file(&format!("{}{}", url, files.label), files.label.as_str()).unwrap();
+        println!("[download file] data: {}", data_path);
+        println!("[download file] label: {}", label_path);
+
+        let label_array = load_mnist_label(label_path).unwrap();
+        dbg!(&label_array.shape());
+
+        let data_array = load_mnist_data(data_path).unwrap();
+        dbg!(&data_array.shape());
+
+        (data_array, label_array)
+    }
+}
+
 /// スパイラルデータセット用のデータローダー
 #[derive(Debug, Clone)]
 pub struct SpiralDataSet;
@@ -168,7 +222,7 @@ pub fn get_spiral(train: bool) -> (Array<f64, IxDyn>, Array<usize, IxDyn>) {
     let data_size = num_class * num_data;
 
     let mut x: Array<f64, _> = Array::zeros((data_size, input_dim));
-    let mut t: Array<usize, _> = Array::zeros((data_size));
+    let mut t: Array<usize, _> = Array::zeros(data_size);
 
     for j in 0..num_class {
         for i in 0..num_data {
@@ -256,13 +310,130 @@ pub fn draw_spiral_graph(train: bool) {
         .unwrap();
 }
 
+/// gz ファイルを開く
+///
+/// Arguments
+/// * fiie_path (String): gz ファイルのパス
+/// Return
+/// * BufReader<GzDecoder<File>>: gz ファイルのバッファリーダー
+pub fn open_gz_file(file_path: String) -> BufReader<GzDecoder<File>> {
+    let file = File::open(&file_path).unwrap_or_else(|err| {
+        panic!("Cannnot open file '{}', Error: {}", file_path, err);
+    });
+    dbg!(&file);
+    let decoder = GzDecoder::new(file);
+    BufReader::new(decoder)
+}
+
+/// MNIST のラベルデータを読み込む。
+///
+/// Arguments
+/// * file_path (String): MNIST の gz ファイルのパス
+/// Return
+/// * Result<Array<usize, IxDyn>>: ラベルデータの配列
+pub fn load_mnist_label(file_path: String) -> io::Result<Array<usize, IxDyn>> {
+    let mut reader: BufReader<GzDecoder<File>> = open_gz_file(file_path);
+
+    let mut magic_bytes = [0u8; 4];
+    reader.read_exact(&mut magic_bytes).unwrap();
+    let magic = u32::from_be_bytes(magic_bytes);
+
+    if magic != 2049 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Invalid magic number for labels: {}", magic),
+        ));
+    }
+    // アイテム数を読み込み
+    let mut num_items_bytes = [0u8; 4];
+    reader.read_exact(&mut num_items_bytes)?;
+    let num_items = u32::from_be_bytes(num_items_bytes) as usize;
+
+    // ラベルデータを読み込み
+    let mut labels = vec![0u8; num_items];
+    reader.read_exact(&mut labels)?;
+
+    Ok(Array::from_vec(labels.into_iter().map(|x| x as usize).collect()).into_dyn())
+}
+
+/// MNIST の数値画像データを読み込む。
+///
+/// Arguments
+/// * file_path (String): MNIST の gz ファイルのパス
+/// Return
+/// * Result<Array<f64, IxDyn>>: 数値画像データの配列
+pub fn load_mnist_data(file_path: String) -> io::Result<Array<f64, IxDyn>> {
+    let mut reader = open_gz_file(file_path);
+
+    // マジックナンバーを読み込み（2051であることを確認）
+    let mut magic_bytes = [0u8; 4];
+    reader.read_exact(&mut magic_bytes).unwrap();
+    let magic = u32::from_be_bytes(magic_bytes);
+
+    if magic != 2051 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Invalid magic number for images: {}", magic),
+        ));
+    }
+
+    // 画像数、行数、列数を読み込み
+    let mut num_images_bytes = [0u8; 4];
+    reader.read_exact(&mut num_images_bytes).unwrap();
+    let num_images = u32::from_be_bytes(num_images_bytes) as usize;
+
+    let mut rows_bytes = [0u8; 4];
+    reader.read_exact(&mut rows_bytes).unwrap();
+    let rows = u32::from_be_bytes(rows_bytes) as usize;
+
+    let mut cols_bytes = [0u8; 4];
+    reader.read_exact(&mut cols_bytes).unwrap();
+    let cols = u32::from_be_bytes(cols_bytes) as usize;
+
+    // 画像データを読み込み
+    let total_pixels = num_images * rows * cols;
+    let mut pixels = vec![0u8; total_pixels];
+    reader.read_exact(&mut pixels).unwrap();
+
+    // 3次元配列として整形 (num_images, rows, cols)
+    Array::from_shape_vec(
+        IxDyn(&[num_images, rows, cols]),
+        pixels.into_iter().map(|x| x as f64).collect(),
+    )
+    .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+}
+
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, rc::Rc};
+    use std::{
+        cell::RefCell,
+        fs::File,
+        io::{copy, BufRead, BufReader, Read},
+        rc::Rc,
+    };
 
+    use flate2::read::MultiGzDecoder;
     use rand_isaac::Isaac64Rng;
+    use reqwest::blocking;
+    use std::error::Error;
 
     use super::*;
+
+    /// MNIST のテストデータ、学習データのロードテスト
+    #[test]
+    fn test_mnist_dataset() {
+        let mnist_dataset = MnistDataSet {};
+        let (train_data, train_label) = mnist_dataset.prepare(true);
+        let (test_data, test_label) = mnist_dataset.prepare(false);
+
+        assert_eq!(vec![60000, 28, 28], train_data.shape().to_vec());
+
+        assert_eq!(vec![60000], train_label.shape().to_vec());
+
+        assert_eq!(vec![10000, 28, 28], test_data.shape().to_vec());
+
+        assert_eq!(vec![10000], test_label.shape().to_vec());
+    }
 
     #[test]
     fn test_get_spiral() {

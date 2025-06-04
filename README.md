@@ -268,3 +268,7 @@ cargo run
 * ステップ49 と ステップ50を併せて実施した。
 * dataset の追加
 * dataloader の追加
+
+### ステップ50 MNIST
+* reqwest クレートを追加し、ファイルをダウンロードする utils::get_file を実装した。ダウンロードしたファイルは .cache に保存する。
+* MNIST のデータローダーを追加した。gz ファイルを処理するため flate2 クレートを追加した。
