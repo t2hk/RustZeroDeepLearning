@@ -206,7 +206,7 @@ impl<V: MathOps> FunctionExecutor<V> {
 
     /// 逆伝播
     /// 自身で保持している出力値を使って逆伝播を実行する。
-    pub fn backward(&self) {
+    pub fn backward(&mut self) {
         info!(
             "[backward: {:?} gen:{}]",
             &self.creator.borrow().get_name(),
@@ -220,7 +220,9 @@ impl<V: MathOps> FunctionExecutor<V> {
             .iter()
             .map(|output| output.upgrade().unwrap())
             .for_each(|output| {
-                if output.borrow().get_grad().is_none() {
+                let is_grad_none = output.borrow().get_grad().is_none();
+                //if output.borrow().get_grad().is_none() {
+                if is_grad_none {
                     let grad_one = Variable::new(RawData::new(Array::ones(
                         output.borrow().get_data().shape(),
                     )));
@@ -258,7 +260,6 @@ impl<V: MathOps> FunctionExecutor<V> {
                     output.borrow_mut().clear_grad();
                 });
         }
-        //}
     }
 
     /// 逆伝播のために計算グラフ上の関数を取得する。
