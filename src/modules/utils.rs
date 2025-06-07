@@ -2,21 +2,17 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{
-    s, stack, Array, ArrayView, ArrayViewMut, Axis, Dimension, Ix0, Ix1, IxDyn, Slice, SliceInfo,
-    SliceInfoElem, Zip,
-};
+use ndarray::{stack, Array, Axis, Dimension, IxDyn, Slice, SliceInfo, SliceInfoElem};
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
 use plotters::style::{Color, IntoFont, BLACK, BLUE, RED, WHITE};
-use reqwest::blocking;
 use reqwest::blocking::Client;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
-use std::io::{copy, Cursor, Result, Write};
+use std::io::{copy, Result, Write};
 use std::ops::AddAssign;
 use std::path::Path;
 use std::rc::Rc;
