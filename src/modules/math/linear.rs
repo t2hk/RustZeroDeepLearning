@@ -6,10 +6,9 @@ use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use ndarray::{Array, IxDyn};
-use std::rc::Weak;
-
 use std::cell::RefCell;
 use std::rc::Rc;
+use std::rc::Weak;
 
 /// linear 関数
 #[derive(Debug, Clone)]
