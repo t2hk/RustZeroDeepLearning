@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, ArrayD, IntoDimension, IxDyn};
+use ndarray::{Array, IntoDimension, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -55,7 +55,8 @@ impl<V: MathOps> RawData<V> {
         Sh: IntoDimension<Dim = IxDyn>,
     {
         let dim = shape.into_dimension();
-        let array = ArrayD::from_shape_vec(dim, values).expect("Shape error while creating array");
+        let array = Array::from_shape_vec(dim, values.clone())
+            .expect(format!("Shape error while creating array {:?}", values.len()).as_str());
         Self {
             data: array,
             name: None,
@@ -234,7 +235,7 @@ impl<V: MathOps> RawData<V> {
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
         while let Some(creator) = creators.pop() {
             // debug!("{:?}", creator.1.borrow().detail());
-            creator.1.borrow().backward();
+            creator.1.borrow_mut().backward();
         }
     }
 }
@@ -389,6 +390,7 @@ pub trait RawDataProcessor<V: MathOps> {
     /// 逆伝播を実行する。
     fn backward(&self) {
         self.raw().as_ref().clone().borrow().backward();
+        // self.raw().as_ref().borrow().backward();
     }
 
     // /// リシェイプ
