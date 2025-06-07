@@ -14,6 +14,7 @@ pub trait MathOps:
     + std::ops::AddAssign
     + PartialOrd
     + 'static
+    + std::ops::AddAssign
 {
 }
 impl<V> MathOps for V where
