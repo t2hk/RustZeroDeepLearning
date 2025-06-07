@@ -269,6 +269,7 @@ cargo run
 * dataset の追加
 * dataloader の追加
 
-### ステップ50 MNIST
+### ステップ51 MNIST
 * reqwest クレートを追加し、ファイルをダウンロードする utils::get_file を実装した。ダウンロードしたファイルは .cache に保存する。
 * MNIST のデータローダーを追加した。gz ファイルを処理するため flate2 クレートを追加した。
+* function_libs::dot (2,2) の場合の性能が悪く、ndarray の dot を使うように改善した。

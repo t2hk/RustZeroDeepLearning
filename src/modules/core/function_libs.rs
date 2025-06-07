@@ -94,7 +94,6 @@ pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
 /// * Array<V, IxDyn>
 pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxDyn> {
     debug!("dot x ndim: {:?}, w ndim: {:?}", x0.ndim(), x1.ndim());
-
     debug!(
         "dot x0 ndim: {:?}, dim: {:?}, shape: {:?}",
         x0.ndim(),
@@ -226,31 +225,39 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxD
             result.into_dimensionality::<IxDyn>().unwrap()
         }
         (2, 2) => {
-            info!("dot for shape (2, 2)");
-            let x_tmp = x0.into_dimensionality::<Ix2>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix2>().unwrap();
+            let x0_var = x0
+                .flatten()
+                .to_vec()
+                .iter()
+                .map(|v| v.to_f64().unwrap())
+                .collect::<Vec<f64>>();
+            let x1_var = x1
+                .flatten()
+                .to_vec()
+                .iter()
+                .map(|v| v.to_f64().unwrap())
+                .collect::<Vec<f64>>();
 
-            let x_rows = x_tmp.shape()[0];
-            let x_cols = x_tmp.shape()[1];
-            let w_cols = w_tmp.shape()[1];
+            let mat1 =
+                Array2::from_shape_vec((x0.shape().to_vec()[0], x0.shape().to_vec()[1]), x0_var)
+                    .unwrap();
+            let mat2 =
+                Array2::from_shape_vec((x1.shape().to_vec()[0], x1.shape().to_vec()[1]), x1_var)
+                    .unwrap();
+            let result = mat1.dot(&mat2);
 
-            // x_cols と w_rows（= x_tmp.shape()[1]とw_tmp.shape()[0]）は同じサイズであることを確認
-            assert_eq!(x_cols, w_tmp.shape()[0], "行列の次元が不一致です");
-
-            // 結果は x_rows x w_cols の行列になる
-            let mut result = Array::zeros((x_rows, w_cols));
-
-            for i in 0..x_rows {
-                for j in 0..w_cols {
-                    let mut sum = V::zero();
-                    for k in 0..x_cols {
-                        sum = sum + x_tmp[[i, k]].clone() * w_tmp[[k, j]].clone();
-                    }
-                    result[[i, j]] = sum;
-                }
-            }
-
-            result.into_dimensionality::<IxDyn>().unwrap()
+            Array::from_shape_vec(
+                result.shape().to_vec(),
+                result
+                    .flatten()
+                    .to_vec()
+                    .iter()
+                    .map(|v| V::from(*v).unwrap())
+                    .collect::<Vec<V>>(),
+            )
+            .unwrap()
+            .into_dimensionality::<IxDyn>()
+            .unwrap()
         }
         _ => {
             error!("dot for invalid shape");
