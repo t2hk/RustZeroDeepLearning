@@ -13,7 +13,7 @@ use ndarray::{Array, IxDyn};
 
 #[test]
 fn test_step33_second_differential() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -56,7 +56,7 @@ fn test_step33_second_differential() {
 /// ステップ33 ニュートン法による最適化のテスト(自動化)
 #[test]
 fn test_step33_newton_method() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -104,7 +104,7 @@ fn test_step33_newton_method() {
 /// Sin 関数の高階微分のテスト
 #[test]
 fn test_high_diffeential_sin() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -247,7 +247,7 @@ fn test_step34_tanh() {
 
 #[test]
 fn tests_stage36_double_backprop() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持しない。
     // Setting::set_retain_grad_enabled();

@@ -15,7 +15,7 @@ use std::rc::Rc;
 /// BigInt 型を Variable に設定するテスト
 #[test]
 fn test_bigint_variable() {
-    common::setup();
+    // common::setup();
 
     let big_int_variable = Variable::new(RawData::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
 
@@ -26,7 +26,7 @@ fn test_bigint_variable() {
 
 #[test]
 fn test_add_mul() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -73,7 +73,7 @@ fn test_add_mul() {
 #[test]
 /// 乗算のテスト(f32)
 fn test_mul_2() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -118,7 +118,7 @@ fn test_mul_2() {
 #[test]
 /// 乗算のテスト(i32)
 fn test_mul_1() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -161,7 +161,7 @@ fn test_mul_1() {
 /// 中間変数の微分結果を保持し無い場合のテスト
 #[test]
 fn test_retain_grad_disabled_u32() {
-    common::setup();
+    // common::setup();
 
     let x1 = Variable::new(RawData::new(2u32));
     let x2 = Variable::new(RawData::new(3u32));
@@ -232,7 +232,7 @@ fn test_retain_grad_disabled_u32() {
 /// (x1 + x2)^2 の順伝播と逆伝播をテストする。
 #[test]
 fn test_multidim_add_square_1() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -274,7 +274,7 @@ fn test_multidim_add_square_1() {
 
 #[test]
 fn test_multidim_square() {
-    common::setup();
+    // common::setup();
 
     // 逆伝播を実行する。微分値を保持する。
     Setting::set_retain_grad_enabled();
@@ -301,7 +301,7 @@ fn test_multidim_square() {
 
 #[test]
 fn test_multidim_add() {
-    common::setup();
+    // common::setup();
 
     let sh1 = vec![2, 2];
     let val1 = vec![1., 2., 3., 4.];
@@ -355,7 +355,7 @@ fn test_disable_backprop() {
 /// 中間変数の微分結果を保持し無い場合のテスト
 #[test]
 fn test_retain_grad_disabled() {
-    common::setup();
+    // common::setup();
 
     let x1 = Variable::new(RawData::new(2.0));
     let x2 = Variable::new(RawData::new(3.0));
@@ -633,7 +633,7 @@ fn test_add_same_input_3times() {
 /// ステップ14 微分のクリアに関するテスト
 #[test]
 fn test_clear_grad() {
-    common::setup();
+    // common::setup();
 
     // 加算値を生成する。
     let x = Variable::new(RawData::new(2.0));
@@ -698,7 +698,7 @@ fn test_clear_grad() {
 /// 二乗のテスト
 #[test]
 fn test_square() {
-    common::setup();
+    // common::setup();
 
     // 2乗する値をランダムに生成する。
     //let mut rng = rand::rng();
@@ -737,7 +737,7 @@ fn test_square() {
 /// 加算のテスト
 #[test]
 fn test_add() {
-    common::setup();
+    // common::setup();
 
     // 加算値をランダムに生成する。
     //let mut rng = rand::rng();
@@ -780,7 +780,7 @@ fn test_add() {
 /// Exp 関数のテスト。
 #[test]
 fn test_exp() {
-    common::setup();
+    // common::setup();
 
     let x = Variable::new(RawData::new(2.0));
 
@@ -819,7 +819,7 @@ fn test_exp() {
 /// (x1 + x2)^2 の順伝播と逆伝播をテストする。
 #[test]
 fn test_add_square_1() {
-    common::setup();
+    // common::setup();
 
     // テスト用の入力値
     let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
@@ -874,7 +874,7 @@ fn test_add_square_1() {
 /// x1^2 + x2^2 の順伝播と逆伝播をテストする。
 #[test]
 fn test_add_square_2() {
-    common::setup();
+    // common::setup();
 
     // テスト用の入力値
     let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
@@ -938,7 +938,7 @@ fn test_add_square_2() {
 /// x1^2 + x2^2 の順伝播と逆伝播をテストする。
 #[test]
 fn test_square_exp_square() {
-    common::setup();
+    // common::setup();
 
     // テスト用の入力値
     let x_arr = Array::from_elem(IxDyn(&[]), 0.5);
