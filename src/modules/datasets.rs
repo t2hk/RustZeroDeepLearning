@@ -3,16 +3,16 @@ use crate::modules::*;
 use flate2::read::GzDecoder;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{s, Array, IxDyn};
+use ndarray::{s, Array, Axis, IxDyn};
 use ndarray_rand::rand_distr::Normal;
 use std::fs::File;
 use std::io::{self, BufReader, Read};
+use std::time;
 use std::{cell::RefCell, rc::Rc};
 
 use plotters::{
     chart::ChartBuilder,
     prelude::{BitMapBackend, Circle, Cross, IntoDrawingArea, IntoDynElement, TriangleMarker},
-    series::PointSeries,
     style::{Color, IntoFont, BLACK, BLUE, GREEN, RED, WHITE},
 };
 use rand::{prelude::Distribution, rngs::StdRng, seq::SliceRandom, SeedableRng};
@@ -117,22 +117,53 @@ impl Dataset {
     /// Retrun:
     /// * (Variable<f64>, Variable<usize>): インデックスで指定したデータと正解ラベル
     pub fn get_batch(&self, batch_index: &[usize]) -> (Variable<f64>, Variable<usize>) {
-        let mut batch_x_vec = vec![];
-        let mut batch_t_vec = vec![];
+        let start_now = time::Instant::now();
 
-        for idx in batch_index.iter() {
-            let idx_train_data = self.clone().get(*idx);
-            batch_x_vec.extend(idx_train_data.0.flatten().to_vec());
-            batch_t_vec.push(idx_train_data.1.unwrap());
-        }
+        // let mut batch_x_vec = vec![];
+        // let mut batch_t_vec = vec![];
+
+        let unwraped_data = self.data.clone().unwrap();
+        let unwraped_label = self.label.clone().unwrap();
+        let batch_data = unwraped_data.select(Axis(0), batch_index);
+        let batch_label = unwraped_label.select(Axis(0), batch_index);
+
+        // dbg!(&batch_data.shape());
+        // dbg!(&batch_label.shape());
+
+        // for idx in batch_index.iter() {
+        //     let idx_train_data = self.clone().get(*idx);
+        //     batch_x_vec.extend(idx_train_data.0.flatten().to_vec());
+        //     batch_t_vec.push(idx_train_data.1.unwrap());
+
+        //     println!(
+        //         "data loader single iterator shape: {:?}  {:?} end : {:?}",
+        //         idx,
+        //         idx_train_data.0.clone().shape(),
+        //         start_now.elapsed()
+        //     );
+        // }
+
+        // println!("data sets batch iter total end : {:?}", start_now.elapsed());
+
         let batch_x = Variable::new(RawData::from_shape_vec(
-            vec![batch_index.len(), 2],
-            batch_x_vec,
+            // vec![batch_index.len(), 2],
+            batch_data.shape().to_vec(),
+            batch_data.flatten().to_vec(),
         ));
         let batch_t = Variable::new(RawData::from_shape_vec(
-            vec![1, batch_index.len()],
-            batch_t_vec.clone(),
+            batch_label.shape().to_vec(),
+            batch_label.flatten().to_vec(),
         ));
+
+        // let batch_x = Variable::new(RawData::from_shape_vec(
+        //     // vec![batch_index.len(), 2],
+        //     vec![batch_index.len(), batch_x_vec.len() / batch_index.len()],
+        //     batch_x_vec,
+        // ));
+        // let batch_t = Variable::new(RawData::from_shape_vec(
+        //     vec![1, batch_index.len()],
+        //     batch_t_vec.clone(),
+        // ));
         (batch_x, batch_t)
     }
 }
@@ -179,10 +210,10 @@ impl DataLoader for MnistDataSet {
         println!("[download file] label: {}", label_path);
 
         let label_array = load_mnist_label(label_path).unwrap();
-        dbg!(&label_array.shape());
+        // dbg!(&label_array.shape());
 
         let data_array = load_mnist_data(data_path).unwrap();
-        dbg!(&data_array.shape());
+        // dbg!(&data_array.shape());
 
         (data_array, label_array)
     }
@@ -320,7 +351,7 @@ pub fn open_gz_file(file_path: String) -> BufReader<GzDecoder<File>> {
     let file = File::open(&file_path).unwrap_or_else(|err| {
         panic!("Cannnot open file '{}', Error: {}", file_path, err);
     });
-    dbg!(&file);
+
     let decoder = GzDecoder::new(file);
     BufReader::new(decoder)
 }
@@ -396,9 +427,10 @@ pub fn load_mnist_data(file_path: String) -> io::Result<Array<f64, IxDyn>> {
     reader.read_exact(&mut pixels).unwrap();
 
     // 3次元配列として整形 (num_images, rows, cols)
+    // 255.0 で正規化する(0.0 - 1.0)
     Array::from_shape_vec(
-        IxDyn(&[num_images, rows, cols]),
-        pixels.into_iter().map(|x| x as f64).collect(),
+        IxDyn(&[num_images, rows * cols]),
+        pixels.into_iter().map(|x| x as f64 / 255.0).collect(),
     )
     .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
 }
@@ -426,11 +458,11 @@ mod test {
         let (train_data, train_label) = mnist_dataset.prepare(true);
         let (test_data, test_label) = mnist_dataset.prepare(false);
 
-        assert_eq!(vec![60000, 28, 28], train_data.shape().to_vec());
+        assert_eq!(vec![60000, 784], train_data.shape().to_vec());
 
         assert_eq!(vec![60000], train_label.shape().to_vec());
 
-        assert_eq!(vec![10000, 28, 28], test_data.shape().to_vec());
+        assert_eq!(vec![10000, 784], test_data.shape().to_vec());
 
         assert_eq!(vec![10000], test_label.shape().to_vec());
     }

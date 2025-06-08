@@ -35,6 +35,12 @@ pub fn get_file(
     std::fs::create_dir_all(output_dir).unwrap();
 
     let file_path = format!("{}/{}", output_dir, file_name);
+    let path = Path::new(file_path.as_str());
+
+    if path.exists() {
+        // 既にファイルが存在する場合はそのパスを返す。
+        return Ok(file_path);
+    }
 
     let client = Client::new();
     let response = client.get(url).send()?;
