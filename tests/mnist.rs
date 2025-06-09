@@ -24,12 +24,9 @@ use plotters::drawing::IntoDrawingArea;
 #[cfg(test)]
 mod tests {
     use super::*;
-    #[test]
-    fn test_sample() {
-        println!("This is a sample test.");
-    }
 
     #[test]
+    #[ignore = "too long"]
     fn test_mnist() {
         // ハイパーパラメータの設定
         let max_epoch = 5;
