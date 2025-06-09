@@ -1,5 +1,3 @@
-use std::time;
-
 // ライブラリを一括でインポート
 use crate::modules::*;
 #[allow(unused_imports)]
@@ -103,8 +101,8 @@ impl<'a> Iterator for DataLoader<'a> {
 
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, rc::Rc, time};
-
+    use super::*;
+    use crate::{modules::core::data_loader::DataLoader, plot_dot_graph};
     use ndarray::Array;
     use plotters::{
         chart::ChartBuilder,
@@ -112,11 +110,7 @@ mod test {
         series::LineSeries,
         style::{Color, IntoFont, BLACK, RED, WHITE},
     };
-    use rand::seq::SliceRandom;
-
-    use crate::{modules::core::data_loader::DataLoader, plot_dot_graph};
-
-    use super::*;
+    use std::{cell::RefCell, rc::Rc, time};
 
     #[test]
     fn test_array() {
@@ -150,10 +144,10 @@ mod test {
         // データの読み込み、モデル・オプティマイザの生成
         // let (x, t) = datasets::get_spiral(true);
         //let spiral_train_set = SpiralDataSet::init(true);
-        let mut spiral_train_set = Dataset::init(true, Rc::new(RefCell::new(SpiralDataSet {})));
+        let spiral_train_set = Dataset::init(true, Rc::new(RefCell::new(SpiralDataSet {})));
         let train_data_loader = DataLoader::init(&spiral_train_set, batch_size, true);
 
-        let mut spiral_test_set = Dataset::init(false, Rc::new(RefCell::new(SpiralDataSet {})));
+        let spiral_test_set = Dataset::init(false, Rc::new(RefCell::new(SpiralDataSet {})));
         let test_data_loader = DataLoader::init(&spiral_test_set, batch_size, true);
 
         let mut loss_result = vec![];
@@ -170,7 +164,7 @@ mod test {
 
             for (batch_x, batch_t) in train_data_loader.clone() {
                 // 勾配の算出、パラメータの更新
-                let y = mlp.forward(vec![batch_x.clone()]);
+                let y = mlp.forward(vec![batch_x]);
                 let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
                 let acc = DataLoader::accuracy(&y[0], &batch_t);
                 mlp.cleargrads();
@@ -184,12 +178,12 @@ mod test {
                 sum_acc += acc * batch_t_len;
             }
 
-            let train_len = spiral_train_set.clone().len() as f64;
+            let train_len = spiral_train_set.clone().len();
             println!("epoch: {}", epoch + 1);
             println!(
                 "train loss: {}, accuracy: {}",
-                sum_loss / train_len,
-                sum_acc / train_len
+                sum_loss / train_len as f64,
+                sum_acc / train_len as f64
             );
 
             // 逆伝播を実行しない。微分値を保持しない。
@@ -284,6 +278,7 @@ mod test {
 
     /// DataLoader を使った MNIST 学習
     #[test]
+    #[ignore = "too long"]
     fn test_step51_mnist_dataloader() {
         // ハイパーパラメータの設定
         let max_epoch = 5;
@@ -296,11 +291,11 @@ mod test {
         let mut mlp = Mlp::new(vec![hidden_size, 10], sigmoid, sgd);
 
         // データの読み込み、モデル・オプティマイザの生成
-        let mut mnist_train_set = Dataset::init(true, Rc::new(RefCell::new(MnistDataSet {})));
+        let mnist_train_set = Dataset::init(true, Rc::new(RefCell::new(MnistDataSet {})));
         // let train_data_loader = DataLoader::init(mnist_train_set.clone(), batch_size, true);
         let train_data_loader = DataLoader::init(&mnist_train_set, batch_size, true);
 
-        let mut mnist_test_set = Dataset::init(false, Rc::new(RefCell::new(MnistDataSet {})));
+        let mnist_test_set = Dataset::init(false, Rc::new(RefCell::new(MnistDataSet {})));
         let test_data_loader = DataLoader::init(&mnist_test_set, batch_size, true);
 
         let mut loss_result = vec![];
