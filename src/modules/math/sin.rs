@@ -63,7 +63,7 @@ impl<V: MathOps> Function<V> for SinFunction {
 pub fn sin<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut sin = FunctionExecutor::new(Rc::new(RefCell::new(SinFunction)));
     // Sin の順伝播
-    sin.forward(vec![input.clone()]).get(0).unwrap().clone()
+    sin.forward(vec![input.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

@@ -67,7 +67,7 @@ pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
     // 順伝播
     matmul
         .forward(vec![x.clone(), w.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

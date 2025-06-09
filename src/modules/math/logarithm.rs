@@ -63,7 +63,7 @@ pub fn log<V: MathOps>(x: Variable<V>) -> Variable<V> {
     let mut log = FunctionExecutor::new(Rc::new(RefCell::new(LogFunction {})));
 
     // 順伝播
-    log.forward(vec![x.clone()]).get(0).unwrap().clone()
+    log.forward(vec![x.clone()]).first().unwrap().clone()
 }
 
 /// logsumexp 関数

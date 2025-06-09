@@ -67,7 +67,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
 pub fn exp<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut exp = FunctionExecutor::new(Rc::new(RefCell::new(ExpFunction)));
     // EXP の順伝播
-    exp.forward(vec![input.clone()]).get(0).unwrap().clone()
+    exp.forward(vec![input.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

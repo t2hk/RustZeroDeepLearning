@@ -80,7 +80,7 @@ pub fn mul<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
     // 乗算の順伝播
     mul.forward(vec![x0.clone(), x1.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }
@@ -100,7 +100,7 @@ impl<V: MathOps> Mul<&Variable<V>> for &Variable<V> {
         let mut mul = FunctionExecutor::new(Rc::new(RefCell::new(MulFunction)));
         let result = mul
             .forward(vec![self.clone(), rhs.clone()])
-            .get(0)
+            .first()
             .unwrap()
             .clone();
         result

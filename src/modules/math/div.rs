@@ -72,7 +72,7 @@ pub fn div<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut div = FunctionExecutor::new(Rc::new(RefCell::new(DivFunction)));
     // 除算の順伝播
     div.forward(vec![x0.clone(), x1.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }
@@ -92,7 +92,7 @@ impl<V: MathOps> Div<&Variable<V>> for &Variable<V> {
         let mut div = FunctionExecutor::new(Rc::new(RefCell::new(DivFunction)));
         let result = div
             .forward(vec![self.clone(), rhs.clone()])
-            .get(0)
+            .first()
             .unwrap()
             .clone();
         result

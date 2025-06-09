@@ -97,7 +97,7 @@ pub fn linear<V: MathOps>(x: Variable<V>, w: Variable<V>, b: Option<Variable<V>>
     linear
         //.forward(vec![x.clone(), w.clone()])
         .forward(inputs)
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

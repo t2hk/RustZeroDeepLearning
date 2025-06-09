@@ -77,7 +77,7 @@ pub fn get_item<V: MathOps>(x: Variable<V>, slicer: DynamicSlicer) -> Variable<V
         FunctionExecutor::new(Rc::new(RefCell::new(GetItemFunction::new(x_shape, slicer))));
 
     // GetItem の順伝播
-    get_item.forward(vec![x.clone()]).get(0).unwrap().clone()
+    get_item.forward(vec![x.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

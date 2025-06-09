@@ -121,7 +121,7 @@ pub fn softmax_cross_entropy<V: MathOps>(x: Variable<V>, t: Variable<usize>) -> 
     // 順伝播
     softmax_cross_entropy
         .forward(vec![x.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

@@ -61,7 +61,7 @@ impl<V: MathOps> Function<V> for NegFunction {
 pub fn neg<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut neg = FunctionExecutor::new(Rc::new(RefCell::new(NegFunction)));
     // NEG の順伝播
-    neg.forward(vec![input.clone()]).get(0).unwrap().clone()
+    neg.forward(vec![input.clone()]).first().unwrap().clone()
 }
 
 /// 負数 Neg のオーバーロード (-Variable<V>)
@@ -77,7 +77,7 @@ impl<V: MathOps> Neg for Variable<V> {
     fn neg(self) -> Variable<V> {
         // 順伝播
         let mut neg = FunctionExecutor::new(Rc::new(RefCell::new(NegFunction)));
-        let result = neg.forward(vec![self.clone()]).get(0).unwrap().clone();
+        let result = neg.forward(vec![self.clone()]).first().unwrap().clone();
         result
     }
 }

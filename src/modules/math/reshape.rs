@@ -85,7 +85,7 @@ pub fn reshape<V: MathOps>(input: Variable<V>, shape: Vec<usize>) -> Variable<V>
     })));
 
     // 順伝播
-    reshape.forward(vec![input]).get(0).unwrap().clone()
+    reshape.forward(vec![input]).first().unwrap().clone()
 }
 
 #[cfg(test)]

@@ -89,7 +89,7 @@ pub fn add<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     })));
     // 加算の順伝播
     add.forward(vec![x0.clone(), x1.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }
@@ -117,7 +117,7 @@ impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
         })));
         let result = add
             .forward(vec![self.clone(), rhs.clone()])
-            .get(0)
+            .first()
             .unwrap()
             .clone();
         result

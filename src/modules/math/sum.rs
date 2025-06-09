@@ -125,7 +125,7 @@ pub fn sum<V: MathOps>(x: Variable<V>, axis: Option<Vec<isize>>, keepdims: bool)
         keepdims: keepdims,
     })));
     // 順伝播
-    sum.forward(vec![x.clone()]).get(0).unwrap().clone()
+    sum.forward(vec![x.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

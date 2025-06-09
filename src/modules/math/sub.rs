@@ -65,7 +65,7 @@ pub fn sub<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
     let mut sub = FunctionExecutor::new(Rc::new(RefCell::new(SubFunction)));
     // 減算の順伝播
     sub.forward(vec![x0.clone(), x1.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }
@@ -85,7 +85,7 @@ impl<V: MathOps> Sub<&Variable<V>> for &Variable<V> {
         let mut sub = FunctionExecutor::new(Rc::new(RefCell::new(SubFunction)));
         let result = sub
             .forward(vec![self.clone(), rhs.clone()])
-            .get(0)
+            .first()
             .unwrap()
             .clone();
         result

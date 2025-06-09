@@ -97,7 +97,7 @@ pub fn transpose<V: MathOps>(input: Variable<V>) -> Variable<V> {
         FunctionExecutor::new(Rc::new(RefCell::new(TransposeFunction { axes: None })));
 
     // 順伝播
-    transpose.forward(vec![input]).get(0).unwrap().clone()
+    transpose.forward(vec![input]).first().unwrap().clone()
 }
 
 /// 転置関数
@@ -114,7 +114,7 @@ pub fn transpose_axes<V: MathOps>(input: Variable<V>, axes: Vec<usize>) -> Varia
     })));
 
     // 順伝播
-    transpose.forward(vec![input]).get(0).unwrap().clone()
+    transpose.forward(vec![input]).first().unwrap().clone()
 }
 
 #[cfg(test)]

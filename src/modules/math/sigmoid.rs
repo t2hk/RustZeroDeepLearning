@@ -73,7 +73,7 @@ pub fn sigmoid<V: MathOps>(x: Variable<V>) -> Variable<V> {
     sigmoid
         //.forward(vec![x.clone(), w.clone()])
         .forward(inputs)
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

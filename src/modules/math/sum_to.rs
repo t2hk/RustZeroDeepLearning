@@ -109,7 +109,7 @@ pub fn sum_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V> {
         shape: shape,
     })));
     // 順伝播
-    sum_to.forward(vec![x.clone()]).get(0).unwrap().clone()
+    sum_to.forward(vec![x.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

@@ -83,7 +83,7 @@
 //     // GetItemGrad の順伝播
 //     get_item_grad
 //         .forward(vec![x.clone()])
-//         .get(0)
+//         .first()
 //         .unwrap()
 //         .clone()
 // }

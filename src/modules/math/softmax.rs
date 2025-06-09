@@ -106,7 +106,7 @@ pub fn softmax<V: MathOps>(x: Variable<V>, axis: Axis) -> Variable<V> {
     let mut softmax = FunctionExecutor::new(Rc::new(RefCell::new(SoftmaxFunction { axis: axis })));
 
     // 順伝播
-    let output = softmax.forward(vec![x.clone()]).get(0).unwrap().clone();
+    let output = softmax.forward(vec![x.clone()]).first().unwrap().clone();
     output
 }
 

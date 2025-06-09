@@ -66,7 +66,7 @@ impl<V: MathOps> Function<V> for CosFunction {
 pub fn cos<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut cos = FunctionExecutor::new(Rc::new(RefCell::new(CosFunction)));
     // Cos の順伝播
-    cos.forward(vec![input.clone()]).get(0).unwrap().clone()
+    cos.forward(vec![input.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]

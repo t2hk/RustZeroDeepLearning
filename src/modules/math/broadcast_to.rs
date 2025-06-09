@@ -73,7 +73,7 @@ pub fn broadcast_to<V: MathOps>(x: Variable<V>, shape: Vec<usize>) -> Variable<V
     // 順伝播
     broadcasto_to
         .forward(vec![x.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

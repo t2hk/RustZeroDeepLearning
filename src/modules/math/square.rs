@@ -64,7 +64,7 @@ impl<V: MathOps> Function<V> for SquareFunction {
 pub fn square<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut square = FunctionExecutor::new(Rc::new(RefCell::new(SquareFunction)));
     // 二乗の順伝播
-    square.forward(vec![input]).get(0).unwrap().clone()
+    square.forward(vec![input]).first().unwrap().clone()
 }
 
 #[cfg(test)]

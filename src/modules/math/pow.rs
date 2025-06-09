@@ -110,7 +110,7 @@ pub fn pow<V: MathOps>(input: Variable<V>, exp: i32) -> Variable<V> {
     let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
 
     // 順伝播
-    pow.forward(vec![input]).get(0).unwrap().clone()
+    pow.forward(vec![input]).first().unwrap().clone()
 }
 
 impl<V: MathOps> BitXor<i32> for &Variable<V> {
@@ -118,7 +118,7 @@ impl<V: MathOps> BitXor<i32> for &Variable<V> {
     fn bitxor(self, exp: i32) -> Variable<V> {
         // 順伝播
         let mut pow = FunctionExecutor::new(Rc::new(RefCell::new(PowFunction { exp: exp })));
-        let result = pow.forward(vec![self.clone()]).get(0).unwrap().clone();
+        let result = pow.forward(vec![self.clone()]).first().unwrap().clone();
         result
     }
 }

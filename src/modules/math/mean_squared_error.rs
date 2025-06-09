@@ -66,7 +66,7 @@ pub fn mean_squared_error<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Varia
     // 順伝播
     mean_squared_error
         .forward(vec![x0.clone(), x1.clone()])
-        .get(0)
+        .first()
         .unwrap()
         .clone()
 }

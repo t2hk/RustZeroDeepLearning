@@ -66,7 +66,7 @@ impl<V: MathOps> Function<V> for TanhFunction {
 pub fn tanh<V: MathOps>(input: Variable<V>) -> Variable<V> {
     let mut tanh = FunctionExecutor::new(Rc::new(RefCell::new(TanhFunction)));
     // Tanh の順伝播
-    tanh.forward(vec![input.clone()]).get(0).unwrap().clone()
+    tanh.forward(vec![input.clone()]).first().unwrap().clone()
 }
 
 #[cfg(test)]
