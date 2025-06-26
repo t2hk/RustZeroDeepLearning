@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -21,20 +21,23 @@ impl<V: MathOps> Function<V> for MeanSquaredErrorFunction {
     }
 
     // 順伝播
-    fn forward(&self, inputs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        inputs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("mean_squared_error(forward)");
         let x0 = inputs[0].clone();
         let x1 = inputs[1].clone();
 
-        let diff = x0 - x1;
+        let diff = x0.borrow().clone() - x1.borrow().clone();
         let y = (diff.clone() * diff.clone()).sum() / V::from(diff.len()).unwrap();
-        vec![Array::from_elem(IxDyn(&[]), y)]
+        vec![Rc::new(RefCell::new(ArcArray::from_elem(IxDyn(&[]), y)))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -43,7 +46,7 @@ impl<V: MathOps> Function<V> for MeanSquaredErrorFunction {
         let x0 = inputs[0].clone();
         let x1 = inputs[1].clone();
 
-        let diff = &x0 - &x1;
+        let diff = &x0.borrow().clone() - &x1.borrow().clone();
         let gy = broadcast_to(gys[0].clone(), diff.get_data().shape().to_vec());
         let gx0 = &(&gy * &diff) * (2.0 / diff.get_data().len() as f64);
         let gx1 = -gx0.clone();
@@ -77,7 +80,7 @@ mod tests {
 
     use std::{cell::RefCell, rc::Rc};
 
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
@@ -97,8 +100,8 @@ mod tests {
     fn test_mse_backward1() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
-        let x1_var = Array::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
+        let x0_var = ArcArray::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
+        let x1_var = ArcArray::random_using((10, 1), Uniform::new(0., 1.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
@@ -119,8 +122,8 @@ mod tests {
     fn test_mse_backward2() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
-        let x1_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let x0_var = ArcArray::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let x1_var = ArcArray::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],

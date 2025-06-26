@@ -5,7 +5,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::rc::Weak;
@@ -23,7 +23,10 @@ impl<V: MathOps> Function<V> for LinearFunction {
     }
 
     // linear の順伝播
-    fn forward(&self, inputs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        inputs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("linear(forward)");
 
         let x = inputs[0].clone();
@@ -31,29 +34,29 @@ impl<V: MathOps> Function<V> for LinearFunction {
 
         debug!(
             "linear(forward) x: {:?}, w: {:?}, b: {}",
-            x.flatten().to_vec(),
-            w.flatten().to_vec(),
+            x.borrow().flatten().to_vec(),
+            w.borrow().flatten().to_vec(),
             if inputs.len() > 2 {
-                format!("{:?}", inputs[2].flatten().to_vec())
+                format!("{:?}", inputs[2].borrow().flatten().to_vec())
             } else {
                 "None".to_string()
             }
         );
 
-        let mut y = function_libs::dot(x.clone(), w.clone());
+        let mut y = function_libs::dot(x, w).borrow().clone();
 
         if inputs.len() > 2 {
             let b = inputs[2].clone();
-            y = y + b;
+            y = y + b.borrow().clone();
         }
 
-        vec![y]
+        vec![Rc::new(RefCell::new(y))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -62,12 +65,12 @@ impl<V: MathOps> Function<V> for LinearFunction {
         let x = inputs[0].clone();
         let w = inputs[1].clone();
 
-        let gx = matmul(gys[0].clone(), w.transpose().clone());
-        let gw = matmul(x.transpose().clone(), gys[0].clone());
+        let gx = matmul(gys[0].clone(), w.borrow().transpose().clone());
+        let gw = matmul(x.borrow().transpose().clone(), gys[0].clone());
 
         if inputs.len() > 2 {
             let b = inputs[2].clone();
-            let gb = sum_to(gys[0].clone(), b.get_data().shape().to_vec());
+            let gb = sum_to(gys[0].clone(), b.borrow().get_data().shape().to_vec());
             return vec![gx, gw, gb];
         }
 
@@ -107,7 +110,7 @@ mod tests {
     use std::env;
 
     use super::*;
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     // use rand::prelude::*;
     use rand::{distributions::Uniform, SeedableRng};
@@ -148,19 +151,19 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![3, 2],
             x_var.flatten().to_vec(),
         ));
 
-        let w_var = Array::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
+        let w_var = ArcArray::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
         let w = Variable::new(RawData::from_shape_vec(
             vec![2, 3],
             w_var.flatten().to_vec(),
         ));
 
-        let b_var = Array::random_using(3, Uniform::new(0., 10.), &mut rng);
+        let b_var = ArcArray::random_using(3, Uniform::new(0., 10.), &mut rng);
         let b = Variable::new(RawData::from_vec(b_var.flatten().to_vec()));
 
         let mut linear: FunctionExecutor<_> =
@@ -177,13 +180,13 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((10, 100), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((10, 100), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![10, 100],
             x_var.flatten().to_vec(),
         ));
 
-        let w_var = Array::random_using((100, 30), Uniform::new(0., 10.), &mut rng);
+        let w_var = ArcArray::random_using((100, 30), Uniform::new(0., 10.), &mut rng);
         let w = Variable::new(RawData::from_shape_vec(
             vec![100, 30],
             w_var.flatten().to_vec(),

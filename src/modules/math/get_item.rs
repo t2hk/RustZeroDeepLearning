@@ -7,7 +7,7 @@ use log::{debug, error, info, trace, warn};
 use std::rc::Rc;
 use std::{cell::RefCell, rc::Weak};
 
-use ndarray::{s, Array, Axis, IxDyn};
+use ndarray::{s, ArcArray, Axis, IxDyn};
 
 #[derive(Debug, Clone)]
 pub struct GetItemFunction {
@@ -36,19 +36,23 @@ impl<V: MathOps> Function<V> for GetItemFunction {
     }
 
     // GetItem の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("get_item_grad(forward)");
 
         // let result = utils::get_slice(xs[0].clone(), self.slicer.clone()).unwrap();
-        let result = self.slicer.slice(&xs[0].clone()).to_owned();
+        let result = self.slicer.slice(&xs[0].borrow());
         dbg!(&result);
-        vec![result]
+        vec![Rc::new(RefCell::new(result.into_shared()))]
+        //vec![Rc::new(RefCell::new(result.into_shape()))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -100,7 +104,7 @@ mod test {
 
         unsafe {
             let array1 =
-                Array::from_shape_vec(vec![3, 4], vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
+                ArcArray::from_shape_vec(vec![3, 4], vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
                     .unwrap();
 
             // 0..2 のような範囲を表すSliceInfoElemを作成
@@ -126,12 +130,12 @@ mod test {
             let result2 = array1.slice(&slice_index_info);
             println!("result2: {:?}", result2);
 
-            //let indices = Array::from_vec(vec![0, 0, 1]);
+            //let indices = ArcArray::from_vec(vec![0, 0, 1]);
             let indices = vec![0_usize, 0_usize, 1_usize];
             let result3 = array1.select(Axis(0), &indices);
             println!("result3: {:?}", result3);
 
-            let array2 = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+            let array2 = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
             let indices_0 = vec![0_usize];
             let result4 = array2.select(Axis(0), &indices_0);
             println!("array2: {:?}\nresult4: {:?}", array2, result4);
@@ -146,7 +150,7 @@ mod test {
         // y = F.get_item(x, 0)
         // self.assertTrue(array_allclose(y.data, x_data[0]))
 
-        // let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        // let array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
         // let indices = vec![0_usize];
         // let result = array.index_axis(Axis(0), indices[0]);
         // println!("array: {:?}\nresult: {:?}", array, result);
@@ -220,7 +224,7 @@ mod test {
         //   y = F.get_item(x, (Ellipsis, 2))
         //   self.assertTrue(array_allclose(y.data, x_data[..., 2]))
         // [[ 2  5] [ 8 11]]
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
         let x = Variable::new(RawData::from_shape_vec(vec![2, 2, 3], (0..=11).collect()));
 
         let mut slicer = DynamicSlicer::new(array.ndim());
@@ -252,7 +256,7 @@ mod test {
     //     // f = lambda x: F.get_item(x, slices)
     //     // gradient_check(f, x_data)
 
-    //     let i_array = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
+    //     let i_array = ArcArray::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
     //     let array = i_array.mapv(|x| x as f64);
 
     //     let x = Variable::new(RawData::from_shape_vec(
@@ -277,7 +281,7 @@ mod test {
     //     // f = lambda x: F.get_item(x, slices)
     //     // gradient_check(f, x_data)
 
-    //     let i_array = Array::from_shape_vec(vec![4, 3], (0..=11).collect()).unwrap();
+    //     let i_array = ArcArray::from_shape_vec(vec![4, 3], (0..=11).collect()).unwrap();
     //     let array = i_array.mapv(|x| x as f64);
     //     let x = Variable::new(RawData::from_shape_vec(
     //         array.shape().to_vec(),
@@ -302,7 +306,7 @@ mod test {
 
     // #[test]
     // fn test_1dim() {
-    //     let i_array = Array::from_vec((0..=11).collect()).into_dyn();
+    //     let i_array = ArcArray::from_vec((0..=11).collect()).into_dyn();
     //     let array = i_array.mapv(|x| x as f64);
 
     //     let slice = SliceElem::Slice {
@@ -320,7 +324,7 @@ mod test {
 
     // #[test]
     // fn test_2dim() {
-    //     let i_array = Array::from_shape_vec(vec![4, 3], (0..=11).collect())
+    //     let i_array = ArcArray::from_shape_vec(vec![4, 3], (0..=11).collect())
     //         .unwrap()
     //         .into_dyn();
     //     let array = i_array.mapv(|x| x as f64);
@@ -341,7 +345,7 @@ mod test {
 
     // #[test]
     // fn test_3dim() {
-    //     let i_array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect())
+    //     let i_array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect())
     //         .unwrap()
     //         .into_dyn();
     //     let array = i_array.mapv(|x| x as f64);
@@ -365,7 +369,7 @@ mod test {
 
     // #[test]
     // fn test_3dim_2() {
-    //     let i_array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect())
+    //     let i_array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect())
     //         .unwrap()
     //         .into_dyn();
     //     let array = i_array.mapv(|x| x as f64);
@@ -401,7 +405,7 @@ mod test {
 
     // #[test]
     // fn test_5dim_1() {
-    //     let i_array = Array::from_shape_vec(vec![3, 2, 3, 2, 3], (0..=107).collect())
+    //     let i_array = ArcArray::from_shape_vec(vec![3, 2, 3, 2, 3], (0..=107).collect())
     //         .unwrap()
     //         .into_dyn();
     //     let array = i_array.mapv(|x| x as f64);
@@ -438,7 +442,7 @@ mod test {
     // #[test]
     // fn test_sample() {
     //     // 3次元配列の作成 (2x3x4)
-    //     let mut array = Array::zeros((2, 3, 4));
+    //     let mut array = ArcArray::zeros((2, 3, 4));
 
     //     // 配列にデータを設定
     //     for i in 0..2 {

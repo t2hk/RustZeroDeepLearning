@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -21,13 +21,24 @@ impl<V: MathOps> Function<V> for TanhFunction {
     }
 
     // Tanh の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("tanh(forward)");
-        debug!("tanh(forward): tanh({:?})", xs[0].flatten().to_vec());
-        let result = vec![xs[0].mapv(|x| {
-            let tanh_x = V::to_f64(&x).unwrap().tanh();
-            V::from(tanh_x).unwrap()
-        })];
+        debug!(
+            "tanh(forward): tanh({:?})",
+            xs[0].borrow().flatten().to_vec()
+        );
+        let result = vec![Rc::new(RefCell::new(
+            xs[0]
+                .borrow()
+                .mapv(|x| {
+                    let tanh_x = V::to_f64(&x).unwrap().tanh();
+                    V::from(tanh_x).unwrap()
+                })
+                .into_shared(),
+        ))];
 
         result
     }
@@ -36,18 +47,18 @@ impl<V: MathOps> Function<V> for TanhFunction {
     /// d tanh(x) /dx = 1 - y^2
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("tanh(backward)");
         debug!(
             "tanh(backward): (1 - {:?} ^2) * {:?}",
-            &inputs[0].get_data().flatten().to_vec(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec()
         );
 
-        let tanh_x_pow_2 = &tanh(inputs[0].clone()) ^ 2;
+        let tanh_x_pow_2 = &tanh(inputs[0].borrow().clone()) ^ 2;
 
         let gxs =
             vec![&(&Variable::new(RawData::new(V::from(1.0).unwrap())) - &tanh_x_pow_2) * &gys[0]];
@@ -83,7 +94,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),
@@ -106,8 +117,8 @@ mod tests {
 
         let x = Variable::new(RawData::new(PIf32 / 4.0f32));
 
-        let expected_data = Array::from_elem(IxDyn(&[]), 0.6557942026326724f32);
-        let expected_grad = Array::from_elem(IxDyn(&[]), 0.56993395f32);
+        let expected_data = ArcArray::from_elem(IxDyn(&[]), 0.6557942026326724f32);
+        let expected_grad = ArcArray::from_elem(IxDyn(&[]), 0.56993395f32);
 
         // 順伝播、逆伝播を実行する。
         let result = tanh(x.clone());

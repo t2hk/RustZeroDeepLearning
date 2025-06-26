@@ -3,7 +3,7 @@ use crate::modules::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::collections::BinaryHeap;
 use std::collections::HashMap;
@@ -20,11 +20,14 @@ where
     /// 通常の計算を行う順伝播。継承して実装すること。
     ///
     /// Arguments
-    /// * xs (Vec<Array<f64, IxDyn>>): 入力値
+    /// * xs (Vec<ArcArray<f64, IxDyn>>): 入力値
     ///
     /// Returns
-    /// * Vec<Array<f64, IxDyn>>: 出力値
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>>;
+    /// * Vec<ArcArray<f64, IxDyn>>: 出力値
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>;
 
     /// 微分の計算を行う逆伝播。
     /// 継承して実装すること。
@@ -37,7 +40,7 @@ where
     /// * Vec<Variable<V>>: 入力値に対する微分値
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>>;
@@ -47,7 +50,7 @@ where
 /// 関数の入出力値と関数のトレイトオブジェクトを保持し、順伝播、逆伝播を呼び出す。
 #[derive(Debug, Clone)]
 pub struct FunctionExecutor<V: MathOps> {
-    inputs: Vec<Variable<V>>,                // 関数の入力値
+    inputs: Vec<Rc<RefCell<Variable<V>>>>,   // 関数の入力値
     outputs: Vec<Weak<RefCell<RawData<V>>>>, //関数の出力値
     creator: Rc<RefCell<dyn Function<V>>>,   // 関数のトレイトオブジェクト
     generation: i32,                         // 関数の世代
@@ -98,7 +101,7 @@ impl<V: MathOps> FunctionExecutor<V> {
         let inputs_detail: Vec<String> = self
             .inputs
             .iter()
-            .map(|input| format!("{:?}", input.get_data()))
+            .map(|input| format!("{:?}", input.borrow().get_data()))
             .collect();
 
         let outputs_detail: Vec<String> = self
@@ -127,7 +130,7 @@ impl<V: MathOps> FunctionExecutor<V> {
     ///
     /// Return
     /// * Vec<Variable<V>>: 関数に対する入力値のベクタ
-    pub fn get_inputs(&self) -> Vec<Variable<V>> {
+    pub fn get_inputs(&self) -> Vec<Rc<RefCell<Variable<V>>>> {
         self.inputs.clone()
     }
 
@@ -166,8 +169,10 @@ impl<V: MathOps> FunctionExecutor<V> {
         info!("[forward {}]", &self.creator.borrow().get_name());
 
         // 入力値からデータを取り出す。
-        let xs_data: Vec<Array<V, IxDyn>> =
-            inputs.iter().map(|variable| variable.get_data()).collect();
+        let xs_data: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> = inputs
+            .iter()
+            .map(|variable| Rc::new(RefCell::new(variable.get_data())))
+            .collect();
 
         // 逆伝播を有効にする場合、世代を設定する。
         if Setting::is_enable_backprop() {
@@ -185,20 +190,26 @@ impl<V: MathOps> FunctionExecutor<V> {
         let outputs: Vec<Variable<V>> = ys_data
             .into_iter()
             .map(|y_data| {
-                let val = RawData::new(y_data);
+                let val = RawData::new(y_data.borrow().clone());
                 Variable::new(val)
             })
             .collect();
 
-        // 入出力を自身に設定する。
-        self.inputs = inputs.into_iter().map(|input| input).collect();
-        self.outputs = outputs
-            .iter()
-            .map(|output| Rc::downgrade(&output.raw()))
-            .collect();
+        // 逆伝播を行う場合のみ、出力値を保持する
+        if Setting::is_enable_backprop() {
+            // 入出力を自身に設定する。
+            self.inputs = inputs
+                .into_iter()
+                .map(|input| Rc::new(RefCell::new(input)))
+                .collect();
+            self.outputs = outputs
+                .iter()
+                .map(|output| Rc::downgrade(&output.raw()))
+                .collect();
 
-        for output in &outputs {
-            output.set_creator(Rc::new(RefCell::new(self.clone())));
+            for output in &outputs {
+                output.set_creator(Rc::new(RefCell::new(self.clone())));
+            }
         }
 
         outputs
@@ -223,7 +234,7 @@ impl<V: MathOps> FunctionExecutor<V> {
                 let is_grad_none = output.borrow().get_grad().is_none();
                 //if output.borrow().get_grad().is_none() {
                 if is_grad_none {
-                    let grad_one = Variable::new(RawData::new(Array::ones(
+                    let grad_one = Variable::new(RawData::new(ArcArray::ones(
                         output.borrow().get_data().shape(),
                     )));
                     output.borrow_mut().set_grad(grad_one);
@@ -244,11 +255,11 @@ impl<V: MathOps> FunctionExecutor<V> {
         for (i, input) in self.inputs.iter().enumerate() {
             let mut new_grad = gxs[i].clone();
 
-            if input.get_grad().is_some() {
-                let input_grad = input.get_grad().clone().unwrap();
+            if input.borrow().get_grad().is_some() {
+                let input_grad = input.borrow().get_grad().clone().unwrap();
                 new_grad = &input_grad + &new_grad;
             }
-            input.set_grad(new_grad);
+            input.borrow().set_grad(new_grad);
         }
 
         // 微分値を保持しない場合、中間変数の微分値を削除する。
@@ -300,7 +311,7 @@ impl<V: MathOps> FunctionExecutor<V> {
             local_variables.clear();
             local_creators.iter_mut().for_each(|creator| {
                 creator.borrow().inputs.iter().for_each(|input| {
-                    local_variables.push(input.clone());
+                    local_variables.push(input.borrow().clone());
                 });
             });
         }

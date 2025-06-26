@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::ops::Div;
 use std::rc::{Rc, Weak};
@@ -22,14 +22,19 @@ impl<V: MathOps> Function<V> for DivFunction {
     }
 
     // Div (除算) の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("div(forward)");
         debug!(
             "div(forward): {:?} / {:?}",
-            &xs[0].flatten().to_vec(),
-            &xs[1].flatten().to_vec()
+            &xs[0].borrow().flatten().to_vec(),
+            &xs[1].borrow().flatten().to_vec()
         );
-        let result = vec![&xs[0] / &xs[1]];
+        let result = vec![Rc::new(RefCell::new(
+            (&xs[0].borrow().clone() / &xs[1].borrow().clone()).into_shared(),
+        ))];
         result
     }
 
@@ -37,21 +42,22 @@ impl<V: MathOps> Function<V> for DivFunction {
     /// y=x0 / x1 の微分であるため、dy/dx0=1/x1 * gy, dy/dx1= -x0/(x1^2) * gy である。
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("div(backward)");
 
-        let gx_x0 = &gys[0] / &inputs[1];
-        let gx_x1 = &gys[0] * &(&(&inputs[0] * -1) / &(&inputs[1] ^ 2));
+        let gx_x0 = &gys[0] / &inputs[1].borrow().clone();
+        let gx_x1 =
+            &gys[0] * &(&(&inputs[0].borrow().clone() * -1) / &(&inputs[1].borrow().clone() ^ 2));
 
         debug!(
             "div(backward): dy/dx0 = (1 / {:?}) * {:?}, dy/dx1 = -{:?} / {:?}^2 * {:?}",
-            &inputs[1].get_data().flatten().to_vec(),
+            &inputs[1].borrow().get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec(),
-            &inputs[0].get_data().flatten().to_vec(),
-            &inputs[1].get_data().flatten().to_vec(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
+            &inputs[1].borrow().get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec()
         );
 
@@ -100,9 +106,9 @@ impl<V: MathOps> Div<&Variable<V>> for &Variable<V> {
 }
 
 /// 除算のオーバーロード (Variable<V> / Array)
-impl<V: MathOps> Div<&Array<V, IxDyn>> for &Variable<V> {
+impl<V: MathOps> Div<&ArcArray<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
-    fn div(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
+    fn div(self, rhs: &ArcArray<V, IxDyn>) -> Variable<V> {
         // 順伝播
         let rhs_val = Variable::new(RawData::new(rhs.clone()));
         self / &rhs_val
@@ -110,7 +116,7 @@ impl<V: MathOps> Div<&Array<V, IxDyn>> for &Variable<V> {
 }
 
 /// 除算のオーバーロード (Array * Variable<V>)
-impl<V: MathOps> Div<&Variable<V>> for &Array<V, IxDyn> {
+impl<V: MathOps> Div<&Variable<V>> for &ArcArray<V, IxDyn> {
     type Output = Variable<V>;
     fn div(self, rhs: &Variable<V>) -> Variable<V> {
         // 順伝播
@@ -167,8 +173,8 @@ mod tests {
     fn test_num_grad_check() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
-        let x1_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
+        let x1_var = ArcArray::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 10],
@@ -248,19 +254,19 @@ mod tests {
 
         assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 0.5),
+            ArcArray::from_elem(IxDyn(&[]), 0.5),
             a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), -0.75),
+            ArcArray::from_elem(IxDyn(&[]), -0.75),
             b.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             c.get_grad().expect("No grad exist.").get_data()
         );
     }
@@ -305,15 +311,15 @@ mod tests {
 
         assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 0.5),
+            ArcArray::from_elem(IxDyn(&[]), 0.5),
             a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), -1.5),
+            ArcArray::from_elem(IxDyn(&[]), -1.5),
             b.get_grad().expect("No grad exist.").get_data()
         );
     }
@@ -337,7 +343,7 @@ mod tests {
         // let b = Variable::new(raw_b);
 
         // b は Array とする。
-        let b = Array::from_elem(IxDyn(&[]), 2.0f32);
+        let b = ArcArray::from_elem(IxDyn(&[]), 2.0f32);
 
         let mut raw_c = RawData::new(1.0f32);
         raw_c.set_name("val_c".to_string());
@@ -362,15 +368,15 @@ mod tests {
 
         assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 0.5),
+            ArcArray::from_elem(IxDyn(&[]), 0.5),
             a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             c.get_grad().expect("No grad exist.").get_data()
         );
         // assert_eq!(
@@ -389,8 +395,8 @@ mod tests {
         let val_f32_2 = Variable::new(RawData::new(2.0f32));
         let val_f64_2 = Variable::new(RawData::new(2.0f64));
         let val_u64_6 = Variable::new(RawData::new(6u64));
-        let array_f32_6 = Array::from_elem(IxDyn(&[]), 6.0f32);
-        let array_f32_2 = Array::from_elem(IxDyn(&[]), 2.0f32);
+        let array_f32_6 = ArcArray::from_elem(IxDyn(&[]), 6.0f32);
+        let array_f32_2 = ArcArray::from_elem(IxDyn(&[]), 2.0f32);
 
         let result_val_i64_div = &val_i64_6 / &val_i64_2;
         let result_val_u64_div_scalar_u64 = &val_u64_6 / 3u64;

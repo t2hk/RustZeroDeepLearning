@@ -67,7 +67,7 @@ impl<V: MathOps> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array, IxDyn};
+    use ndarray::{ArcArray, Array, IxDyn};
     //use rand::prelude::*;
     #[test]
     /// 変数の型名に関するテスト。
@@ -134,7 +134,7 @@ mod tests {
     /// 変数の名前のテスト。
     #[test]
     fn test_variable_name() {
-        let mut val = RawData::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+        let mut val = RawData::new(ArcArray::from_elem(IxDyn(&[100, 100, 100]), 1.0));
 
         assert_eq!(None, val.get_name());
 

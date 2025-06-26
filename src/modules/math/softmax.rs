@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Array1, Axis, IxDyn};
+use ndarray::{ArcArray, Axis, IxDyn};
 use std::{
     cell::RefCell,
     rc::{Rc, Weak},
@@ -28,7 +28,10 @@ impl<V: MathOps> Function<V> for SoftmaxFunction {
     }
 
     // 順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         // class Softmax(Function):
         //     def __init__(self, axis=1):
         //         self.axis = axis
@@ -43,6 +46,7 @@ impl<V: MathOps> Function<V> for SoftmaxFunction {
         info!("softmax(forward)");
 
         let x_max = xs[0]
+            .borrow()
             .map_axis(self.axis, |view| {
                 // view.iter().max().unwrap().clone()
                 let tmp_x: Vec<f64> = view.iter().map(|x| V::to_f64(x).unwrap()).collect();
@@ -51,12 +55,12 @@ impl<V: MathOps> Function<V> for SoftmaxFunction {
             })
             .insert_axis(self.axis);
 
-        let y = xs[0].clone() - x_max;
+        let y = xs[0].borrow().clone() - x_max;
         let y_exp = y.mapv_into(|y| V::from(V::to_f64(&y).unwrap().exp()).unwrap());
         let y_exp_sum = y_exp.sum_axis(self.axis).insert_axis(self.axis);
         let y_div_y_exp_sum = y_exp.clone() / y_exp_sum;
 
-        let outputs = vec![y_div_y_exp_sum];
+        let outputs = vec![Rc::new(RefCell::new(y_div_y_exp_sum))];
 
         outputs
     }
@@ -64,7 +68,7 @@ impl<V: MathOps> Function<V> for SoftmaxFunction {
     /// 逆伝播
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -154,10 +158,12 @@ pub fn softmax_cross_entropy_simple<V: MathOps>(x: Variable<V>, t: Variable<V>) 
     let p = softmax_simple(x.clone(), 1);
     // let p_clipped = p.clone().clamp(1e-15, 1.0);
     let p_data = p.get_data();
-    let p_clipped = p_data.clamp(V::from(1e-15).unwrap(), V::one());
-    p.set_data(p_clipped.clone());
+    let p_clipped = p_data
+        .clamp(V::from(1e-15).unwrap(), V::one())
+        .into_shared();
+    p.set_data(p_clipped);
 
-    let log_p = log(p.clone());
+    let log_p = log(p);
 
     let mut tlog_p_vec = vec![];
 
@@ -166,7 +172,7 @@ pub fn softmax_cross_entropy_simple<V: MathOps>(x: Variable<V>, t: Variable<V>) 
         let log_p_val = log_p.get_data()[[i, t_val]].clone();
         tlog_p_vec.push(log_p_val);
     }
-    let tlog_p = Array::from_shape_vec((1, n), tlog_p_vec).unwrap();
+    let tlog_p = ArcArray::from_shape_vec((1, n), tlog_p_vec).unwrap();
 
     let y = (V::from(-1).unwrap() * tlog_p.sum()) / V::from(n).unwrap();
 
@@ -177,7 +183,7 @@ pub fn softmax_cross_entropy_simple<V: MathOps>(x: Variable<V>, t: Variable<V>) 
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
-    use ndarray::Array;
+    use ndarray::ArcArray;
 
     use super::*;
 
@@ -195,7 +201,7 @@ mod tests {
         let expect = vec![
             0.01349627, 0.03668667, 0.0997247, 0.01349627, 0.0997247, 0.73687136,
         ];
-        let expect_array = Array::from_shape_vec(vec![2, 3], expect).unwrap();
+        let expect_array = ArcArray::from_shape_vec(vec![2, 3], expect).unwrap();
 
         assert!(y.get_data().abs_diff_eq(&expect_array, 1e-4));
     }
@@ -252,7 +258,8 @@ mod tests {
             0.09003057, 0.24472849, 0.66524094, 0.01587624, 0.11731042, 0.8668133,
         ];
 
-        let expects = Array::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
+        let expects =
+            ArcArray::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
         assert!(y.get_data().abs_diff_eq(&expects, 1e-4));
     }
 
@@ -269,7 +276,8 @@ mod tests {
             0.09003057, 0.24472849, 0.66524094, 0.01587624, 0.11731042, 0.8668133,
         ];
 
-        let expects = Array::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
+        let expects =
+            ArcArray::from_shape_vec(y.get_data().shape().to_vec(), expect_values).unwrap();
         assert!(y.get_data().abs_diff_eq(&expects, 1e-4));
 
         let mut softmax =

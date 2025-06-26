@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -26,36 +26,43 @@ impl<V: MathOps> Function<V> for TransposeFunction {
     /// 順伝播
     ///
     /// Arguments
-    /// * xs (Vec<Array<V,IxDyn>>): 変換対象のテンソル
+    /// * xs (Vec<ArcArray<V,IxDyn>>): 変換対象のテンソル
     ///
     /// Returns
-    /// * Vec<Array<V, IxDyn>>: 転置の結果
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    /// * Vec<ArcArray<V, IxDyn>>: 転置の結果
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         if let Some(axes) = self.axes.clone() {
             info!("transpose_axes(forward)");
-            let y = xs[0].clone().permuted_axes(axes).to_owned();
+            let y = xs[0].borrow().clone().permuted_axes(axes).to_owned();
 
             debug!(
                 "transpose_axes(forwad) {:?} -> {:?}",
-                &xs[0].shape(),
+                &xs[0].borrow().shape(),
                 y.shape()
             );
 
-            vec![y]
+            vec![Rc::new(RefCell::new(y.into_shared()))]
         } else {
             info!("transpose(forward)");
-            let y = xs[0].clone().t().to_owned();
+            let y = xs[0].borrow().t().to_owned();
 
-            debug!("transpose(forwad) {:?} -> {:?}", &xs[0].shape(), y.shape());
+            debug!(
+                "transpose(forwad) {:?} -> {:?}",
+                &xs[0].borrow().shape(),
+                y.shape()
+            );
 
-            vec![y]
+            vec![Rc::new(RefCell::new(y.into_shared()))]
         }
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -129,7 +136,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((4, 3, 2), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((4, 3, 2), Uniform::new(0., 10.), &mut rng);
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![4, 3, 2],
             x0_var.flatten().to_vec(),

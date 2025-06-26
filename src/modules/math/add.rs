@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::ops::Add;
 use std::rc::{Rc, Weak};
@@ -26,15 +26,20 @@ impl<V: MathOps> Function<V> for AddFunction {
     }
 
     // Add (加算) の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("add(forward)");
         debug!(
             "add(forward) {:?} + {:?}",
-            &xs[0].flatten().to_vec(),
-            &xs[1].flatten().to_vec()
+            &xs[0].borrow().flatten().to_vec(),
+            &xs[1].borrow().flatten().to_vec()
         );
 
-        let result = vec![&xs[0] + &xs[1]];
+        let result = vec![Rc::new(RefCell::new(
+            (&xs[0].borrow().clone() + &xs[1].borrow().clone()).into_shared(),
+        ))];
         result
     }
 
@@ -42,7 +47,7 @@ impl<V: MathOps> Function<V> for AddFunction {
     /// y=x0+x1 の微分であるため、dy/dx0=1, dy/dx1=1 である。
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -125,9 +130,9 @@ impl<V: MathOps> Add<&Variable<V>> for &Variable<V> {
 }
 
 /// 加算のオーバーロード (Variable<V> + Array)
-impl<V: MathOps> Add<&Array<V, IxDyn>> for &Variable<V> {
+impl<V: MathOps> Add<&ArcArray<V, IxDyn>> for &Variable<V> {
     type Output = Variable<V>;
-    fn add(self, rhs: &Array<V, IxDyn>) -> Variable<V> {
+    fn add(self, rhs: &ArcArray<V, IxDyn>) -> Variable<V> {
         debug!("Add overload (Variable<V> + Array)");
         // 順伝播
         let rhs_val = Variable::new(RawData::new(rhs.clone()));
@@ -136,7 +141,7 @@ impl<V: MathOps> Add<&Array<V, IxDyn>> for &Variable<V> {
 }
 
 /// 加算のオーバーロード (Array + Variable<V>)
-impl<V: MathOps> Add<&Variable<V>> for &Array<V, IxDyn> {
+impl<V: MathOps> Add<&Variable<V>> for &ArcArray<V, IxDyn> {
     type Output = Variable<V>;
     fn add(self, rhs: &Variable<V>) -> Variable<V> {
         debug!("Add overload (Array + Variable<V>)");
@@ -193,8 +198,8 @@ mod tests {
     fn test_num_grad_check() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
-        let x1_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+        let x0_var = ArcArray::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+        let x1_var = ArcArray::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
@@ -226,7 +231,7 @@ mod tests {
         let x2 = Variable::new(RawData::new(rand_x2));
 
         // 加算した結果の期待値を計算する。
-        let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
+        let expected_output_data = ArcArray::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
 
         // 順伝播、逆伝播を実行する。
         // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
@@ -267,15 +272,15 @@ mod tests {
 
         assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1.0),
+            ArcArray::from_elem(IxDyn(&[]), 1.0),
             result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 2.0),
+            ArcArray::from_elem(IxDyn(&[]), 2.0),
             a.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 3.0),
+            ArcArray::from_elem(IxDyn(&[]), 3.0),
             b.get_grad().expect("No grad exist.").get_data()
         );
     }
@@ -299,7 +304,7 @@ mod tests {
         // let b = Variable::new(raw_b);
 
         // b は Array とする。
-        let b = Array::from_elem(IxDyn(&[]), 2i32);
+        let b = ArcArray::from_elem(IxDyn(&[]), 2i32);
 
         let mut raw_c = RawData::new(1i32);
         raw_c.set_name("val_c".to_string());
@@ -315,11 +320,11 @@ mod tests {
 
         assert_eq!(expected.get_data(), result.get_data());
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 1),
+            ArcArray::from_elem(IxDyn(&[]), 1),
             result.get_grad().expect("No grad exist.").get_data()
         );
         assert_eq!(
-            Array::from_elem(IxDyn(&[]), 2),
+            ArcArray::from_elem(IxDyn(&[]), 2),
             a.get_grad().expect("No grad exist.").get_data()
         );
         // assert_eq!(
@@ -336,7 +341,7 @@ mod tests {
         let overload_val_f32 = Variable::new(RawData::new(2.0f32));
         let overload_val_f64 = Variable::new(RawData::new(2.0f64));
         let overload_val_u32 = Variable::new(RawData::new(2u32));
-        let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
+        let overload_array_f32 = ArcArray::from_elem(IxDyn(&[]), 2.0f32);
 
         let result_val_i32_mul_val_i32 = &overload_val_i32 * &overload_val_i32;
         let result_val_u32_mul_scalar_u32 = &overload_val_u32 * 10u32;
@@ -378,7 +383,7 @@ mod tests {
         let overload_val_f32 = Variable::new(RawData::new(2.0f32));
         let overload_val_f64 = Variable::new(RawData::new(2.0f64));
         let overload_val_u64 = Variable::new(RawData::new(2u64));
-        let overload_array_f32 = Array::from_elem(IxDyn(&[]), 2.0f32);
+        let overload_array_f32 = ArcArray::from_elem(IxDyn(&[]), 2.0f32);
 
         let result_val_i64_add_val_i64 = &overload_val_i64 + &overload_val_i64;
         let result_val_u64_add_scalar_u64 = &overload_val_u64 + 10u64;

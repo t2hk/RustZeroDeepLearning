@@ -5,7 +5,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::ops::Neg;
 use std::rc::{Rc, Weak};
@@ -23,10 +23,18 @@ impl<V: MathOps> Function<V> for NegFunction {
     }
 
     // Neg (y=-x) の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("neg(forward)");
-        debug!("neg(forward): -{:?}", xs[0].flatten().to_vec());
-        let result = vec![xs[0].mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())];
+        debug!("neg(forward): -{:?}", xs[0].borrow().flatten().to_vec());
+        let result = vec![Rc::new(RefCell::new(
+            xs[0]
+                .borrow()
+                .mapv(|x| V::from(-1).unwrap() * V::from(x).unwrap())
+                .into_shared(),
+        ))];
 
         result
     }
@@ -35,12 +43,12 @@ impl<V: MathOps> Function<V> for NegFunction {
     /// y=-x の微分 dy/dx=-1 である。
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("neg(backward)");
-        let x = inputs[0].get_data();
+        let x = inputs[0].borrow().get_data();
         let gys_val = gys[0].get_data();
 
         let x_exp = vec![x.mapv(|x| V::from(x).unwrap())];

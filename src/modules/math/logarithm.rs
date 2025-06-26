@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{ArcArray, Axis, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -22,25 +22,31 @@ impl<V: MathOps> Function<V> for LogFunction {
     }
 
     // 順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("log(forward)");
-        debug!("log(forward) {:?}", &xs[0].flatten().to_vec());
+        debug!("log(forward) {:?}", &xs[0].borrow().flatten().to_vec());
 
-        let result = xs[0].mapv(|x| V::from(x.to_f64().unwrap().ln()).unwrap());
+        let result = xs[0]
+            .borrow()
+            .mapv(|x| V::from(x.to_f64().unwrap().ln()).unwrap())
+            .into_shared();
 
-        vec![result]
+        vec![Rc::new(RefCell::new(result))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("log(backward)");
 
-        let result = &gys[0].clone() / &inputs[0].clone();
+        let result = &gys[0].clone() / &inputs[0].borrow().clone();
 
         debug!(
             "log(backward) gy/x: {:?}",
@@ -69,11 +75,11 @@ pub fn log<V: MathOps>(x: Variable<V>) -> Variable<V> {
 /// logsumexp 関数
 ///
 /// Arguments:
-/// * x (Array<V, IxDyn>): 変数
+/// * x (ArcArray<V, IxDyn>): 変数
 /// * axis (Axis): 軸
 /// Return
-/// * Array<V, IxDyn>:
-pub fn logsumexp<V: MathOps>(x: Array<V, IxDyn>, axis: Axis) -> Array<V, IxDyn> {
+/// * ArcArray<V, IxDyn>:
+pub fn logsumexp<V: MathOps>(x: ArcArray<V, IxDyn>, axis: Axis) -> ArcArray<V, IxDyn> {
     // def logsumexp(x, axis=1):
     //   xp = cuda.get_array_module(x)
     //   m = x.max(axis=axis, keepdims=True)
@@ -99,7 +105,7 @@ pub fn logsumexp<V: MathOps>(x: Array<V, IxDyn>, axis: Axis) -> Array<V, IxDyn> 
 
     let m_s = m + log_s;
 
-    m_s
+    m_s.into_shared()
 }
 
 #[cfg(test)]
@@ -165,18 +171,18 @@ mod tests {
         let log_fn = LogFunction {};
 
         // 単一値のテスト
-        let input1 = Array::<f64, _>::from_elem(IxDyn(&[1]), 1.0);
-        let result1 = log_fn.forward(vec![input1]);
+        let input1 = ArcArray::<f64, _>::from_elem(IxDyn(&[1]), 1.0);
+        let result1 = log_fn.forward(vec![Rc::new(RefCell::new(input1))]);
         // ln(1) = 0
-        assert_close(result1[0].as_slice().unwrap()[0], 0.0f64, 1e-12f64);
+        assert_close(result1[0].borrow().as_slice().unwrap()[0], 0.0f64, 1e-12f64);
 
         // 複数値のテスト
-        let input2 = Array::from_vec(vec![2.0f64, 7.389f64, 20.085f64]).into_dyn();
-        let result2 = log_fn.forward(vec![input2]);
+        let input2 = ArcArray::from_vec(vec![2.0f64, 7.389f64, 20.085f64]).into_dyn();
+        let result2 = log_fn.forward(vec![Rc::new(RefCell::new(input2))]);
         let expected2 = vec![2.0f64.ln(), 7.389f64.ln(), 20.085f64.ln()];
 
         for (i, &exp) in expected2.iter().enumerate() {
-            assert_close(result2[0].as_slice().unwrap()[i], exp, 1e-12f64);
+            assert_close(result2[0].borrow().as_slice().unwrap()[i], exp, 1e-12f64);
         }
     }
 

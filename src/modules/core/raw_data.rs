@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IntoDimension, IxDyn};
+use ndarray::{ArcArray, IntoDimension, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -22,7 +22,7 @@ use std::rc::Rc;
 /// * generation (i32): 計算グラフ上の世代
 #[derive(Debug, Clone)]
 pub struct RawData<V: MathOps> {
-    data: Array<V, IxDyn>,
+    data: ArcArray<V, IxDyn>,
     name: Option<String>,
     grad: Option<Variable<V>>,
     creator: Option<Rc<RefCell<FunctionExecutor<V>>>>,
@@ -55,7 +55,7 @@ impl<V: MathOps> RawData<V> {
         Sh: IntoDimension<Dim = IxDyn>,
     {
         let dim = shape.into_dimension();
-        let array = Array::from_shape_vec(dim, values.clone())
+        let array = ArcArray::from_shape_vec(dim, values.clone())
             .expect(format!("Shape error while creating array {:?}", values.len()).as_str());
         Self {
             data: array,
@@ -74,7 +74,7 @@ impl<V: MathOps> RawData<V> {
     /// Returns
     /// * Self
     pub fn from_vec(values: Vec<V>) -> Self {
-        let array = Array::from_vec(values).into_dyn();
+        let array = ArcArray::from_vec(values).into_dyn();
         Self {
             data: array,
             name: None,
@@ -93,11 +93,11 @@ impl<V: MathOps> RawData<V> {
     /// Return:
     /// * Self: 指定した開始値から終了値までの要素数を持つ等差数列の RawData
     pub fn linspace(start: V, end: V, n: usize) -> Self {
-        let base = Array::linspace(start.to_f64().unwrap(), end.to_f64().unwrap(), n);
+        let base = ArcArray::linspace(start.to_f64().unwrap(), end.to_f64().unwrap(), n);
         let shape = base.shape();
         let values = base.to_vec().iter().map(|x| V::from(*x).unwrap()).collect();
 
-        let array = Array::from_shape_vec(IxDyn(shape), values).unwrap();
+        let array = ArcArray::from_shape_vec(IxDyn(shape), values).unwrap();
 
         Self {
             data: array,
@@ -157,7 +157,7 @@ impl<V: MathOps> RawData<V> {
         self.creator.as_ref().unwrap().borrow().get_generation()
     }
 
-    pub fn set_data(&mut self, data: Array<V, IxDyn>) {
+    pub fn set_data(&mut self, data: ArcArray<V, IxDyn>) {
         self.data = data;
     }
 
@@ -165,7 +165,7 @@ impl<V: MathOps> RawData<V> {
     ///
     /// Return
     /// * Array<f64, IxDyn>: 値
-    pub fn get_data(&self) -> Array<V, IxDyn> {
+    pub fn get_data(&self) -> ArcArray<V, IxDyn> {
         self.data.clone()
     }
 
@@ -247,7 +247,7 @@ pub trait CreateRawData<V: MathOps> {
 }
 
 /// CreateRawData トレイトの Array<f64, IxDyn> 用の実装
-impl<V: MathOps> CreateRawData<V> for Array<V, IxDyn> {
+impl<V: MathOps> CreateRawData<V> for ArcArray<V, IxDyn> {
     fn create_raw_data(&self) -> RawData<V> {
         RawData {
             data: self.clone(),
@@ -264,7 +264,7 @@ impl<V: MathOps> CreateRawData<V> for V {
     fn create_raw_data(&self) -> RawData<V> {
         RawData {
             // data: Array::from_elem(IxDyn(&[]), *self),
-            data: Array::from_elem(IxDyn(&[]), self.clone()),
+            data: ArcArray::from_elem(IxDyn(&[]), self.clone()),
             name: None,
             grad: None,
             creator: None,
@@ -300,7 +300,7 @@ pub trait RawDataProcessor<V: MathOps> {
     ///
     /// Return
     /// * Array<V, IxDyn>: 変数
-    fn get_data(&self) -> Array<V, IxDyn> {
+    fn get_data(&self) -> ArcArray<V, IxDyn> {
         self.raw().borrow().get_data()
     }
 
@@ -383,7 +383,7 @@ pub trait RawDataProcessor<V: MathOps> {
     ///
     /// Arguments:
     /// * data (Array<V, IxDyn>): 変数
-    fn set_data(&self, data: Array<V, IxDyn>) {
+    fn set_data(&self, data: ArcArray<V, IxDyn>) {
         self.raw().borrow_mut().set_data(data);
     }
 
@@ -502,7 +502,7 @@ mod tests {
     /// 変数の名前のテスト。
     #[test]
     fn test_variable_name() {
-        let mut val = RawData::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0));
+        let mut val = RawData::new(ArcArray::from_elem(IxDyn(&[100, 100, 100]), 1.0));
 
         assert_eq!(None, val.get_name());
 

@@ -5,7 +5,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -22,11 +22,19 @@ impl<V: MathOps> Function<V> for ExpFunction {
     }
 
     // Exp (y=e^x) の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("exp(forward)");
-        debug!("exp(forward): e ^ {:?}", &xs[0].flatten().to_vec());
+        debug!("exp(forward): e ^ {:?}", &xs[0].borrow().flatten().to_vec());
         let e = std::f64::consts::E;
-        let result = vec![xs[0].mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
+        let result = vec![Rc::new(RefCell::new(
+            xs[0]
+                .borrow()
+                .mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())
+                .into_shared(),
+        ))];
 
         result
     }
@@ -35,7 +43,7 @@ impl<V: MathOps> Function<V> for ExpFunction {
     /// dy/dx=e^x である。
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -43,13 +51,13 @@ impl<V: MathOps> Function<V> for ExpFunction {
 
         // let x = inputs[0].get_data();
         // let gys_val = gys[0].clone();
-        let x_exp = exp(inputs[0].clone());
+        let x_exp = exp(inputs[0].borrow().clone());
         // let x_exp = vec![x.mapv(|x| V::from(e.powf(x.to_f64().unwrap())).unwrap())];
         //let gxs = x_exp.iter().map(|x_exp| x_exp * &gys_val).collect();
         let gxs = vec![&x_exp * &gys[0].clone()];
         debug!(
             "exp(backward): (e ^ {:?}) * {:?}",
-            &inputs[0].get_data().flatten().to_vec(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec()
         );
 
@@ -83,7 +91,7 @@ mod tests {
     fn test_num_grad_check() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((1, 10), Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 10],
@@ -101,7 +109,7 @@ mod tests {
         let x = Variable::new(RawData::new(2.0));
 
         let e = std::f64::consts::E;
-        let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
+        let expected_output_data = ArcArray::from_elem(IxDyn(&[]), e.powf(2.0));
 
         // 順伝播、逆伝播を実行する。
         let result = exp(x);

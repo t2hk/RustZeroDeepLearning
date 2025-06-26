@@ -1,8 +1,11 @@
 // ライブラリを一括でインポート
+use crate::modules::core::*;
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{stack, Array, Axis, Dimension, IxDyn, Slice, SliceInfo, SliceInfoElem};
+use ndarray::{
+    stack, ArcArray, ArrayBase, ArrayView, Axis, IxDyn, Slice, SliceInfo, SliceInfoElem, ViewRepr,
+};
 use plotters::chart::ChartBuilder;
 use plotters::prelude::{BitMapBackend, Circle, IntoDrawingArea, PathElement};
 use plotters::series::{LineSeries, PointSeries};
@@ -70,9 +73,12 @@ macro_rules! dot_var {
     // verbose の指定がある場合の実行
     ($variable:ident, $verbose:literal) => {{
         let mut v_name = "".to_string();
+
+        //let temp_raw_v = $variable.raw().clone();
         let temp_raw_v = $variable.raw().borrow().clone();
         if $verbose {
-            if let Some(tmp_v_name) = $variable.get_name() {
+            if let Some(tmp_v_name) = $variable.raw().borrow().get_name() {
+                //}.raw().borrow().get_name() {
                 v_name = format!("{}", tmp_v_name);
             }
             let v_shape = &temp_raw_v.get_shape();
@@ -169,7 +175,8 @@ macro_rules! get_dot_graph {
 
             let inputs = creator.1.borrow().get_inputs();
             for input in inputs {
-                let local_dot_var_txt = $crate::dot_var!(input, $verbose);
+                let tmp_input = input.borrow().clone();
+                let local_dot_var_txt = $crate::dot_var!(tmp_input, $verbose);
                 txt = format!("{}{}", txt, local_dot_var_txt);
             }
 
@@ -276,8 +283,8 @@ pub fn debug_variable<V: MathOps>(x: Variable<V>, indent_num: usize) {
             println!("{}  inputs", indent);
             let inputs = creator.borrow().get_inputs();
             for input in inputs {
-                println!("{}    {:?}", indent, input.get_data());
-                debug_variable(input.clone(), indent_num + 2usize);
+                println!("{}    {:?}", indent, input.borrow().get_data());
+                debug_variable(input.borrow().clone(), indent_num + 2usize);
             }
             println!("{}  outputs", indent);
             let outputs = creator.borrow().get_outputs();
@@ -326,8 +333,8 @@ pub fn detail_variable<V: MathOps>(x: Variable<V>, indent_num: usize) -> Vec<Str
                 result.push(format!(
                     "{}    name: {}, data: {:?}",
                     indent,
-                    input.get_name().unwrap_or("None".to_string()),
-                    input.get_data()
+                    input.borrow().get_name().unwrap_or("None".to_string()),
+                    input.borrow().get_data()
                 ));
                 //result.append(&mut detail_variable(input.clone(), indent_num + 2usize));
             }
@@ -391,10 +398,10 @@ pub fn dump_detail_variable<V: MathOps>(
                     file,
                     "{}    name: {}, data: {:?}",
                     indent,
-                    input.get_name().unwrap_or("None".to_string()),
-                    input.get_data()
+                    input.borrow().get_name().unwrap_or("None".to_string()),
+                    input.borrow().get_data()
                 )?;
-                let tmp = detail_variable(input.clone(), indent_num + 2usize);
+                let tmp = detail_variable(input.borrow().clone(), indent_num + 2usize);
                 for line in tmp {
                     writeln!(file, "{}", line)?;
                 }
@@ -421,13 +428,13 @@ pub fn dump_detail_variable<V: MathOps>(
 /// Sum 関数の逆伝播の勾配についてリシェイプする。
 ///
 /// Arguments:
-/// * gy (Array<V, IxDyn>): 勾配
+/// * gy (ArcArray<V, IxDyn>): 勾配
 /// * x_shape (Vec<usize>): 順伝播時の形状
 /// * axis (Option<Vec<isize>): Sum 関数で使用する軸
 /// * keepdims (bool): 形状を維持するかどうか
 ///
 /// Return:
-/// * Array<V, IxDyn>: 形状変換後
+/// * ArcArray<V, IxDyn>: 形状変換後
 pub fn reshape_sum_backward<V: MathOps>(
     gy: Variable<V>,
     x_shape: Vec<usize>,
@@ -473,10 +480,10 @@ pub fn reshape_sum_backward<V: MathOps>(
 /// サイズが１の次元を削除する。
 ///
 /// Arguments:
-/// * arr (&Array<T, IxDyn>): 対象のテンソル
+/// * arr (&ArcArray<T, IxDyn>): 対象のテンソル
 /// Return:
-/// * Array<T, IxDyn>: 結果
-pub fn squeeze<T: Clone>(arr: &Array<T, IxDyn>) -> Array<T, IxDyn> {
+/// * ArcArray<T, IxDyn>: 結果
+pub fn squeeze<T: Clone>(arr: &ArcArray<T, IxDyn>) -> ArcArray<T, IxDyn> {
     // 長さ1でない次元を集める
     let new_shape: Vec<usize> = arr
         .shape()
@@ -777,7 +784,7 @@ impl DynamicSlicer {
     }
 
     // 戻り値の型を変更：ArrayView ではなく Array を返す
-    pub fn slice<T>(&self, array: &Array<T, IxDyn>) -> Array<T, IxDyn>
+    pub fn slice<T>(&self, array: &ArcArray<T, IxDyn>) -> ArcArray<T, IxDyn>
     where
         T: Clone + std::fmt::Debug,
     {
@@ -836,10 +843,11 @@ impl DynamicSlicer {
             })
             .squeeze()
             .to_owned()
+            .into()
     }
 
     // ファンシーインデックス用のメソッド - 所有権を持つ配列を返す
-    fn fancy_index<T>(&self, array: &Array<T, IxDyn>) -> Array<T, IxDyn>
+    fn fancy_index<T>(&self, array: &ArcArray<T, IxDyn>) -> ArcArray<T, IxDyn>
     where
         T: Clone + std::fmt::Debug,
     {
@@ -893,17 +901,17 @@ impl DynamicSlicer {
                         &result_views.iter().map(|a| a.view()).collect::<Vec<_>>(),
                     )
                     .expect("Failed to stack arrays");
-                    return final_array.into_dyn().squeeze();
+                    return final_array.squeeze().into();
                 }
             }
         }
 
         // デフォルトとして元の配列のコピーを返す
-        array.to_owned().squeeze()
+        array.clone().squeeze().into()
     }
 
     // add.at機能を実装 - 指定された位置に値を加算する
-    pub fn add_at<T>(&self, array: &mut Array<T, IxDyn>, values: &Array<T, IxDyn>)
+    pub fn add_at<T>(&self, array: &mut ArcArray<T, IxDyn>, values: &ArcArray<T, IxDyn>)
     where
         T: Clone + AddAssign + Debug,
     {
@@ -964,16 +972,16 @@ impl DynamicSlicer {
     /// 単一次元の複数インデックスに対する add_at
     ///
     /// Arguments
-    /// * array (&mut Array<T, IxDyn>): 対象の多次元配列
+    /// * array (&mut ArcArray<T, IxDyn>): 対象の多次元配列
     /// * indices (&[isize]): 選択する複数のインデックス値
-    /// * values (&Array<T, IxDyn>): 加算する値の配列
+    /// * values (&ArcArray<T, IxDyn>): 加算する値の配列
     /// * dim (usize): インデックスを適用する次元
     fn add_at_indices<T>(
         &self,
-        array: &mut Array<T, IxDyn>, // 加算対象の多次元配列
-        indices: &[isize],           // 選択する複数のインデックス値
-        values: &Array<T, IxDyn>,    // 加算する値の配列
-        dim: usize,                  // インデックスを適用する次元
+        array: &mut ArcArray<T, IxDyn>, // 加算対象の多次元配列
+        indices: &[isize],              // 選択する複数のインデックス値
+        values: &ArcArray<T, IxDyn>,    // 加算する値の配列
+        dim: usize,                     // インデックスを適用する次元
     ) where
         T: Clone + AddAssign + Debug,
     {
@@ -993,9 +1001,10 @@ impl DynamicSlicer {
             // 値を取得 (values 配列の対応する部分)
             // 現在処理中のインデックス（i）が値配列の第一次元の範囲内にあるか
             let value_slice = if values.ndim() > 0 && i < values.shape()[0] {
-                values.index_axis(Axis(0), i).to_owned()
+                values.index_axis(Axis(0), i).to_owned().into_shared()
             } else {
-                values.clone() // 単一値として使用
+                //values.clone() // 単一値として使用
+                values.clone().into_shared()
             };
 
             // スライスを取得して値を加算
@@ -1026,9 +1035,9 @@ impl DynamicSlicer {
     // 多次元インデックス配列に対するadd_at
     fn add_at_multidim_indices<T>(
         &self,
-        array: &mut Array<T, IxDyn>,
+        array: &mut ArcArray<T, IxDyn>,
         indices: &[Vec<isize>],
-        values: &Array<T, IxDyn>,
+        values: &ArcArray<T, IxDyn>,
         dim: usize,
     ) where
         T: Clone + AddAssign + Debug,
@@ -1150,7 +1159,7 @@ impl DynamicSlicer {
 mod test {
     use super::*;
 
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     // use rand::prelude::*;
     use rand::{distributions::Uniform, SeedableRng};
@@ -1159,7 +1168,7 @@ mod test {
     // #[test]
     // fn test_add_at_multidim_04() {
     //     // 4次元配列（2x3x4x2）を作成
-    //     let mut array = Array::zeros((2, 3, 4, 2)).into_dyn();
+    //     let mut array = ArcArray::zeros((2, 3, 4, 2)).into_dyn();
 
     //     // 第2次元と第3次元の特定の組み合わせを指定
     //     let multi_indices = vec![
@@ -1170,7 +1179,7 @@ mod test {
     //     ];
 
     //     // 加算する値
-    //     let values = Array::from_vec(vec![5.0, 10.0, 15.0, 20.0]).into_dyn();
+    //     let values = ArcArray::from_vec(vec![5.0, 10.0, 15.0, 20.0]).into_dyn();
 
     //     // スライサーを設定
     //     let mut slicer = DynamicSlicer::new(4);
@@ -1199,7 +1208,7 @@ mod test {
     // #[test]
     // fn test_add_at_multidim_03() {
     //     // 8x8のチェスボード状の行列を作成
-    //     let mut array = Array::zeros((8, 8)).into_dyn();
+    //     let mut array = ArcArray::zeros((8, 8)).into_dyn();
 
     //     // チェス盤のナイトの動きのような位置を指定
     //     let multi_indices = vec![
@@ -1214,7 +1223,7 @@ mod test {
     //     ];
 
     //     // すべての位置に同じ値を加算
-    //     let values = Array::from_elem(8, 1.0).into_dyn();
+    //     let values = ArcArray::from_elem(8, 1.0).into_dyn();
 
     //     // スライサーを設定
     //     let mut slicer = DynamicSlicer::new(2);
@@ -1238,7 +1247,7 @@ mod test {
     // #[test]
     // fn test_add_at_multidim_02() {
     //     // 3次元配列（3x3x3）を作成
-    //     let mut array = Array::zeros((3, 3, 3)).into_dyn();
+    //     let mut array = ArcArray::zeros((3, 3, 3)).into_dyn();
 
     //     // 3D座標を指定（四隅）
     //     let multi_indices = vec![
@@ -1249,7 +1258,7 @@ mod test {
     //     ];
 
     //     // 加算する値
-    //     let values = Array::from_vec(vec![100.0, 200.0, 300.0, 400.0]).into_dyn();
+    //     let values = ArcArray::from_vec(vec![100.0, 200.0, 300.0, 400.0]).into_dyn();
 
     //     // スライサーを設定
     //     let mut slicer = DynamicSlicer::new(3);
@@ -1272,7 +1281,7 @@ mod test {
     // #[test]
     // fn test_add_at_multidim_01() {
     //     // 2次元配列（5x5）を作成
-    //     let mut x = Array::zeros((5, 5)).into_dyn();
+    //     let mut x = ArcArray::zeros((5, 5)).into_dyn();
     //     println!("Original array:");
     //     println!("{:?}", x);
 
@@ -1285,7 +1294,7 @@ mod test {
     //     ];
 
     //     // 加算する値
-    //     let values = Array::from_vec(vec![10.0, 20.0, 30.0, 40.0]).into_dyn();
+    //     let values = ArcArray::from_vec(vec![10.0, 20.0, 30.0, 40.0]).into_dyn();
 
     //     // スライサーを設定
     //     let mut slicer = DynamicSlicer::new(2);
@@ -1301,12 +1310,12 @@ mod test {
     #[test]
     fn test_add_at_2dim_multi_cols() {
         // 3次元配列の作成 (2×3x4)
-        let mut x = Array::zeros((2, 3, 4)).into_dyn();
+        let mut x = ArcArray::zeros((2, 3, 4)).into_dyn();
         println!("Original array:");
         println!("{:?}", x);
 
         // 加算する値 (インデックス0 に 10、インデックス2 に 20 を加算)
-        let values = Array::from_vec(vec![10.0, 20.0]).into_dyn();
+        let values = ArcArray::from_vec(vec![10.0, 20.0]).into_dyn();
         let mut slicer = DynamicSlicer::new(3);
 
         // スライスの設定
@@ -1330,13 +1339,13 @@ mod test {
     #[test]
     fn test_add_at_2dim_multi_rows() {
         // 2次元配列の作成（3行4列）
-        let mut x = Array::zeros((3, 4)).into_dyn();
+        let mut x = ArcArray::zeros((3, 4)).into_dyn();
         x.fill(1.0); // すべての要素を1.0に設定
         println!("Original array:");
         println!("{:?}", x);
 
         // 加算する値
-        let values = Array::from_shape_vec(
+        let values = ArcArray::from_shape_vec(
             (2, 4),
             vec![
                 1.0, 2.0, 3.0, 4.0, // 1行目への加算値
@@ -1365,11 +1374,11 @@ mod test {
     #[test]
     fn test_add_at_1dim_indices_01() {
         // 1次元配列の作成
-        let mut x = Array::linspace(0., 9., 10).into_dyn(); // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        let mut x = ArcArray::linspace(0., 9., 10).into_dyn(); // [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
         println!("Original array:");
         println!("{:?}", x);
 
-        let values = Array::from_vec(vec![10.0, 20.0, 30.0]).into_dyn();
+        let values = ArcArray::from_vec(vec![10.0, 20.0, 30.0]).into_dyn();
 
         // インデックス [1, 3, 7] の位置に値を加算
         let mut slicer = DynamicSlicer::new(0);
@@ -1390,7 +1399,7 @@ mod test {
     #[test]
     fn test_add_at_simple_index_01() {
         // テスト用の配列を作成 (3x3の2次元配列)
-        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+        let mut x = ArcArray::from_shape_vec((3, 3), (0..9).collect())
             .unwrap()
             .into_dyn();
         println!("Original array:");
@@ -1401,7 +1410,7 @@ mod test {
         slicer.set_slice(0, DynamicSlice::Index(1)); // 2行目
         slicer.set_slice(1, DynamicSlice::Index(1)); // 2列目
 
-        let values = Array::from_elem((), 10);
+        let values = ArcArray::from_elem((), 10);
         slicer.add_at(&mut x, &values.into_dyn());
 
         println!("\nAfter x[1, 1] += 10:");
@@ -1416,7 +1425,7 @@ mod test {
     #[test]
     fn test_add_at_slice_01() {
         // テスト用の配列を作成 (3x3の2次元配列)
-        let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+        let mut x = ArcArray::from_shape_vec((3, 3), (0..9).collect())
             .unwrap()
             .into_dyn();
         println!("Original array:");
@@ -1431,7 +1440,7 @@ mod test {
         dbg!(&sliced_result);
 
         // x[[0, 2], :] += 1 と同等の操作
-        let values = Array::from_elem(vec![2, 3], 1); // 2行3列の配列で、全て1
+        let values = ArcArray::from_elem(vec![2, 3], 1); // 2行3列の配列で、全て1
         slicer.add_at(&mut x, &values.into_dyn());
 
         println!("\nAfter x[[0, 2], :] += 1:");
@@ -1446,7 +1455,7 @@ mod test {
     // #[test]
     // fn test_add_at_multi_indices_01() {
     //     // テスト用の配列を作成 (3x3の2次元配列)
-    //     let mut x = Array::from_shape_vec((3, 3), (0..9).collect())
+    //     let mut x = ArcArray::from_shape_vec((3, 3), (0..9).collect())
     //         .unwrap()
     //         .into_dyn();
     //     println!("Original array:");
@@ -1459,8 +1468,8 @@ mod test {
     //     );
 
     //     // x[[[0, 2], [1, 1]], :] += 5 と同等の操作
-    //     // let values = Array::from_elem(vec![2, 2, 3], 5); // 2x2x3の配列で、全て5
-    //     let values = Array::from_elem(vec![2], 10); // 2x2x3の配列で、全て5
+    //     // let values = ArcArray::from_elem(vec![2, 2, 3], 5); // 2x2x3の配列で、全て5
+    //     let values = ArcArray::from_elem(vec![2], 10); // 2x2x3の配列で、全て5
 
     //     let result = slicer.slice(&x);
     //     dbg!(&result);
@@ -1482,7 +1491,7 @@ mod test {
         // x: [[0 1 2] [3 4 5] [6 7 8]]
         // result: [[[0 1 2] [6 7 8]] [[3 4 5] [3 4 5]]]
 
-        let array = Array::from_shape_vec(vec![3, 3], (0..=8).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![3, 3], (0..=8).collect()).unwrap();
         println!("array: {:?}", array);
         let mut slicer = DynamicSlicer::new(array.ndim());
 
@@ -1509,7 +1518,7 @@ mod test {
         // y = F.get_item(x, 0)
         // self.assertTrue(array_allclose(y.data, x_data[0]))
         // [[0 1 2] [3 4 5]]
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
         println!("array: {:?}", array);
 
         let mut slicer = DynamicSlicer::new(array.ndim());
@@ -1533,7 +1542,7 @@ mod test {
         // self.assertTrue(array_allclose(y.data, x_data[0, 0, 0:2:1]))
         // [[0 1]
 
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
 
         println!("array: {:?}", array);
 
@@ -1573,7 +1582,7 @@ mod test {
         //   y = F.get_item(x, (Ellipsis, 2))
         //   self.assertTrue(array_allclose(y.data, x_data[..., 2]))
         // [[ 2  5] [ 8 11]]
-        let array = Array::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![2, 2, 3], (0..=11).collect()).unwrap();
 
         println!("array: {:?}", array);
 
@@ -1610,7 +1619,7 @@ mod test {
         //   x = Variable(x_data)
         //   y = x[self.slices]
         // [[1 2 3] [1 2 3] [4 5 6]
-        let array = Array::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
+        let array = ArcArray::from_shape_vec(vec![2, 3], (0..=5).collect()).unwrap();
 
         println!("array: {:?}", array);
 
@@ -1632,13 +1641,13 @@ mod test {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((10, 20), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((10, 20), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![10, 20],
             x_var.flatten().to_vec(),
         ));
 
-        let w_var = Array::random_using((20, 30), Uniform::new(0., 10.), &mut rng);
+        let w_var = ArcArray::random_using((20, 30), Uniform::new(0., 10.), &mut rng);
         let w = Variable::new(RawData::from_shape_vec(
             vec![20, 30],
             w_var.flatten().to_vec(),
@@ -1672,7 +1681,7 @@ mod test {
     #[test]
     fn test_squeeze() {
         let a =
-            Array::from_shape_vec(IxDyn(&[2, 1, 3, 1, 4, 1, 1, 5]), (0..120).collect()).unwrap();
+            ArcArray::from_shape_vec(IxDyn(&[2, 1, 3, 1, 4, 1, 1, 5]), (0..120).collect()).unwrap();
 
         println!("元の形状: {:?}", a.shape());
 

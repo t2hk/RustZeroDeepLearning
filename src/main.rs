@@ -3,6 +3,20 @@ mod modules;
 // ライブラリを一括でインポート
 use rust_zero_deeplearning::*;
 
+use rust_zero_deeplearning::modules::core::data_loader::DataLoader;
+use rust_zero_deeplearning::modules::*;
+
+use std::cell::RefCell;
+use std::rc::Rc;
+use std::time;
+
+use plotters::chart::ChartBuilder;
+use plotters::prelude::BitMapBackend;
+use plotters::series::LineSeries;
+use plotters::style::{Color, IntoFont, BLACK, RED, WHITE};
+
+use plotters::drawing::IntoDrawingArea;
+
 #[allow(unused_imports)]
 use ::core::fmt::Debug;
 use env_logger;
@@ -12,111 +26,168 @@ use ndarray::{Array, IxDyn};
 use std::env;
 
 fn main() {
-    env::set_var("RUST_LOG", "debug");
-    env_logger::init();
-    println!("Rust Zero Deep Learning");
+    // ハイパーパラメータの設定
+    let max_epoch = 5;
+    let batch_size = 100;
+    let hidden_size = 1000;
+    let lr = 1.0;
 
-    // 各レベルのログ出力
-    trace!("トレースメッセージ");
-    debug!("デバッグメッセージ");
-    info!("情報メッセージ");
-    warn!("警告メッセージ");
-    error!("エラーメッセージ");
+    let sigmoid = Rc::new(RefCell::new(SigmoidFunction {}));
+    let sgd = Sgd::new(lr);
+    let mut mlp = Mlp::new(vec![hidden_size, 10], sigmoid, sgd);
 
-    ///////////// 実行に関する設定 /////////////
-    // 逆伝播を実行する。微分値を保持する。
-    Setting::set_retain_grad_enabled();
+    // データの読み込み、モデル・オプティマイザの生成
+    let mut mnist_train_set = Dataset::init(true, Rc::new(RefCell::new(MnistDataSet {})));
+    // let train_data_loader = DataLoader::init(mnist_train_set.clone(), batch_size, true);
+    let train_data_loader = DataLoader::init(&mnist_train_set, batch_size, true);
 
-    // バックプロパゲーションを行う設定
-    Setting::set_backprop_enabled();
+    let mut mnist_test_set = Dataset::init(false, Rc::new(RefCell::new(MnistDataSet {})));
+    let test_data_loader = DataLoader::init(&mnist_test_set, batch_size, true);
 
-    ///////////// 入力値を用意する。 /////////////
-    let x1 = Variable::new(RawData::new(2.0));
-    let x2 = Variable::new(RawData::new(3.0));
+    let mut loss_result = vec![];
+    let mut acc_result = vec![];
 
-    ///////////// 計算する(順伝播)。 /////////////
-    // 入力値を clone して計算用のメソッドに渡す。
-    // 加算と乗算についてはオーバーロードに対応しており、
-    // &a + &b のように記述できる。
-    let a = square(x1.clone());
-    let b = square(a.clone());
-    let c = square(a.clone());
-    let d = add(b.clone(), c.clone());
-    // オーバーロードで加算する。
-    let y = &d + &x2;
+    for epoch in 0..max_epoch {
+        let mut sum_loss = 0.0;
+        let mut sum_acc = 0.0;
 
-    dbg!(&y);
+        // 逆伝播を実行する。微分値を保持する。
+        Setting::set_retain_grad_enabled();
+        // バックプロパゲーションを行う。
+        Setting::set_backprop_enabled();
 
-    // 順伝播の結果を確認する。
-    // x1^2^2 + x1^2^2 + x2 = 35
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+        let mut batch_count = 0;
+        for (batch_x, batch_t) in train_data_loader.clone() {
+            batch_count += 1;
+            println!(
+                "batch_x: {:?} epoch: {}  batch: {}",
+                batch_x.get_data().shape(),
+                epoch + 1,
+                batch_count
+            );
+            // 勾配の算出、パラメータの更新
+            let y = mlp.forward(vec![batch_x.clone()]);
 
-    // 各変数の世代を確認する。
-    assert_eq!(0, x1.get_generation());
-    assert_eq!(0, x2.get_generation());
-    assert_eq!(1, a.get_generation());
-    assert_eq!(2, b.get_generation());
-    assert_eq!(2, c.get_generation());
-    assert_eq!(3, d.get_generation());
-    assert_eq!(4, y.get_generation());
+            let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
+            let acc = DataLoader::accuracy(&y[0].clone(), &batch_t);
 
-    // 各関数の世代を確認する。
-    assert_eq!(0, a.get_creator_generation().unwrap());
-    assert_eq!(1, b.get_creator_generation().unwrap());
-    assert_eq!(1, c.get_creator_generation().unwrap());
-    assert_eq!(2, d.get_creator_generation().unwrap());
-    assert_eq!(3, y.get_creator_generation().unwrap());
+            mlp.cleargrads();
 
-    // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
-    let creators = FunctionExecutor::extract_creators(vec![y.clone()]);
-    // 実行した関数の数をチェックする。
-    assert_eq!(5, creators.len());
+            loss.backward();
 
-    // 逆伝播を実行する。
-    // y.as_ref().clone().backward();
-    y.backward();
+            mlp.update_parameters();
 
-    // 逆伝播の結果の確認
-    // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 64.0),
-        x1.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
-        x2.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 16.0),
-        a.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
-        b.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
-        c.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
-        d.get_grad().expect("No grad exist.").get_data()
-    );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
-    assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
-        y.get_grad().expect("No grad exist.").get_data()
-    );
+            let batch_t_len = batch_t.get_data().flatten().to_vec().len() as f64;
+            sum_loss += loss.get_data().flatten().to_vec()[0] as f64 * batch_t_len;
 
-    // 階乗
-    let num = 1;
-    let result = factorial(num);
-    let result_naive = factorial(num);
-    assert_eq!(result_naive, result);
+            sum_acc += acc * batch_t_len;
+
+            let file_name = format!(
+                "test_step51_mnist_dataloader_epoch-{}_batch-{}.png",
+                epoch, batch_count
+            );
+
+            // let tmp = y[0].clone();
+            // plot_dot_graph!(tmp, file_name, true);
+        }
+
+        let train_len = mnist_train_set.clone().len() as f64;
+        println!("epoch: {}", epoch + 1);
+        println!(
+            "train loss: {}, accuracy: {}",
+            sum_loss / train_len,
+            sum_acc / train_len
+        );
+
+        // 逆伝播を実行しない。微分値を保持しない。
+        Setting::set_retain_grad_disabled();
+        // バックプロパゲーションを行わない。
+        Setting::set_backprop_disabled();
+
+        let mut sum_loss = 0.0;
+        let mut sum_acc = 0.0;
+
+        let start_now = time::Instant::now();
+        for (batch_x, batch_t) in test_data_loader.clone() {
+            // 勾配の算出、パラメータの更新
+            let y = mlp.forward(vec![batch_x.clone()]);
+            let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
+            let acc = DataLoader::accuracy(&y[0], &batch_t);
+
+            let batch_t_len = batch_t.get_data().flatten().to_vec().len() as f64;
+            sum_loss += loss.get_data().flatten().to_vec()[0] as f64 * batch_t_len;
+
+            sum_acc += acc * batch_t_len;
+            println!("   test one data end : {:?}", start_now.elapsed());
+        }
+        println!("test all data end : {:?}", start_now.elapsed());
+
+        let test_len = mnist_test_set.clone().len() as f64;
+        let avg_loss = sum_loss / test_len;
+        let avg_acc = sum_acc / test_len;
+        println!("test loss: {}, accuracy: {}", avg_loss, avg_acc);
+
+        loss_result.push(avg_loss);
+        acc_result.push(avg_acc);
+    }
+
+    // 損失結果グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step51_mnist_test_loss.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("MNIST data test loss", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0..300, 0.0..1.5)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 損失の描画
+    chart
+        .draw_series(LineSeries::new(
+            (0..loss_result.len()).map(|x| (x as i32, loss_result[x] as f64)),
+            &RED,
+        ))
+        .unwrap();
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
+
+    // 認識制度グラフ描画
+    // 描画先の Backend を初期化する。
+    let root =
+        BitMapBackend::new("graph/step51_mnist_test_acc.png", (640, 480)).into_drawing_area();
+    root.fill(&WHITE).unwrap();
+
+    // グラフの軸の設定など
+    let mut chart = ChartBuilder::on(&root)
+        .caption("MNIST data test accuracy", ("sans-serif", 50).into_font())
+        .margin(10)
+        .x_label_area_size(30)
+        .y_label_area_size(30)
+        .build_cartesian_2d(0..300, 0.0..1.5)
+        .unwrap();
+    chart.configure_mesh().draw().unwrap();
+
+    // 損失の描画
+    chart
+        .draw_series(LineSeries::new(
+            (0..acc_result.len()).map(|x| (x as i32, acc_result[x] as f64)),
+            &RED,
+        ))
+        .unwrap();
+    chart
+        .configure_series_labels()
+        .background_style(&WHITE.mix(0.8))
+        .border_style(&BLACK)
+        .draw()
+        .unwrap();
 }

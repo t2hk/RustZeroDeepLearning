@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{ArcArray, Axis, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -26,63 +26,66 @@ impl<V: MathOps> Function<V> for SumFunction {
     }
 
     // Sum の順伝播
-    fn forward(&self, x: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        x: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("sum(forward)");
 
-        let mut result;
+        let mut result: ArcArray<V, IxDyn>;
 
         if let Some(axis) = self.axis.clone() {
             if self.keepdims {
-                let tmp_x = x[0].sum_axis(Axis(axis[0] as usize));
-                result = tmp_x.insert_axis(Axis(axis[0] as usize));
+                let tmp_x = x[0].borrow().sum_axis(Axis(axis[0] as usize));
+                result = tmp_x.insert_axis(Axis(axis[0] as usize)).into_shared();
                 debug!(
                     "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
+                    x[0].borrow().flatten().to_vec(),
                     result.flatten().to_vec()
                 );
             } else {
-                result = x[0].sum_axis(Axis(axis[0] as usize));
+                result = x[0].borrow().sum_axis(Axis(axis[0] as usize)).into_shared();
 
                 debug!(
                     "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
+                    x[0].borrow().flatten().to_vec(),
                     result.flatten().to_vec()
                 );
             }
         } else {
             if self.keepdims {
-                let dims = x[0].shape().len();
-                let mut tmp_x = x[0].sum_axis(Axis(0));
+                let dims = x[0].borrow().shape().len();
+                let mut tmp_x = x[0].borrow().sum_axis(Axis(0));
                 for _i in 1..dims {
                     tmp_x = tmp_x.sum_axis(Axis(0));
                 }
 
-                result = tmp_x.insert_axis(Axis(0));
+                result = tmp_x.insert_axis(Axis(0)).into_shared();
                 for _i in 1..dims {
                     result = result.insert_axis(Axis(0));
                 }
                 debug!(
                     "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
+                    x[0].borrow().flatten().to_vec(),
                     result.flatten().to_vec()
                 );
             } else {
-                result = Array::from_elem(IxDyn(&[]), x[0].sum());
+                result = ArcArray::from_elem(IxDyn(&[]), x[0].borrow().sum());
                 debug!(
                     "sum(backward) {:?} -> {:?}",
-                    x[0].flatten().to_vec(),
+                    x[0].borrow().flatten().to_vec(),
                     result.flatten().to_vec()
                 );
             }
         }
 
-        vec![result]
+        vec![Rc::new(RefCell::new(result))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -140,7 +143,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),

@@ -3,7 +3,7 @@ use crate::modules::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::collections::HashMap;
 
 /// AdaGrad 構造体
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 pub struct AdaGrad<V> {
     lr: f64,  // 学習係数
     eps: f64, // イプシロン
-    hs: HashMap<String, Array<V, IxDyn>>,
+    hs: HashMap<String, ArcArray<V, IxDyn>>,
 }
 
 impl<V> AdaGrad<V> {
@@ -44,7 +44,7 @@ impl<V: MathOps> Optimizer for AdaGrad<V> {
         let param_id = format!("{:?}", param.as_ref().as_ptr());
 
         if self.hs.get(&param_id).is_none() {
-            let zero_array = Array::zeros(param.get_data().shape());
+            let zero_array = ArcArray::zeros(param.get_data().shape());
             self.hs.insert(param_id.clone(), zero_array);
         }
 
@@ -71,7 +71,7 @@ impl<V: MathOps> Optimizer for AdaGrad<V> {
 mod tests {
     use super::*;
     // use rand::prelude::*;
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     use rand::{distributions::Uniform, SeedableRng};
     use rand_isaac::Isaac64Rng;
@@ -108,7 +108,7 @@ mod tests {
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
         // 学習用の入力値(X)
-        let x_var = Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+        let x_var = ArcArray::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
             x_var.flatten().to_vec(),
@@ -117,7 +117,7 @@ mod tests {
 
         // 学習用の出力値(Y = sin(2 * Pi * x) + random)
         let y_array = (2.0 * PI * x_var.clone()).sin()
-            + Array::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
+            + ArcArray::random_using((100, 1), Uniform::new(0., 1.), &mut rng);
         let y = Variable::new(RawData::from_shape_vec(
             y_array.shape().to_vec(),
             y_array.flatten().to_vec(),

@@ -23,8 +23,15 @@ flate2 = {version = "1.1.*"}
 
 [profile.dev]
 opt-level = 0
-
-[profile.test-with-debug]
-inherits = "dev"
-opt-level = 0
 debug = true
+
+[profile.release]
+debug = true
+opt-level = 1
+
+[profile.profiling]
+inherits = "release"
+debug = 2  # 完全なデバッグ情報
+opt-level = 1  # 軽い最適化
+lto = false  # Link Time Optimizationを無効化
+panic = "unwind"  # スタックトレースのため

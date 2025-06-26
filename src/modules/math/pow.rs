@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use num_traits::abs;
 use std::cell::RefCell;
 use std::ops::BitXor;
@@ -29,26 +29,36 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// 関数のインスタンス作成時に指数 exp: usize を設定しておくこと。
     ///
     /// Arguments
-    /// * xs (Vec<Array<V,IxDyn>>): 基数
+    /// * xs (Vec<ArcArray<V,IxDyn>>): 基数
     ///
     /// Returns
-    /// * Vec<Array<V, IxDyn>>: 累乗の結果
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    /// * Vec<ArcArray<V, IxDyn>>: 累乗の結果
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("pow(forward)");
         let x0 = &xs[0];
-        debug!("pow(forwad) {:?} ^ {:?}", &x0.flatten().to_vec(), &self.exp);
+        debug!(
+            "pow(forwad) {:?} ^ {:?}",
+            &x0.borrow().flatten().to_vec(),
+            &self.exp
+        );
 
         // 指数がプラスの場合
         if self.exp >= 0 {
             let u_exp = self.exp as usize;
-            let result = x0.mapv(|x| num_traits::pow(V::from(x).unwrap(), u_exp));
-            vec![result]
+            let result = x0
+                .borrow()
+                .mapv(|x| num_traits::pow(V::from(x).unwrap(), u_exp));
+            vec![Rc::new(RefCell::new(result.into_shared()))]
         } else {
             // 指数がマイナスの場合、指数の絶対値で累乗し、逆数を返す。
             let inv_exp = abs(self.exp);
-            let result =
-                x0.mapv(|x| V::one() / num_traits::pow(V::from(x).unwrap(), inv_exp as usize));
-            vec![result]
+            let result = x0
+                .borrow()
+                .mapv(|x| V::one() / num_traits::pow(V::from(x).unwrap(), inv_exp as usize));
+            vec![Rc::new(RefCell::new(result.into_shared()))]
         }
     }
 
@@ -56,7 +66,7 @@ impl<V: MathOps> Function<V> for PowFunction {
     /// y=x^exp の微分であるため、dy/dx = exp * x^(exp-1) である。
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -64,7 +74,7 @@ impl<V: MathOps> Function<V> for PowFunction {
         debug!(
             "pow(backward) {:?} * ({:?} ^ ({:?} - 1)) * {:?}",
             self.exp,
-            inputs[0].get_data().flatten().to_vec(),
+            inputs[0].borrow().get_data().flatten().to_vec(),
             self.exp,
             gys[0].get_data().flatten().to_vec()
         );
@@ -73,7 +83,7 @@ impl<V: MathOps> Function<V> for PowFunction {
 
         // 指数がプラスの場合
         if self.exp > 0 {
-            let tmp = &(&inputs[0] ^ (self.exp - 1))
+            let tmp = &(&inputs[0].borrow().clone() ^ (self.exp - 1))
                 * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
             let gxs = &tmp * &gys[0].clone();
 
@@ -82,7 +92,7 @@ impl<V: MathOps> Function<V> for PowFunction {
         } else {
             // 指数がマイナスの場合、指数をプラスに変換して累乗した結果を逆数にする。
             let inv_exp = abs(self.exp as i32 - 1);
-            let input_pow_exp = &inputs[0] ^ (inv_exp);
+            let input_pow_exp = &inputs[0].borrow().clone() ^ (inv_exp);
             let inv_input_pow_exp = &Variable::new(RawData::new(V::one())) / &input_pow_exp;
 
             let tmp = &inv_input_pow_exp * &Variable::new(RawData::new(V::from(self.exp).unwrap()));
@@ -134,7 +144,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
@@ -158,7 +168,7 @@ mod tests {
             vec![2, 2],
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));
-        let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 8.0, 27.0, 64.0]).unwrap();
+        let expect = ArcArray::from_shape_vec(vec![2, 2], vec![1.0, 8.0, 27.0, 64.0]).unwrap();
         let result = pow(x.clone(), 3);
         assert_eq!(expect, result.get_data());
 
@@ -168,7 +178,8 @@ mod tests {
         result.backward();
         // dbg!(&result);
         // dbg!(&x);
-        let expect_grad = Array::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
+        let expect_grad =
+            ArcArray::from_shape_vec(vec![2, 2], vec![3.0, 12.0, 27.0, 48.0]).unwrap();
         assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
@@ -186,7 +197,7 @@ mod tests {
             vec![2, 2],
             vec![1i32, 2i32, 3i32, 4i32],
         ));
-        let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
+        let expect = ArcArray::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
         let result = pow(x.clone(), 3);
         assert_eq!(expect, result.get_data());
 
@@ -196,7 +207,7 @@ mod tests {
         // dbg!(&result);
         // dbg!(&x);
         let expect_grad =
-            Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
+            ArcArray::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
         assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
@@ -214,7 +225,7 @@ mod tests {
             vec![2, 2],
             vec![1i32, 2i32, 3i32, 4i32],
         ));
-        let expect = Array::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
+        let expect = ArcArray::from_shape_vec(vec![2, 2], vec![1, 8, 27, 64]).unwrap();
 
         let result = &x ^ 3;
         assert_eq!(expect, result.get_data());
@@ -225,7 +236,7 @@ mod tests {
         // dbg!(&result);
         // dbg!(&x);
         let expect_grad =
-            Array::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
+            ArcArray::from_shape_vec(vec![2, 2], vec![3i32, 12i32, 27i32, 48i32]).unwrap();
         assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
@@ -243,7 +254,7 @@ mod tests {
             vec![2, 2],
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));
-        let expect = Array::from_shape_vec(vec![2, 2], vec![1.0, 1.0, 1.0, 1.0]).unwrap();
+        let expect = ArcArray::from_shape_vec(vec![2, 2], vec![1.0, 1.0, 1.0, 1.0]).unwrap();
         let result = pow(x.clone(), 0);
         assert_eq!(expect, result.get_data());
 
@@ -253,7 +264,7 @@ mod tests {
         result.backward();
         // dbg!(&result);
         // dbg!(&x);
-        let expect_grad = Array::from_shape_vec(vec![2, 2], vec![0.0, 0.0, 0.0, 0.0]).unwrap();
+        let expect_grad = ArcArray::from_shape_vec(vec![2, 2], vec![0.0, 0.0, 0.0, 0.0]).unwrap();
         assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }
 
@@ -272,7 +283,7 @@ mod tests {
             vec![1.0f64, 2.0f64, 3.0f64, 4.0f64],
         ));
         let expect =
-            Array::from_shape_vec(vec![2, 2], vec![1.0, 0.5, 0.3333333333333333, 0.25]).unwrap();
+            ArcArray::from_shape_vec(vec![2, 2], vec![1.0, 0.5, 0.3333333333333333, 0.25]).unwrap();
         let result = pow(x.clone(), -1);
         assert_eq!(expect, result.get_data());
 
@@ -283,7 +294,7 @@ mod tests {
         // dbg!(&result);
         // dbg!(&x);
         let expect_grad =
-            Array::from_shape_vec(vec![2, 2], vec![-1.0, -0.25, -0.1111111111111111, -0.0625])
+            ArcArray::from_shape_vec(vec![2, 2], vec![-1.0, -0.25, -0.1111111111111111, -0.0625])
                 .unwrap();
         assert_eq!(expect_grad, x.get_grad().unwrap().get_data());
     }

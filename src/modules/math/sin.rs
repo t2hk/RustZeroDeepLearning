@@ -5,7 +5,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -22,14 +22,22 @@ impl<V: MathOps> Function<V> for SinFunction {
     }
 
     // Sin の順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("sin(forward)");
-        debug!("sin(forward): sin({:?})", xs[0].flatten().to_vec());
-        let result = vec![xs[0].mapv(|x| {
-            let sin_x = V::to_f64(&x).unwrap().sin();
+        debug!("sin(forward): sin({:?})", xs[0].borrow().flatten().to_vec());
+        let result = vec![Rc::new(RefCell::new(
+            xs[0]
+                .borrow()
+                .mapv(|x| {
+                    let sin_x = V::to_f64(&x).unwrap().sin();
 
-            V::from(sin_x).unwrap()
-        })];
+                    V::from(sin_x).unwrap()
+                })
+                .into_shared(),
+        ))];
 
         result
     }
@@ -38,17 +46,17 @@ impl<V: MathOps> Function<V> for SinFunction {
     /// dy/dx=cos(x) である。
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("sin(backward)");
         debug!(
             "sin(backward): cos({:?}) * {:?}",
-            &inputs[0].get_data().flatten().to_vec(),
+            &inputs[0].borrow().get_data().flatten().to_vec(),
             &gys[0].get_data().flatten().to_vec()
         );
-        let gxs = vec![&cos(inputs[0].clone()) * &gys[0]];
+        let gxs = vec![&cos(inputs[0].borrow().clone()) * &gys[0]];
         gxs
     }
 }
@@ -78,7 +86,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
@@ -99,7 +107,7 @@ mod tests {
 
         let x = Variable::new(RawData::new(PIf32 / 4.0f32));
 
-        let expected_output_data = Array::from_elem(IxDyn(&[]), 0.7071067811865475f32);
+        let expected_output_data = ArcArray::from_elem(IxDyn(&[]), 0.7071067811865475f32);
 
         // 順伝播、逆伝播を実行する。
         let result = sin(x.clone());

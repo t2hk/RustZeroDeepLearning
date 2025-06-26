@@ -6,7 +6,8 @@ use crate::modules::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Array1, Array2, Ix0, Ix1, Ix2, IxDyn};
+use ndarray::{ArcArray, ArcArray1, ArcArray2, Ix0, Ix1, Ix2, IxDyn};
+use std::{cell::RefCell, rc::Rc};
 
 /// Sphere 関数
 /// z = x^2 + y^2 を計算する。
@@ -92,94 +93,105 @@ pub fn rosenblock<V: MathOps>(x0: Variable<V>, x1: Variable<V>) -> Variable<V> {
 ///
 /// Return
 /// * Array<V, IxDyn>
-pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxDyn> {
-    debug!("dot x ndim: {:?}, w ndim: {:?}", x0.ndim(), x1.ndim());
+pub fn dot<V: MathOps>(
+    x0: Rc<RefCell<ArcArray<V, IxDyn>>>,
+    x1: Rc<RefCell<ArcArray<V, IxDyn>>>,
+) -> Rc<RefCell<ArcArray<V, IxDyn>>> {
+    debug!(
+        "dot x ndim: {:?}, w ndim: {:?}",
+        x0.borrow().ndim(),
+        x1.borrow().ndim()
+    );
     debug!(
         "dot x0 ndim: {:?}, dim: {:?}, shape: {:?}",
-        x0.ndim(),
-        x0.dim(),
-        x0.shape()
+        x0.borrow().ndim(),
+        x0.borrow().dim(),
+        x0.borrow().shape()
     );
     debug!(
         "dot x1 ndim: {:?}, dim: {:?}, shape: {:?}",
-        x1.ndim(),
-        x1.dim(),
-        x1.shape()
+        x1.borrow().ndim(),
+        x1.borrow().dim(),
+        x1.borrow().shape()
     );
 
-    match (x0.ndim(), x1.ndim()) {
+    match (x0.borrow().ndim(), x1.borrow().ndim()) {
         (0, 0) => {
             info!("dot for shape (0, 0)");
 
-            let x_tmp = x0.into_dimensionality::<Ix0>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix0>().unwrap();
+            let x_tmp = x0.borrow().clone().into_dimensionality::<Ix0>().unwrap();
+            let w_tmp = x1.borrow().clone().into_dimensionality::<Ix0>().unwrap();
 
             let result_value = x_tmp
                 .iter()
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            Array::from_elem(IxDyn(&[]), result_value)
+            Rc::new(RefCell::new(ArcArray::from_elem(IxDyn(&[]), result_value)))
         }
         (0, 1) => {
             info!("dot for shape (0, 1)");
 
-            let x_tmp = x0.into_dimensionality::<Ix0>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+            let x_tmp = x0.borrow().clone().into_dimensionality::<Ix0>().unwrap();
+            let w_tmp = x1.borrow().clone().into_dimensionality::<Ix1>().unwrap();
 
             let result_value = w_tmp
                 .iter()
                 .zip(x_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
+            Rc::new(RefCell::new(
+                ArcArray::from_shape_vec(vec![1], vec![result_value]).unwrap(),
+            ))
         }
         (1, 0) => {
             info!("dot for shape (1, 0)");
 
-            let x_tmp = x0.into_dimensionality::<Ix1>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix0>().unwrap();
+            let x_tmp = x0.borrow().clone().into_dimensionality::<Ix1>().unwrap();
+            let w_tmp = x1.borrow().clone().into_dimensionality::<Ix0>().unwrap();
 
             let result_value = x_tmp
                 .iter()
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            Array::from_shape_vec(vec![1], vec![result_value]).unwrap()
+            Rc::new(RefCell::new(
+                ArcArray::from_shape_vec(vec![1], vec![result_value]).unwrap(),
+            ))
         }
         (1, 1) => {
             info!("dot for shape (1, 1)");
 
-            let x_tmp = x0.into_dimensionality::<Ix1>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+            let x_tmp = x0.borrow().clone().into_dimensionality::<Ix1>().unwrap();
+            let w_tmp = x1.borrow().clone().into_dimensionality::<Ix1>().unwrap();
 
             let result_value = x_tmp
                 .iter()
                 .zip(w_tmp.iter())
                 .fold(V::zero(), |acc, (a, b)| acc + (a.clone() * b.clone()));
 
-            Array::from_elem(IxDyn(&[]), result_value)
+            Rc::new(RefCell::new(ArcArray::from_elem(IxDyn(&[]), result_value)))
         }
         (1, 2) => {
             info!("dot for shape (1, 2)");
 
-            if x0.shape()[0] != x1.shape()[0] {
+            if x0.borrow().shape()[0] != x1.borrow().shape()[0] {
                 panic!(
                     "shapes {:?} and {:?} not aligned. {} != {}",
-                    x0.shape(),
-                    x1.shape(),
-                    x0.shape()[0],
-                    x1.shape()[0]
+                    x0.borrow().shape(),
+                    x1.borrow().shape(),
+                    x0.borrow().shape()[0],
+                    x1.borrow().shape()[0]
                 );
             }
 
-            let x_tmp: Array1<V> = x0.into_dimensionality::<Ix1>().unwrap();
-            let w_tmp: Array2<V> = x1.into_dimensionality::<Ix2>().unwrap();
+            let x_tmp: ArcArray1<V> = x0.borrow().clone().into_dimensionality::<Ix1>().unwrap();
+            let w_tmp: ArcArray2<V> = x1.borrow().clone().into_dimensionality::<Ix2>().unwrap();
 
             let x_len = x_tmp.len();
             let w_cols = w_tmp.shape()[1];
 
-            let mut result = Array::zeros((w_cols,));
+            let mut result = ArcArray::zeros((w_cols,));
 
             for j in 0..w_cols {
                 let mut sum = V::zero();
@@ -191,28 +203,28 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxD
 
             dbg!(&result);
 
-            result.into_dimensionality::<IxDyn>().unwrap()
+            Rc::new(RefCell::new(result.into_dimensionality::<IxDyn>().unwrap()))
         }
         (2, 1) => {
             info!("dot for shape (2, 1)");
 
-            if x0.shape()[0] != x1.shape()[0] {
+            if x0.borrow().shape()[0] != x1.borrow().shape()[0] {
                 panic!(
                     "shapes {:?} and {:?} not aligned. {} != {}",
-                    x0.shape(),
-                    x1.shape(),
-                    x0.shape()[0],
-                    x1.shape()[0]
+                    x0.borrow().shape(),
+                    x1.borrow().shape(),
+                    x0.borrow().shape()[0],
+                    x1.borrow().shape()[0]
                 );
             }
-            let x_tmp = x0.into_dimensionality::<Ix2>().unwrap();
-            let w_tmp = x1.into_dimensionality::<Ix1>().unwrap();
+            let x_tmp = x0.borrow().clone().into_dimensionality::<Ix2>().unwrap();
+            let w_tmp = x1.borrow().clone().into_dimensionality::<Ix1>().unwrap();
 
             let x_rows = x_tmp.shape()[0];
             let x_cols = x_tmp.shape()[1];
 
             // 結果は x_rows 長のベクトルになる
-            let mut result = Array::zeros((x_rows,));
+            let mut result = ArcArray::zeros((x_rows,));
 
             for i in 0..x_rows {
                 let mut sum = V::zero();
@@ -222,50 +234,68 @@ pub fn dot<V: MathOps>(x0: Array<V, IxDyn>, x1: Array<V, IxDyn>) -> Array<V, IxD
                 result[i] = sum;
             }
 
-            result.into_dimensionality::<IxDyn>().unwrap()
+            Rc::new(RefCell::new(result.into_dimensionality::<IxDyn>().unwrap()))
         }
         (2, 2) => {
             let x0_var = x0
+                .borrow()
                 .flatten()
                 .to_vec()
                 .iter()
                 .map(|v| v.to_f64().unwrap())
                 .collect::<Vec<f64>>();
             let x1_var = x1
+                .borrow()
                 .flatten()
                 .to_vec()
                 .iter()
                 .map(|v| v.to_f64().unwrap())
                 .collect::<Vec<f64>>();
 
-            let mat1 =
-                Array2::from_shape_vec((x0.shape().to_vec()[0], x0.shape().to_vec()[1]), x0_var)
-                    .unwrap();
-            let mat2 =
-                Array2::from_shape_vec((x1.shape().to_vec()[0], x1.shape().to_vec()[1]), x1_var)
-                    .unwrap();
+            let mat1 = ArcArray2::from_shape_vec(
+                (
+                    x0.borrow().shape().to_vec()[0],
+                    x0.borrow().shape().to_vec()[1],
+                ),
+                x0_var,
+            )
+            .unwrap();
+            let mat2 = ArcArray2::from_shape_vec(
+                (
+                    x1.borrow().shape().to_vec()[0],
+                    x1.borrow().shape().to_vec()[1],
+                ),
+                x1_var,
+            )
+            .unwrap();
             let result = mat1.dot(&mat2);
 
-            Array::from_shape_vec(
-                result.shape().to_vec(),
-                result
-                    .flatten()
-                    .to_vec()
-                    .iter()
-                    .map(|v| V::from(*v).unwrap())
-                    .collect::<Vec<V>>(),
-            )
-            .unwrap()
-            .into_dimensionality::<IxDyn>()
-            .unwrap()
+            Rc::new(RefCell::new(
+                ArcArray::from_shape_vec(
+                    result.shape().to_vec(),
+                    result
+                        .flatten()
+                        .to_vec()
+                        .iter()
+                        .map(|v| V::from(*v).unwrap())
+                        .collect::<Vec<V>>(),
+                )
+                .unwrap()
+                .into_dimensionality::<IxDyn>()
+                .unwrap(),
+            ))
         }
         _ => {
             error!("dot for invalid shape");
-            debug!("x ndim: {} w ndim: {}", x0.ndim(), x1.ndim());
+            debug!(
+                "x ndim: {} w ndim: {}",
+                x0.borrow().ndim(),
+                x1.borrow().ndim()
+            );
             debug!(
                 "x : {:?} w : {:?}",
-                x0.flatten().to_vec(),
-                x1.flatten().to_vec()
+                x0.borrow().flatten().to_vec(),
+                x1.borrow().flatten().to_vec()
             );
             panic!("error: invalid dimension. x: {:?}, w: {:?}", x0, x1);
         }
@@ -342,7 +372,7 @@ fn type_of<T>(_: T) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array, IxDyn};
+    use ndarray::{ArcArray, IxDyn};
     // use rand::prelude::*;
 
     use plotters::chart::ChartBuilder;
@@ -448,8 +478,8 @@ mod tests {
         let y = rosenblock(x0.clone(), x1.clone());
         y.backward();
 
-        let expected_x0_grad = Array::from_elem(IxDyn(&[]), -2.0);
-        let expected_x1_grad = Array::from_elem(IxDyn(&[]), 400.0);
+        let expected_x0_grad = ArcArray::from_elem(IxDyn(&[]), -2.0);
+        let expected_x1_grad = ArcArray::from_elem(IxDyn(&[]), 400.0);
 
         assert_eq!(expected_x0_grad, x0.get_grad().unwrap().get_data());
         assert_eq!(expected_x1_grad, x1.get_grad().unwrap().get_data());
@@ -473,7 +503,7 @@ mod tests {
 
             let x0_data = x0.get_data();
             let x1_data: ndarray::ArrayBase<
-                ndarray::OwnedRepr<_>,
+                ndarray::OwnedArcRepr<_>,
                 ndarray::Dim<ndarray::IxDynImpl>,
             > = x1.get_data();
             let x0_grad = x0.get_grad().unwrap().get_data()[[]];
@@ -493,9 +523,9 @@ mod tests {
 
         z.backward();
 
-        let expected = Array::from_elem(IxDyn(&[]), 2);
-        let expect_x_grad = Array::from_elem(IxDyn(&[]), 2);
-        let expect_y_grad = Array::from_elem(IxDyn(&[]), 2);
+        let expected = ArcArray::from_elem(IxDyn(&[]), 2);
+        let expect_x_grad = ArcArray::from_elem(IxDyn(&[]), 2);
+        let expect_y_grad = ArcArray::from_elem(IxDyn(&[]), 2);
         assert_eq!(expected, z.get_data());
         assert_eq!(
             expect_x_grad,
@@ -516,9 +546,9 @@ mod tests {
 
         z.backward();
 
-        let expected = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
-        let expect_x_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
-        let expect_y_grad = Array::from_elem(IxDyn(&[]), 0.040000000000000036);
+        let expected = ArcArray::from_elem(IxDyn(&[]), 0.040000000000000036);
+        let expect_x_grad = ArcArray::from_elem(IxDyn(&[]), 0.040000000000000036);
+        let expect_y_grad = ArcArray::from_elem(IxDyn(&[]), 0.040000000000000036);
         assert_eq!(expected, z.get_data());
         assert_eq!(
             expect_x_grad,
@@ -539,9 +569,9 @@ mod tests {
 
         z.backward();
 
-        let expected = Array::from_elem(IxDyn(&[]), 1876);
-        let expect_x_grad = Array::from_elem(IxDyn(&[]), -5376);
-        let expect_y_grad = Array::from_elem(IxDyn(&[]), 8064);
+        let expected = ArcArray::from_elem(IxDyn(&[]), 1876);
+        let expect_x_grad = ArcArray::from_elem(IxDyn(&[]), -5376);
+        let expect_y_grad = ArcArray::from_elem(IxDyn(&[]), 8064);
 
         assert_eq!(expected, z.get_data());
         assert_eq!(

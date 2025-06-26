@@ -5,7 +5,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::Rc;
 use std::rc::Weak;
@@ -23,19 +23,24 @@ impl<V: MathOps> Function<V> for MatmulFunction {
     }
 
     // matmul の順伝播
-    fn forward(&self, inputs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        inputs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("matmul(forward)");
 
-        let x_data = inputs[0].clone();
-        let w_data = inputs[1].clone();
+        // let x_data = inputs[0].clone();
+        // let w_data = inputs[1].clone();
 
-        vec![function_libs::dot(x_data, w_data)]
+        // vec![function_libs::dot(x_data, w_data)]
+
+        vec![function_libs::dot(inputs[0].clone(), inputs[1].clone())]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -45,10 +50,10 @@ impl<V: MathOps> Function<V> for MatmulFunction {
         let w = inputs[1].clone();
 
         dbg!(&gys[0].get_data());
-        dbg!(&w.get_data());
+        dbg!(&w.borrow().get_data());
 
-        let gx = matmul(gys[0].clone(), w.transpose());
-        let gw = matmul(x.transpose(), gys[0].clone());
+        let gx = matmul(gys[0].clone(), w.borrow().transpose());
+        let gw = matmul(x.borrow().transpose(), gys[0].clone());
 
         vec![gx, gw]
     }
@@ -75,7 +80,7 @@ pub fn matmul<V: MathOps>(x: Variable<V>, w: Variable<V>) -> Variable<V> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     // use rand::prelude::*;
     use rand::{distributions::Uniform, SeedableRng};
@@ -104,7 +109,7 @@ mod tests {
 
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x1_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
@@ -119,7 +124,7 @@ mod tests {
     fn test_num_grad_check_1_0() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
@@ -137,11 +142,11 @@ mod tests {
     fn test_num_grad_check_1_1() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(vec![1], x0_var.flatten().to_vec()));
 
-        let x1_var = Array::random_using(1, Uniform::new(0., 10.), &mut rng);
+        let x1_var = ArcArray::random_using(1, Uniform::new(0., 10.), &mut rng);
 
         let x1 = Variable::new(RawData::from_shape_vec(vec![1], x1_var.flatten().to_vec()));
 
@@ -164,14 +169,14 @@ mod tests {
     fn test_num_grad_check2() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((1, 100), Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
             x0_var.flatten().to_vec(),
         ));
 
-        let x1_var = Array::random_using((100, 1), Uniform::new(0., 10.), &mut rng);
+        let x1_var = ArcArray::random_using((100, 1), Uniform::new(0., 10.), &mut rng);
 
         let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 1],
@@ -188,14 +193,14 @@ mod tests {
     fn test_num_grad_check3() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((2, 100), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((2, 100), Uniform::new(0., 10.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![2, 100],
             x0_var.flatten().to_vec(),
         ));
 
-        let x1_var = Array::random_using((100, 2), Uniform::new(0., 10.), &mut rng);
+        let x1_var = ArcArray::random_using((100, 2), Uniform::new(0., 10.), &mut rng);
 
         let x1 = Variable::new(RawData::from_shape_vec(
             vec![100, 2],
@@ -279,13 +284,13 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((2, 3), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![2, 3],
             x_var.flatten().to_vec(),
         ));
 
-        let w_var = Array::random_using((3, 4), Uniform::new(0., 10.), &mut rng);
+        let w_var = ArcArray::random_using((3, 4), Uniform::new(0., 10.), &mut rng);
         let w = Variable::new(RawData::from_shape_vec(
             vec![3, 4],
             w_var.flatten().to_vec(),
@@ -302,13 +307,13 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((10, 1), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((10, 1), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![10, 1],
             x_var.flatten().to_vec(),
         ));
 
-        let w_var = Array::random_using((1, 5), Uniform::new(0., 10.), &mut rng);
+        let w_var = ArcArray::random_using((1, 5), Uniform::new(0., 10.), &mut rng);
         let w = Variable::new(RawData::from_shape_vec(
             vec![1, 5],
             w_var.flatten().to_vec(),

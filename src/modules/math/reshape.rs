@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -28,23 +28,34 @@ impl<V: MathOps> Function<V> for ReshapeFunction {
     /// 関数のインスタンス作成時に変換する Shape(Vec<usize>) を指定すること。
     ///
     /// Arguments
-    /// * xs (Vec<Array<V,IxDyn>>): 変換対象のテンソル
+    /// * xs (Vec<ArcArray<V,IxDyn>>): 変換対象のテンソル
     ///
     /// Returns
-    /// * Vec<Array<V, IxDyn>>: 累乗の結果
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    /// * Vec<ArcArray<V, IxDyn>>: 累乗の結果
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("reshape(forward)");
-        debug!("reshape(forwad) {:?} -> {:?}", &xs[0].shape(), self.shape);
+        debug!(
+            "reshape(forwad) {:?} -> {:?}",
+            &xs[0].borrow().shape(),
+            self.shape
+        );
 
-        let y = xs[0].clone().into_shape_clone(self.shape.clone()).unwrap();
-        return vec![y];
+        let y = xs[0]
+            .borrow()
+            .clone()
+            .into_shape_clone(self.shape.clone())
+            .unwrap();
+        return vec![Rc::new(RefCell::new(y))];
     }
 
     /// 逆伝播
     /// 順伝播の入力値と同じ形状に微分値の形状を返還する。
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {

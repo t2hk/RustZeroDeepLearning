@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
@@ -22,30 +22,37 @@ impl<V: MathOps> Function<V> for SigmoidFunction {
     }
 
     // Sigmoid の順伝播
-    fn forward(&self, inputs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        inputs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("sigmoid(forward)");
 
         let x = inputs[0].clone();
 
-        debug!("sigmoid(forward) x: {:?}", x.flatten().to_vec());
+        debug!("sigmoid(forward) x: {:?}", x.borrow().flatten().to_vec());
 
-        let result = vec![x.mapv(|tmp| {
-            let y = (V::to_f64(&tmp).unwrap() * 0.5).tanh() * 0.5 + 0.5;
-            V::from(y).unwrap()
-        })];
+        let result = vec![Rc::new(RefCell::new(
+            x.borrow()
+                .mapv(|tmp| {
+                    let y = (V::to_f64(&tmp).unwrap() * 0.5).tanh() * 0.5 + 0.5;
+                    V::from(y).unwrap()
+                })
+                .into_shared(),
+        ))];
         result
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
         info!("sigmoid(backward)");
 
-        let x = inputs[0].clone();
+        let x = inputs[0].borrow().clone();
 
         let y = sigmoid(x);
         let gx = &(&gys[0].clone() * &y.clone())
@@ -83,7 +90,7 @@ mod tests {
     use std::env;
 
     use super::*;
-    use ndarray::Array;
+    use ndarray::ArcArray;
     use ndarray_rand::RandomExt;
     // use rand::prelude::*;
     use plotters::chart::ChartBuilder;
@@ -111,7 +118,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((3, 2), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![3, 2],
             x_var.flatten().to_vec(),
@@ -128,7 +135,7 @@ mod tests {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
 
-        let x_var = Array::random_using((10, 10, 10), Uniform::new(0., 10.), &mut rng);
+        let x_var = ArcArray::random_using((10, 10, 10), Uniform::new(0., 10.), &mut rng);
         let x = Variable::new(RawData::from_shape_vec(
             vec![10, 10, 10],
             x_var.flatten().to_vec(),

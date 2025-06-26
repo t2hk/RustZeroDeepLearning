@@ -3,9 +3,6 @@ use crate::modules::*;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::rc::{Rc, Weak};
 
 /// SGD 構造体
 #[derive(Debug, Clone)]
@@ -42,7 +39,8 @@ impl<V: MathOps> Optimizer for Sgd<V> {
                 .get_data()
                 .mapv(|x| x.to_f64().unwrap())
                 * self.lr.to_f64().unwrap();
-        param.set_data(new_data.mapv(|x| V::from(x).unwrap()));
+
+        param.set_data(new_data.mapv(|x| V::from(x).unwrap()).into_shared());
     }
 }
 

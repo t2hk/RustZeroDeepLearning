@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -24,17 +24,20 @@ impl<V: MathOps> Function<V> for SumToFunction {
     }
 
     // SumTo の順伝播
-    fn forward(&self, x: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        x: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("sum_to(forward)");
 
         debug!(
             "sum_to(forward) {:?} -> {:?}",
-            x[0].flatten().to_vec(),
+            x[0].borrow().flatten().to_vec(),
             self.shape.to_vec()
         );
 
         let ndim = self.shape.len() as i32;
-        let x_ndim = x[0].ndim() as i32;
+        let x_ndim = x[0].borrow().ndim() as i32;
         let lead = x_ndim - ndim;
 
         // Create vectors for the axes to sum over
@@ -56,28 +59,29 @@ impl<V: MathOps> Function<V> for SumToFunction {
         axes_to_sum.sort_unstable_by(|a, b| b.cmp(a));
 
         // Start with a clone of the input array
-        let mut y = x[0].to_owned();
+        let mut y = x[0].borrow_mut().clone(); //.to_owned();
 
         // Sum over specified axes, keeping dimensions
         for &axis in &axes_to_sum {
             y = y
                 .sum_axis(ndarray::Axis(axis as usize))
-                .insert_axis(ndarray::Axis(axis as usize));
+                .insert_axis(ndarray::Axis(axis as usize))
+                .into_shared();
         }
 
         // If there were leading dimensions, squeeze them out
         if lead > 0 {
             let squeeze_y = utils::squeeze(&y);
-            return vec![squeeze_y.into_dyn()];
+            return vec![Rc::new(RefCell::new(squeeze_y.into_dyn().into_shared()))];
         } else {
-            return vec![y.into_dyn()];
+            return vec![Rc::new(RefCell::new(y.into_dyn().into_shared()))];
         }
     }
 
     /// SumTo の逆伝播
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -125,7 +129,7 @@ mod tests {
     fn test_num_grad() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
+        let x0_var = ArcArray::random_using((10, 10), Uniform::new(0., 10.), &mut rng);
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![10, 10],
             x0_var.flatten().to_vec(),

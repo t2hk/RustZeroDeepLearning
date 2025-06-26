@@ -39,11 +39,11 @@ mod tests {
         let mut mlp = Mlp::new(vec![hidden_size, 10], sigmoid, sgd);
 
         // データの読み込み、モデル・オプティマイザの生成
-        let mut mnist_train_set = Dataset::init(true, Rc::new(RefCell::new(MnistDataSet {})));
+        let mnist_train_set = Dataset::init(true, Rc::new(RefCell::new(MnistDataSet {})));
         // let train_data_loader = DataLoader::init(mnist_train_set.clone(), batch_size, true);
         let train_data_loader = DataLoader::init(&mnist_train_set, batch_size, true);
 
-        let mut mnist_test_set = Dataset::init(false, Rc::new(RefCell::new(MnistDataSet {})));
+        let mnist_test_set = Dataset::init(false, Rc::new(RefCell::new(MnistDataSet {})));
         let test_data_loader = DataLoader::init(&mnist_test_set, batch_size, true);
 
         let mut loss_result = vec![];
@@ -145,7 +145,7 @@ mod tests {
             .margin(10)
             .x_label_area_size(30)
             .y_label_area_size(30)
-            .build_cartesian_2d(0..300, 0.0..1.5)
+            .build_cartesian_2d(0..5, 0.0..1.5)
             .unwrap();
         chart.configure_mesh().draw().unwrap();
 
@@ -175,7 +175,7 @@ mod tests {
             .margin(10)
             .x_label_area_size(30)
             .y_label_area_size(30)
-            .build_cartesian_2d(0..300, 0.0..1.5)
+            .build_cartesian_2d(0..5, 0.0..1.5)
             .unwrap();
         chart.configure_mesh().draw().unwrap();
 

@@ -5,7 +5,7 @@ mod common;
 
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use num_bigint::BigInt;
 use rand::prelude::*;
 use rust_zero_deeplearning::modules::*;
@@ -19,7 +19,7 @@ fn test_bigint_variable() {
 
     let big_int_variable = Variable::new(RawData::new(BigIntWrapper(Rc::new(BigInt::from(10)))));
 
-    let expect = Array::from_elem(IxDyn(&[]), BigIntWrapper(Rc::new(BigInt::from(10))));
+    let expect = ArcArray::from_elem(IxDyn(&[]), BigIntWrapper(Rc::new(BigInt::from(10))));
 
     assert_eq!(expect, big_int_variable.get_data());
 }
@@ -57,15 +57,15 @@ fn test_add_mul() {
     // );
 
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         result.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 2.0),
+        ArcArray::from_elem(IxDyn(&[]), 2.0),
         a.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 3.0),
+        ArcArray::from_elem(IxDyn(&[]), 3.0),
         b.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -102,15 +102,15 @@ fn test_mul_2() {
     // );
 
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         result.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 10.0),
+        ArcArray::from_elem(IxDyn(&[]), 10.0),
         x1.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 5.0),
+        ArcArray::from_elem(IxDyn(&[]), 5.0),
         x2.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -145,15 +145,15 @@ fn test_mul_1() {
     // );
 
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1),
+        ArcArray::from_elem(IxDyn(&[]), 1),
         result.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 10),
+        ArcArray::from_elem(IxDyn(&[]), 10),
         x1.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 5),
+        ArcArray::from_elem(IxDyn(&[]), 5),
         x2.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -172,7 +172,7 @@ fn test_retain_grad_disabled_u32() {
     let y = add(d.clone(), x2.clone());
 
     // 順伝播の結果
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35), y.get_data().clone());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35), y.get_data().clone());
     // 各変数の世代のテスト
     assert_eq!(0, x1.get_generation());
     assert_eq!(0, x2.get_generation());
@@ -206,25 +206,25 @@ fn test_retain_grad_disabled_u32() {
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2), x1.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2), x1.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 64),
+        ArcArray::from_elem(IxDyn(&[]), 64),
         x1.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3), x2.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 3), x2.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1),
+        ArcArray::from_elem(IxDyn(&[]), 1),
         x2.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4), a.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 4), a.get_data());
     assert!(a.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16), b.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16), b.get_data());
     assert!(b.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16), c.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16), c.get_data());
     assert!(c.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32), d.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 32), d.get_data());
     assert!(d.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35), y.get_data());
     assert!(y.get_grad().is_none());
 }
 
@@ -319,7 +319,7 @@ fn test_multidim_add() {
     let expected_var = RawData::from_shape_vec(vec![2, 2], vec![12., 14., 16., 18.]);
 
     // 加算した結果の期待値を計算する。
-    // let expected_output_data = Array::from_elem(IxDyn(&[]), 2.0);
+    // let expected_output_data = ArcArray::from_elem(IxDyn(&[]), 2.0);
 
     // 順伝播を実行する。
     let result = add(x1.clone(), x2.clone());
@@ -335,16 +335,22 @@ fn test_disable_backprop() {
 
     // バックプロパゲーションを行わない場合
     Setting::set_backprop_disabled();
-    let x = Variable::new(RawData::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0)));
+    let x = Variable::new(RawData::new(ArcArray::from_elem(
+        IxDyn(&[100, 100, 100]),
+        1.0,
+    )));
 
     let result = square(square(square(x.clone())));
 
     // dbg!(&result.generation);
-    assert_eq!(1, result.get_generation());
+    assert_eq!(0, result.get_generation());
 
     // バックプロパゲーションを行う場合
     Setting::set_backprop_enabled();
-    let x = Variable::new(RawData::new(Array::from_elem(IxDyn(&[100, 100, 100]), 1.0)));
+    let x = Variable::new(RawData::new(ArcArray::from_elem(
+        IxDyn(&[100, 100, 100]),
+        1.0,
+    )));
 
     let result = square(square(square(x.clone())));
 
@@ -366,7 +372,7 @@ fn test_retain_grad_disabled() {
     let y = add(d.clone(), x2.clone());
 
     // 順伝播の結果
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     // 各変数の世代のテスト
     assert_eq!(0, x1.get_generation());
     assert_eq!(0, x2.get_generation());
@@ -399,25 +405,25 @@ fn test_retain_grad_disabled() {
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2.0), x1.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 64.0),
+        ArcArray::from_elem(IxDyn(&[]), 64.0),
         x1.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 3.0), x2.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         x2.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 4.0), a.get_data());
     assert!(a.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), b.get_data());
     assert!(b.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), c.get_data());
     assert!(c.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 32.0), d.get_data());
     assert!(d.get_grad().is_none());
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     assert!(y.get_grad().is_none());
 }
 
@@ -435,7 +441,7 @@ fn test_retain_grad_enabled() {
     let y = add(d.clone(), x2.clone());
 
     // 順伝播の結果
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     // 各変数の世代のテスト
     assert_eq!(0, x1.get_generation());
     assert_eq!(0, x2.get_generation());
@@ -468,43 +474,43 @@ fn test_retain_grad_enabled() {
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2.0), x1.get_data());
 
     // 逆伝播の結果の確認
     // 途中結果の変数には微分値が設定されていないことを確認する。
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2.0), x1.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 64.0),
+        ArcArray::from_elem(IxDyn(&[]), 64.0),
         x1.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 3.0), x2.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         x2.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 4.0), a.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 16.0),
+        ArcArray::from_elem(IxDyn(&[]), 16.0),
         a.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), b.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         b.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), c.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         c.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 32.0), d.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         d.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         y.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -528,7 +534,7 @@ fn test_generations() {
     let y = add(d.clone(), x2.clone());
 
     // 順伝播の結果
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     // 各変数の世代のテスト
     assert_eq!(0, x1.get_generation());
     assert_eq!(0, x2.get_generation());
@@ -558,39 +564,39 @@ fn test_generations() {
     y.backward();
 
     // 逆伝播の結果の確認
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x1.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2.0), x1.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 64.0),
+        ArcArray::from_elem(IxDyn(&[]), 64.0),
         x1.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 3.0), x2.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 3.0), x2.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         x2.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 4.0), a.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 4.0), a.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 16.0),
+        ArcArray::from_elem(IxDyn(&[]), 16.0),
         a.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), b.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), b.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         b.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 16.0), c.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 16.0), c.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         c.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 32.0), d.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 32.0), d.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         d.get_grad().expect("No grad exist.").get_data()
     );
-    assert_eq!(Array::from_elem(IxDyn(&[]), 35.0), y.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 35.0), y.get_data());
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         y.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -604,7 +610,7 @@ fn test_add_same_input_3times() {
     let x = Variable::new(RawData::new(2.0));
 
     // 加算した結果の期待値を計算する。
-    let expected_output_data = Array::from_elem(IxDyn(&[]), 6.0);
+    let expected_output_data = ArcArray::from_elem(IxDyn(&[]), 6.0);
 
     let result = add(add(x.clone(), x.clone()), x.clone());
 
@@ -625,7 +631,7 @@ fn test_add_same_input_3times() {
     // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
     // dbg!(x.clone());
 
-    let expected_grad = Array::from_elem(IxDyn(&[]), 3.0);
+    let expected_grad = ArcArray::from_elem(IxDyn(&[]), 3.0);
     assert_eq!(expected_grad, x.get_grad().unwrap().get_data());
     assert_eq!(expected_output_data.clone(), result.get_data());
 }
@@ -639,7 +645,7 @@ fn test_clear_grad() {
     let x = Variable::new(RawData::new(2.0));
 
     // 加算した結果の期待値を計算する。
-    let expected_output_data = Array::from_elem(IxDyn(&[]), 4.0);
+    let expected_output_data = ArcArray::from_elem(IxDyn(&[]), 4.0);
 
     let result = add(x.clone(), x.clone());
 
@@ -650,7 +656,7 @@ fn test_clear_grad() {
     // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
     // dbg!(x.clone());
 
-    let expected_grad = Array::from_elem(IxDyn(&[]), 2.0);
+    let expected_grad = ArcArray::from_elem(IxDyn(&[]), 2.0);
     assert_eq!(expected_grad, x.get_grad().unwrap().get_data());
     assert_eq!(expected_output_data.clone(), result.get_data());
 
@@ -667,7 +673,7 @@ fn test_clear_grad() {
     // dbg!(x.clone());
 
     // 1回目の微分と２回目の微分を加算した ４ になってしまうことを確認する。
-    let expected_grad2 = Array::from_elem(IxDyn(&[]), 4.0);
+    let expected_grad2 = ArcArray::from_elem(IxDyn(&[]), 4.0);
     assert_eq!(
         expected_grad2,
         x.get_grad().expect("No grad exist.").get_data()
@@ -687,7 +693,7 @@ fn test_clear_grad() {
     // 逆伝播の微分結果 grad が入力値に設定されていることも確認する。
     // dbg!(x.clone());
     // 微分をクリアしたことで正しい結果となることを確認する。
-    let expected_grad3 = Array::from_elem(IxDyn(&[]), 2.0);
+    let expected_grad3 = ArcArray::from_elem(IxDyn(&[]), 2.0);
     assert_eq!(
         expected_grad3,
         x.get_grad().expect("No grad exist.").get_data()
@@ -708,9 +714,9 @@ fn test_square() {
     let x = Variable::new(RawData::new(rand_x));
 
     // 2乗した結果の期待値を計算する。
-    let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x * rand_x);
+    let expected_output_data = ArcArray::from_elem(IxDyn(&[]), rand_x * rand_x);
     let expected_grad_val = rand_x * 2.0 * 1.0;
-    let expected_output_grad = Array::from_elem(IxDyn(&[]), expected_grad_val);
+    let expected_output_grad = ArcArray::from_elem(IxDyn(&[]), expected_grad_val);
 
     // 順伝播、逆伝播を実行する。
     // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
@@ -749,7 +755,7 @@ fn test_add() {
     let x2 = Variable::new(RawData::new(rand_x2));
 
     // 加算した結果の期待値を計算する。
-    let expected_output_data = Array::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
+    let expected_output_data = ArcArray::from_elem(IxDyn(&[]), rand_x1 + rand_x2);
 
     // 順伝播、逆伝播を実行する。
     // 逆伝播のため、順伝播の関数の実行結果を取得し、逆伝播を実行する。
@@ -768,11 +774,11 @@ fn test_add() {
     assert_eq!(expected_output_data, result.get_data());
     // 逆伝播の結果
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         x1.get_grad().expect("No grad exist.").get_data()
     );
     assert_eq!(
-        Array::from_elem(IxDyn(&[]), 1.0),
+        ArcArray::from_elem(IxDyn(&[]), 1.0),
         x2.get_grad().expect("No grad exist.").get_data()
     );
 }
@@ -785,7 +791,7 @@ fn test_exp() {
     let x = Variable::new(RawData::new(2.0));
 
     let e = std::f64::consts::E;
-    let expected_output_data = Array::from_elem(IxDyn(&[]), e.powf(2.0));
+    let expected_output_data = ArcArray::from_elem(IxDyn(&[]), e.powf(2.0));
     dbg!(expected_output_data.clone());
 
     // 順伝播、逆伝播を実行する。
@@ -808,9 +814,9 @@ fn test_exp() {
         x.get_grad().expect("No grad exist.").get_data()
     );
 
-    assert_eq!(Array::from_elem(IxDyn(&[]), 2.0), x.get_data());
+    assert_eq!(ArcArray::from_elem(IxDyn(&[]), 2.0), x.get_data());
     // assert_eq!(
-    //     Array::from_elem(IxDyn(&[]), 1.0),
+    //     ArcArray::from_elem(IxDyn(&[]), 1.0),
     //     result.get_grad()
     // );
 }
@@ -822,12 +828,12 @@ fn test_add_square_1() {
     // common::setup();
 
     // テスト用の入力値
-    let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
-    let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
+    let x1_arr = ArcArray::from_elem(IxDyn(&[]), 2.0);
+    let x2_arr = ArcArray::from_elem(IxDyn(&[]), 3.0);
     let x1 = Variable::new(RawData::new(x1_arr.clone()));
     let x2 = Variable::new(RawData::new(x2_arr.clone()));
 
-    let expected = Array::from_elem(IxDyn(&[]), 25.0);
+    let expected = ArcArray::from_elem(IxDyn(&[]), 25.0);
 
     // 順伝播を実行する。
     // let results = sq_exe.forward(add_exe.forward(vec![x1.clone(), x2.clone()]));
@@ -856,7 +862,7 @@ fn test_add_square_1() {
     // dbg!(x1.clone());
     // dbg!(x2.clone());
 
-    let expected_grad = Array::from_elem(IxDyn(&[]), 10.0);
+    let expected_grad = ArcArray::from_elem(IxDyn(&[]), 10.0);
     assert_eq!(x1_arr.clone(), x1.get_data());
     assert_eq!(x2_arr.clone(), x2.get_data());
     assert_eq!(
@@ -877,12 +883,12 @@ fn test_add_square_2() {
     // common::setup();
 
     // テスト用の入力値
-    let x1_arr = Array::from_elem(IxDyn(&[]), 2.0);
-    let x2_arr = Array::from_elem(IxDyn(&[]), 3.0);
+    let x1_arr = ArcArray::from_elem(IxDyn(&[]), 2.0);
+    let x2_arr = ArcArray::from_elem(IxDyn(&[]), 3.0);
     let x1 = Variable::new(RawData::new(x1_arr.clone()));
     let x2 = Variable::new(RawData::new(x2_arr.clone()));
 
-    let expected = Array::from_elem(IxDyn(&[]), 13.0);
+    let expected = ArcArray::from_elem(IxDyn(&[]), 13.0);
 
     // 関数を用意する。
     // let mut sq_exe_1 = FunctionExecutor::new(Rc::new(RefCell::new(Square)));
@@ -919,8 +925,8 @@ fn test_add_square_2() {
     // dbg!(x2.clone());
     // dbg!(result.clone().generation);
 
-    let expected_x1_grad = Array::from_elem(IxDyn(&[]), 4.0);
-    let expected_x2_grad = Array::from_elem(IxDyn(&[]), 6.0);
+    let expected_x1_grad = ArcArray::from_elem(IxDyn(&[]), 4.0);
+    let expected_x2_grad = ArcArray::from_elem(IxDyn(&[]), 6.0);
     assert_eq!(x1_arr.clone(), x1.get_data());
     assert_eq!(x2_arr.clone(), x2.get_data());
     assert_eq!(
@@ -941,11 +947,11 @@ fn test_square_exp_square() {
     // common::setup();
 
     // テスト用の入力値
-    let x_arr = Array::from_elem(IxDyn(&[]), 0.5);
+    let x_arr = ArcArray::from_elem(IxDyn(&[]), 0.5);
     let x = Variable::new(RawData::new(x_arr.clone()));
 
     let e = std::f64::consts::E;
-    let expected = Array::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));
+    let expected = ArcArray::from_elem(IxDyn(&[]), e.powf(0.5 * 0.5) * e.powf(0.5 * 0.5));
 
     // 順伝播の実行
     // let results = sq_exe_2.forward(exp_exe.forward(sq_exe_1.forward(vec![x.clone()])));
@@ -966,7 +972,7 @@ fn test_square_exp_square() {
     // dbg!(x.clone());
 
     // 逆伝播の正解は書籍の値を使用。
-    let expected_x_grad = Array::from_elem(IxDyn(&[]), 3.297442541400256);
+    let expected_x_grad = ArcArray::from_elem(IxDyn(&[]), 3.297442541400256);
 
     assert_eq!(x_arr.clone(), x.get_data());
     assert_eq!(expected_x_grad, x.get_grad().unwrap().get_data());

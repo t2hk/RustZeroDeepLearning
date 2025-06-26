@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, Axis, IxDyn};
+use ndarray::{ArcArray, Axis, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -24,7 +24,10 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
     }
 
     // 順伝播
-    fn forward(&self, xs: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        xs: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         // class SoftmaxCrossEntropy(Function):
         //     def forward(self, x, t):
         //         N = x.shape[0]
@@ -36,9 +39,9 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
 
         info!("softmax_cross_entropy(forward)");
 
-        let n = xs[0].shape().to_vec()[0];
-        let log_z = logarithm::logsumexp(xs[0].clone(), Axis(1));
-        let log_p = xs[0].clone() - log_z;
+        let n = xs[0].borrow().shape().to_vec()[0];
+        let log_z = logarithm::logsumexp(xs[0].borrow().clone(), Axis(1));
+        let log_p = xs[0].borrow().clone() - log_z;
 
         let mut tlog_p_vec = vec![];
 
@@ -47,17 +50,17 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
             let log_p_val = log_p[[i, t_val]].clone();
             tlog_p_vec.push(log_p_val);
         }
-        let tlog_p = Array::from_shape_vec((1, n), tlog_p_vec).unwrap();
+        let tlog_p = ArcArray::from_shape_vec((1, n), tlog_p_vec).unwrap();
 
         let y = (V::from(-1).unwrap() * tlog_p.sum()) / V::from(n).unwrap();
 
-        vec![RawData::new(y).get_data()]
+        vec![Rc::new(RefCell::new(RawData::new(y).get_data()))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        inputs: Vec<Variable<V>>,
+        inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -75,8 +78,8 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
 
         info!("softmax_cross_entropy(backward)");
 
-        let n = &inputs[0].get_data().shape().to_vec()[0];
-        let cls_num = inputs[0].get_data().shape().to_vec()[1] as usize;
+        let n = &inputs[0].borrow().get_data().shape().to_vec()[0];
+        let cls_num = inputs[0].borrow().get_data().shape().to_vec()[1] as usize;
 
         info!("  n: {}, cls_num: {}", n, cls_num);
 
@@ -85,9 +88,9 @@ impl<V: MathOps> Function<V> for SoftmaxCrossEntropyFunction {
         let one_div_n = RawData::new(V::from(1).unwrap() / V::from(*n as f64).unwrap()).get_data();
 
         let gy = gys[0].get_data() * one_div_n;
-        let y = softmax(inputs[0].clone(), Axis(1));
+        let y = softmax(inputs[0].borrow().clone(), Axis(1));
 
-        let mut t_onehot = Array::zeros((*n, cls_num));
+        let mut t_onehot = ArcArray::zeros((*n, cls_num));
 
         for (i, &ref label) in t_data.iter().enumerate() {
             t_onehot[[i, *label]] = V::from(1).unwrap();

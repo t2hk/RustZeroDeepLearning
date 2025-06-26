@@ -4,7 +4,7 @@ use crate::modules::math::*;
 use ::core::fmt::Debug;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{Array, IxDyn};
+use ndarray::{ArcArray, IxDyn};
 use std::cell::RefCell;
 use std::rc::{Rc, Weak};
 
@@ -24,7 +24,10 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
     }
 
     // BroadcastTo の順伝播
-    fn forward(&self, x: Vec<Array<V, IxDyn>>) -> Vec<Array<V, IxDyn>> {
+    fn forward(
+        &self,
+        x: Vec<Rc<RefCell<ArcArray<V, IxDyn>>>>,
+    ) -> Vec<Rc<RefCell<ArcArray<V, IxDyn>>>> {
         info!("broadcast_to(forward)");
         debug!(
             "broadcast_to(backward) {:?} -> {:?}",
@@ -32,14 +35,18 @@ impl<V: MathOps> Function<V> for BroadcastToFunction {
             self.shape.clone()
         );
 
-        let y = x[0].broadcast(self.shape.clone()).unwrap().to_owned();
-        vec![y]
+        let y = x[0]
+            .borrow()
+            .broadcast(self.shape.clone())
+            .unwrap()
+            .to_owned();
+        vec![Rc::new(RefCell::new(y.into_shared()))]
     }
 
     /// 逆伝播
     fn backward(
         &self,
-        _inputs: Vec<Variable<V>>,
+        _inputs: Vec<Rc<RefCell<Variable<V>>>>,
         _outputs: Vec<Weak<RefCell<RawData<V>>>>,
         gys: Vec<Variable<V>>,
     ) -> Vec<Variable<V>> {
@@ -91,7 +98,7 @@ mod tests {
     fn test_num_grad_check() {
         let seed = 0;
         let mut rng = Isaac64Rng::seed_from_u64(seed);
-        let x0_var = Array::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
+        let x0_var = ArcArray::random_using((1, 100), Uniform::new(0., 1.), &mut rng);
 
         let x0 = Variable::new(RawData::from_shape_vec(
             vec![1, 100],
