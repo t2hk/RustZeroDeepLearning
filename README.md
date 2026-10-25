@@ -268,3 +268,6 @@ cargo run
 * ステップ49 と ステップ50を併せて実施した。
 * dataset の追加
 * dataloader の追加
+
+### ステップ51 MNIST の学習
+* MNIST の実装を src/sample/mnist.rs として作成した。
