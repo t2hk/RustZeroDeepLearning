@@ -224,11 +224,12 @@ impl<V: MathOps> RawData<V> {
     }
 
     /// この変数を出力結果とした場合の逆伝播を行う。
-    pub fn backward(&self) {
+    pub fn backward(&self, create_graph: bool) {
         debug!(
             "[backward] self name: {}",
             self.get_name().unwrap_or("none".to_string())
         );
+        let _guard = (!create_graph).then(NoGradGuard::new);
         let mut creators = FunctionExecutor::extract_creators(vec![Variable::new(self.clone())]);
 
         // 優先度の高い順に関数を取得し、逆伝播を実行する。
@@ -387,8 +388,15 @@ pub trait RawDataProcessor<V: MathOps> {
     }
 
     /// 逆伝播を実行する。
+    /// 微分値の計算グラフは作成しない。
     fn backward(&self) {
-        self.raw().as_ref().clone().borrow().backward();
+        self.raw().as_ref().clone().borrow().backward(false);
+    }
+
+    /// 逆伝播を実行する。
+    /// 高階微分のため、微分値の計算グラフも作成する。
+    fn backward_create_graph(&self) {
+        self.raw().as_ref().clone().borrow().backward(true);
     }
 
     // /// リシェイプ

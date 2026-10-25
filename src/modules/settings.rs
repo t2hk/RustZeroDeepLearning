@@ -90,3 +90,27 @@ impl Setting {
         SETTING.with(|setting| setting.borrow().retain_grad)
     }
 }
+
+/// 逆伝播を一時的に無効にするガード
+/// 生成時に逆伝播を無効にし、スコープを抜けて破棄される際に元の設定に戻す。
+pub struct NoGradGuard {
+    prev: bool,
+}
+
+impl NoGradGuard {
+    /// 逆伝播を無効にし、元の設定を保持したガードを生成する。
+    pub fn new() -> Self {
+        let prev = Setting::is_enable_backprop();
+        Setting::set_backprop_disabled();
+        NoGradGuard { prev }
+    }
+}
+
+impl Drop for NoGradGuard {
+    /// 元の設定が有効だった場合、逆伝播を有効に戻す。
+    fn drop(&mut self) {
+        if self.prev {
+            Setting::set_backprop_enabled();
+        }
+    }
+}

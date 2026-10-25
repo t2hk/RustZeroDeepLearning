@@ -190,6 +190,10 @@ impl<V: MathOps> FunctionExecutor<V> {
             })
             .collect();
 
+        if !Setting::is_enable_backprop() {
+            return outputs;
+        }
+           
         // 入出力を自身に設定する。
         self.inputs = inputs.into_iter().map(|input| input).collect();
         self.outputs = outputs

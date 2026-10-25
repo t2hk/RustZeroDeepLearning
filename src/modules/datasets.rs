@@ -2,7 +2,7 @@
 use crate::modules::*;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use ndarray::{s, Array, IxDyn};
+use ndarray::{Array, Axis, IxDyn, s};
 use ndarray_rand::rand_distr::Normal;
 use std::{cell::RefCell, rc::Rc};
 
@@ -14,8 +14,8 @@ use plotters::{
 };
 use rand::{prelude::Distribution, rngs::StdRng, seq::SliceRandom, SeedableRng};
 
-/// データローダー用のトレイト
-pub trait DataLoader: std::fmt::Debug {
+/// データソースのローダー用トレイト
+pub trait DataSource: std::fmt::Debug {
     /// データを読み込む。
     ///
     /// Arguments:
@@ -30,7 +30,7 @@ pub trait DataLoader: std::fmt::Debug {
 #[derive(Debug, Clone)]
 pub struct Dataset {
     train: bool, // 訓練データの場合 true、テストデータの場合 false
-    data_loader: Rc<RefCell<dyn DataLoader>>, // データローダのトレイトオブジェクト
+    data_loader: Rc<RefCell<dyn DataSource>>, // データローダのトレイトオブジェクト
     data: Option<Array<f64, IxDyn>>, // データ
     label: Option<Array<usize, IxDyn>>, // 正解ラベル
 }
@@ -46,7 +46,7 @@ impl Dataset {
     ///
     /// Return:
     /// * Dataset: データセット構造体
-    pub fn init(train: bool, data_loader: Rc<RefCell<dyn DataLoader>>) -> Dataset {
+    pub fn init(train: bool, data_loader: Rc<RefCell<dyn DataSource>>) -> Dataset {
         let mut ds = Dataset {
             train: train,
             data_loader: data_loader,
@@ -74,13 +74,14 @@ impl Dataset {
     ///
     /// Retrun
     /// * usize: 長さ
-    pub fn len(self) -> usize {
-        if let Some(data) = self.data {
-            // data.len()
-            data.shape().to_vec()[0]
-        } else {
-            panic!("Data does not exist.");
-        }
+    pub fn len(&self) -> usize {
+        // if let Some(data) = self.data {
+        //     // data.len()
+        //     data.shape().to_vec()[0]
+        // } else {
+        //     panic!("Data does not exist.");
+        // }
+        self.data.as_ref().expect("Data does not exist.").shape()[0]
     }
 
     /// 指定したインデックスのデータと正解ラベルを取得する。
@@ -90,19 +91,23 @@ impl Dataset {
     ///
     /// Retrun:
     /// * (Array<f64, IxDyn>, Option<usize>): 対象データと正解ラベル
-    pub fn get(self, index: usize) -> (Array<f64, IxDyn>, Option<usize>) {
-        if let Some(data) = self.data {
-            let index_row = data.slice(s![index, ..]).into_owned().into_dyn();
+    pub fn get(&self, index: usize) -> (Array<f64, IxDyn>, Option<usize>) {
+        let data = self.data.as_ref().expect("Data does not exist.");
+        let index_row = data.slice(s![index, ..]).into_owned().into_dyn();
+        let index_label = self.label.as_ref().map(|label| label[[index]]);
+        (index_row, index_label)
+        // if let Some(data) = self.data {
+        //     let index_row = data.slice(s![index, ..]).into_owned().into_dyn();
 
-            if let Some(label) = self.label {
-                let index_label = label.flatten().to_vec()[index];
-                (index_row, Some(index_label))
-            } else {
-                (index_row, None)
-            }
-        } else {
-            panic!("Data does not exist.");
-        }
+        //     if let Some(label) = self.label {
+        //         let index_label = label.flatten().to_vec()[index];
+        //         (index_row, Some(index_label))
+        //     } else {
+        //         (index_row, None)
+        //     }
+        // } else {
+        //     panic!("Data does not exist.");
+        // }
     }
 
     /// バッチ取得
@@ -114,30 +119,40 @@ impl Dataset {
     /// Retrun:
     /// * (Variable<f64>, Variable<usize>): インデックスで指定したデータと正解ラベル
     pub fn get_batch(&self, batch_index: &[usize]) -> (Variable<f64>, Variable<usize>) {
-        let mut batch_x_vec = vec![];
-        let mut batch_t_vec = vec![];
+        let data = self.data.as_ref().expect("Data does not exist.");
+        let label = self.label.as_ref().expect("Label does not exist.");
 
-        for idx in batch_index.iter() {
-            let idx_train_data = self.clone().get(*idx);
-            batch_x_vec.extend(idx_train_data.0.flatten().to_vec());
-            batch_t_vec.push(idx_train_data.1.unwrap());
-        }
-        let batch_x = Variable::new(RawData::from_shape_vec(
-            vec![batch_index.len(), 2],
-            batch_x_vec,
-        ));
-        let batch_t = Variable::new(RawData::from_shape_vec(
-            vec![1, batch_index.len()],
-            batch_t_vec.clone(),
-        ));
-        (batch_x, batch_t)
+        let batch_x = data.select(Axis(0), batch_index);
+        let batch_t: Vec<usize> = batch_index.iter().map(|&i| label[[i]]).collect();
+
+        (
+            Variable::new(RawData::new(batch_x)),
+            Variable::new(RawData::from_shape_vec(vec![1, batch_index.len()], batch_t)),
+        )
+        // let mut batch_x_vec = vec![];
+        // let mut batch_t_vec = vec![];
+
+        // for idx in batch_index.iter() {
+        //     let idx_train_data = self.get(*idx);
+        //     batch_x_vec.extend(idx_train_data.0.flatten().to_vec());
+        //     batch_t_vec.push(idx_train_data.1.unwrap());
+        // }
+        // let batch_x = Variable::new(RawData::from_shape_vec(
+        //     vec![batch_index.len(), 2],
+        //     batch_x_vec,
+        // ));
+        // let batch_t = Variable::new(RawData::from_shape_vec(
+        //     vec![1, batch_index.len()],
+        //     batch_t_vec.clone(),
+        // ));
+        // (batch_x, batch_t)
     }
 }
 
 /// スパイラルデータセット用のデータローダー
 #[derive(Debug, Clone)]
 pub struct SpiralDataSet;
-impl DataLoader for SpiralDataSet {
+impl DataSource for SpiralDataSet {
     /// データを読み込む。
     ///
     /// Arguments:

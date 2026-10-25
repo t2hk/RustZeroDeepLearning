@@ -340,7 +340,7 @@ fn test_disable_backprop() {
     let result = square(square(square(x.clone())));
 
     // dbg!(&result.generation);
-    assert_eq!(1, result.get_generation());
+    assert_eq!(0, result.get_generation());
 
     // バックプロパゲーションを行う場合
     Setting::set_backprop_enabled();

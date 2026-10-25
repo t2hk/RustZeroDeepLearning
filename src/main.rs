@@ -1,4 +1,5 @@
 mod modules;
+mod sample;
 
 // ライブラリを一括でインポート
 use rust_zero_deeplearning::*;
@@ -119,4 +120,7 @@ fn main() {
     let result = factorial(num);
     let result_naive = factorial(num);
     assert_eq!(result_naive, result);
+
+    // MNIST の学習と推論
+    sample::mnist::run();
 }

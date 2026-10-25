@@ -36,7 +36,7 @@ fn test_step33_second_differential() {
     assert_eq!(expected_y, y.get_data());
 
     debug!("===== 1回目バックプロパゲーション======");
-    y.backward();
+    y.backward_create_graph();
 
     let expected_x_grad = Array::from_elem(IxDyn(&[]), 24.0);
     assert_eq!(expected_x_grad, x.get_grad().unwrap().get_data());
@@ -77,7 +77,7 @@ fn test_step33_newton_method() {
         results.push(x.get_data()[[]]);
         let y = f(&x);
         x.clear_grad();
-        y.backward();
+        y.backward_create_graph();
 
         let gx = &x.get_grad().unwrap();
         x.clear_grad();
@@ -113,13 +113,13 @@ fn test_high_diffeential_sin() {
 
     let x = Variable::new(RawData::new(1.0));
     let y = sin(x.clone());
-    y.backward();
+    y.backward_create_graph();
 
     let mut results: Vec<f64> = vec![];
     for _i in 0..3 {
         let gx = &x.get_grad().unwrap();
         x.clear_grad();
-        gx.backward();
+        gx.backward_create_graph();
         results.push(x.get_grad().unwrap().get_data()[[]]);
     }
     assert_eq!(-0.8414709848078965, results[0]);
@@ -145,7 +145,7 @@ fn test_step34_graph() {
     let end = 7.0;
     let x = Variable::new(RawData::linspace(start, end, 200));
     let y = sin(x.clone());
-    y.backward();
+    y.backward_create_graph();
     let y_data = y.get_data();
     logs.push(y_data.flatten().to_vec());
 
@@ -154,7 +154,7 @@ fn test_step34_graph() {
         logs.push(x.get_grad().unwrap().get_data().flatten().to_vec());
         let gx = x.get_grad().unwrap();
         x.clear_grad();
-        gx.backward();
+        gx.backward_create_graph();
     }
 
     // 描画先の Backend を初期化する。
@@ -227,7 +227,7 @@ fn test_step34_tanh() {
     x.set_name("x".to_string());
     let y = tanh(x.clone());
     y.set_name("y".to_string());
-    y.backward();
+    y.backward_create_graph();
 
     let iters = 2;
 
@@ -235,7 +235,7 @@ fn test_step34_tanh() {
         let gx = x.get_grad().unwrap();
 
         x.clear_grad();
-        gx.backward();
+        gx.backward_create_graph();
     }
 
     let gx = x.get_grad().unwrap();
@@ -267,7 +267,7 @@ fn tests_stage36_double_backprop() {
 
     info!("===== y backward");
 
-    y.backward();
+    y.backward_create_graph();
     let gx = x.get_grad().unwrap();
     gx.set_name("gx".to_string());
     println!(
@@ -289,7 +289,7 @@ fn tests_stage36_double_backprop() {
     );
 
     info!("===== z backward");
-    z.backward();
+    z.backward_create_graph();
 
     let x_grad = x.get_grad().unwrap().get_data()[[]];
     info!("x grad: {:?}", x_grad);

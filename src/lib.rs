@@ -2,6 +2,7 @@
 pub mod modules;
 
 pub use modules::big_int_wrapper::*;
+pub use modules::core::data_loader::*;
 pub use modules::core::function_libs::*;
 pub use modules::core::functions::*;
 pub use modules::core::layer::*;

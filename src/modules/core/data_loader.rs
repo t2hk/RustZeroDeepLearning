@@ -25,25 +25,20 @@ impl DataLoader {
     /// * batch_size (usize): バッチサイズ
     /// * shuffle (bool): データセットをシャッフルするかどうか
     pub fn init(dataset: Dataset, batch_size: usize, shuffle: bool) -> Self {
-        let data_size = dataset.clone().len();
+        let data_size = dataset.len();
 
-        let index = {
-            let mut vec = (0..data_size).collect::<Vec<usize>>();
-            if shuffle {
-                vec.shuffle(&mut thread_rng());
-            }
-            vec
-        };
-
-        Self {
+        let mut loader = Self {
             dataset: dataset,
             batch_size: batch_size,
             shuffle: shuffle,
             data_size: data_size,
             max_iter: data_size.div_ceil(batch_size),
             iteration: 0,
-            index: index,
-        }
+            index: (0..data_size).collect(),
+        };
+
+        loader.reset();
+        loader
     }
 
     /// 正解率
@@ -80,6 +75,14 @@ impl DataLoader {
         let acc = result / pred.len() as f64;
         acc
     }
+
+    /// データローダーをリセットする。
+    pub fn reset(&mut self) {
+        self.iteration = 0;
+        if self.shuffle {
+            self.index.shuffle(&mut thread_rng());
+        }
+    }
 }
 
 impl Iterator for DataLoader {
@@ -90,7 +93,7 @@ impl Iterator for DataLoader {
         }
 
         let batch_start = self.iteration * self.batch_size;
-        let batch_end = self.batch_size * (self.iteration + 1);
+        let batch_end = (batch_start + self.batch_size).min(self.data_size);
         let batch_index = &self.index[batch_start..batch_end];
         let batch = self.dataset.get_batch(batch_index);
         self.iteration += 1;
@@ -110,7 +113,7 @@ mod test {
         series::LineSeries,
         style::{Color, IntoFont, BLACK, RED, WHITE},
     };
-    use rand::seq::SliceRandom;
+    // use rand::seq::SliceRandom;
 
     use crate::modules::core::data_loader::DataLoader;
 
@@ -159,16 +162,19 @@ mod test {
         // データの読み込み、モデル・オプティマイザの生成
         // let (x, t) = datasets::get_spiral(true);
         //let spiral_train_set = SpiralDataSet::init(true);
-        let mut spiral_train_set = Dataset::init(true, Rc::new(RefCell::new(SpiralDataSet {})));
-        let train_data_loader = DataLoader::init(spiral_train_set.clone(), batch_size, true);
+        let spiral_train_set = Dataset::init(true, Rc::new(RefCell::new(SpiralDataSet {})));
+        let mut train_data_loader = DataLoader::init(spiral_train_set.clone(), batch_size, true);
 
-        let mut spiral_test_set = Dataset::init(false, Rc::new(RefCell::new(SpiralDataSet {})));
-        let test_data_loader = DataLoader::init(spiral_test_set.clone(), batch_size, true);
+        let spiral_test_set = Dataset::init(false, Rc::new(RefCell::new(SpiralDataSet {})));
+        let mut test_data_loader = DataLoader::init(spiral_test_set.clone(), batch_size, true);
 
         let mut loss_result = vec![];
         let mut acc_result = vec![];
 
         for epoch in 0..max_epoch {
+            train_data_loader.reset();
+            test_data_loader.reset();
+
             let mut sum_loss = 0.0;
             let mut sum_acc = 0.0;
 
@@ -177,7 +183,7 @@ mod test {
             // バックプロパゲーションを行う。
             Setting::set_backprop_enabled();
 
-            for (batch_x, batch_t) in train_data_loader.clone() {
+            for (batch_x, batch_t) in &mut train_data_loader {
                 // 勾配の算出、パラメータの更新
                 let y = mlp.forward(vec![batch_x.clone()]);
                 let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
@@ -209,7 +215,7 @@ mod test {
             let mut sum_loss = 0.0;
             let mut sum_acc = 0.0;
 
-            for (batch_x, batch_t) in test_data_loader.clone() {
+            for (batch_x, batch_t) in &mut test_data_loader {
                 // 勾配の算出、パラメータの更新
                 let y = mlp.forward(vec![batch_x.clone()]);
                 let loss = softmax_cross_entropy(y[0].clone(), batch_t.clone());
