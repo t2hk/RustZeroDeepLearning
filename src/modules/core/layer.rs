@@ -160,8 +160,8 @@ where
 /// レイヤの入出力やパラメータなどの値を保持する。
 #[derive(Debug, Clone)]
 pub struct LayerExecutor<V: MathOps + 'static> {
-    inputs: Vec<Weak<RefCell<Variable<V>>>>,   // 関数の入力値
-    outputs: Vec<Weak<RefCell<Variable<V>>>>,  //関数の出力値
+    inputs: Vec<Weak<RefCell<RawData<V>>>>,    // 関数の入力値
+    outputs: Vec<Weak<RefCell<RawData<V>>>>,   // 関数の出力値
     layer_function: Rc<RefCell<dyn Layer<V>>>, // レイヤー関数のトレイトオブジェクト
 }
 
@@ -188,9 +188,8 @@ impl<V: MathOps> LayerExecutor<V> {
     /// * inputs: Vec<Variable<V>>
     pub fn set_inputs(&mut self, inputs: Vec<Variable<V>>) {
         self.inputs = inputs
-            .clone()
             .iter()
-            .map(|input| Rc::downgrade(&Rc::new(RefCell::new(input.clone()))))
+            .map(|input| Rc::downgrade(&input.raw()))
             .collect();
     }
 
@@ -200,16 +199,15 @@ impl<V: MathOps> LayerExecutor<V> {
     /// * outputs: Vec<Variable<V>>
     pub fn set_outputs(&mut self, outputs: Vec<Variable<V>>) {
         self.outputs = outputs
-            .clone()
             .iter()
-            .map(|output| Rc::downgrade(&Rc::new(RefCell::new(output.clone()))))
+            .map(|output| Rc::downgrade(&output.raw()))
             .collect();
     }
     /// 入力値を取得する。
     ///
     /// Return
     /// * Vec<Weak<RefCell<Variable<V>>>>: 関数に対する入力値のベクタ
-    pub fn get_inputs(&self) -> Vec<Weak<RefCell<Variable<V>>>> {
+    pub fn get_inputs(&self) -> Vec<Weak<RefCell<RawData<V>>>> {
         self.inputs.clone()
     }
 
@@ -217,7 +215,7 @@ impl<V: MathOps> LayerExecutor<V> {
     ///
     /// Return
     /// * Vec<Weak<RefCell<Variable<V>>>>: 関数の出力値のベクタ
-    pub fn get_outputs(&self) -> Vec<Weak<RefCell<Variable<V>>>> {
+    pub fn get_outputs(&self) -> Vec<Weak<RefCell<RawData<V>>>> {
         self.outputs.clone()
     }
 

@@ -49,6 +49,10 @@ fn test_step33_second_differential() {
     x.clear_grad();
     gx.backward();
     let x_2nd_grad = x.get_grad().unwrap().get_data().clone();
+
+    // 計算グラフ上の微分値を消去し、循環参照を解消する。
+    gx.clear_graph_grads();
+
     debug!("x 2nd grad: {:?}", x_2nd_grad);
     assert_eq!(expected_2nd_grad, x_2nd_grad);
 }
@@ -86,6 +90,9 @@ fn test_step33_newton_method() {
 
         let new_x_data = x.get_data() - (gx.get_data() / gx2.get_data());
         x.set_data(new_x_data);
+
+        // 計算グラフ上の微分値を消去し、循環参照を解消する。
+        gx.clear_graph_grads();        
     }
     debug!("results: {:?}", results);
     // 書籍と同じ値になることを確認する。
@@ -116,12 +123,20 @@ fn test_high_diffeential_sin() {
     y.backward_create_graph();
 
     let mut results: Vec<f64> = vec![];
+    let mut gx = x.get_grad().unwrap();
     for _i in 0..3 {
-        let gx = &x.get_grad().unwrap();
         x.clear_grad();
         gx.backward_create_graph();
-        results.push(x.get_grad().unwrap().get_data()[[]]);
+
+        // 次の階の微分値を、グラフの微分値を消去する前に取り出しておく。
+        let next_gx = x.get_grad().unwrap();
+        results.push(next_gx.get_data()[[]]);
+
+        // 計算グラフ上の微分値を消去し、循環参照を解消する。
+        gx.clear_graph_grads();
+        gx = next_gx;
     }
+
     assert_eq!(-0.8414709848078965, results[0]);
     assert_eq!(-0.5403023058681398, results[1]);
     assert_eq!(0.8414709848078965, results[2]);
@@ -150,11 +165,18 @@ fn test_step34_graph() {
     logs.push(y_data.flatten().to_vec());
 
     // 3階微分まで実行
+    let mut gx = x.get_grad().unwrap();
     for _i in 0..3 {
-        logs.push(x.get_grad().unwrap().get_data().flatten().to_vec());
-        let gx = x.get_grad().unwrap();
+        logs.push(gx.get_data().flatten().to_vec());
         x.clear_grad();
         gx.backward_create_graph();
+
+        // 次の階の微分値を、グラフの微分値を消去する前に取り出しておく。
+        let next_gx = x.get_grad().unwrap();
+
+        // 計算グラフ上の微分値を消去し、循環参照を解消する。
+        gx.clear_graph_grads();
+        gx = next_gx;
     }
 
     // 描画先の Backend を初期化する。
@@ -243,6 +265,7 @@ fn test_step34_tanh() {
     gx.set_name(format!("gx{}", current).to_string());
     let file_name = format!("test_step35_tanh_{}.png", current);
     plot_dot_graph!(gx, file_name, true);
+    gx.clear_graph_grads();
 }
 
 #[test]
@@ -299,4 +322,7 @@ fn tests_stage36_double_backprop() {
     let file_name = "test_step36_backprop.png";
     let x_grad = x.get_grad().unwrap();
     plot_dot_graph!(x_grad, file_name, true);
+    
+    // 計算グラフ上の微分値を消去し、循環参照を解消する。
+    z.clear_graph_grads();    
 }

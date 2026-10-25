@@ -395,6 +395,9 @@ pub trait RawDataProcessor<V: MathOps> {
 
     /// 逆伝播を実行する。
     /// 高階微分のため、微分値の計算グラフも作成する。
+    /// 
+    /// 注意) 微分値が計算グラフを保持するため、入力値との間に循環参照が発生する。
+    /// 微分値を使い終わったら Variable::clear_graph_grads() を呼び出して解放すること。
     fn backward_create_graph(&self) {
         self.raw().as_ref().clone().borrow().backward(true);
     }

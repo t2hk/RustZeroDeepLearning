@@ -62,6 +62,17 @@ impl<V: MathOps> Variable<V> {
     pub fn transpose(&self) -> Self {
         return transpose(self.clone());
     }
+
+    /// この変数から辿れる計算グラフ上の全ての変数の微分値を消去する。
+    /// backward_create_graph() で生じる循環参照を解消するため、使用後に呼び出すこと。
+    pub fn clear_graph_grads(&self) {
+        self.clear_grad();
+        for (_, creator) in FunctionExecutor::extract_creators(vec![self.clone()]) {
+            for input in creator.borrow().get_inputs() {
+                input.clear_grad();
+            }
+        }
+    }    
 }
 
 #[cfg(test)]

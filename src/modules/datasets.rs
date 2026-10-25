@@ -183,7 +183,7 @@ pub fn get_spiral(train: bool) -> (Array<f64, IxDyn>, Array<usize, IxDyn>) {
     let data_size = num_class * num_data;
 
     let mut x: Array<f64, _> = Array::zeros((data_size, input_dim));
-    let mut t: Array<usize, _> = Array::zeros((data_size));
+    let mut t: Array<usize, _> = Array::zeros(data_size);
 
     for j in 0..num_class {
         for i in 0..num_data {
